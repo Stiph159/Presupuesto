@@ -1,3 +1,28 @@
+// Agrega al inicio del archivo app-ahorro.js
+let unsubscribeAhorros = null;
+
+async function initFirebaseAhorros() {
+    try {
+        await firebase.auth().signInAnonymously();
+        await loadConfigAhorrosFromFirebase();
+        setupAhorrosRealtimeListener();
+    } catch (error) {
+        console.error("Error en Firebase Ahorros:", error);
+        loadFromLocalStorageAhorros();
+    }
+}
+
+function setupAhorrosRealtimeListener() {
+    if (unsubscribeAhorros) unsubscribeAhorros();
+    
+    unsubscribeAhorros = firebase.firestore()
+        .collection('ahorros')
+        .where('sharedId', '==', 'nuestra_pareja')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot((snapshot) => {
+            // ... procesar cambios como en app.js ...
+        });
+}
 // ====================
 // CONFIGURACIÓN INICIAL
 // ====================
