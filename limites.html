@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚫 Límites de Gasto</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style-limites.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚫</text></svg>">
+</head>
+<body>
+    <!-- Modo oscuro toggle -->
+    <div class="theme-toggle">
+        <button id="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <div class="container">
+        <!-- Botón de volver -->
+        <div class="back-button">
+            <button id="back-btn">
+                <i class="fas fa-arrow-left"></i> Volver a Gastos
+            </button>
+        </div>
+
+        <!-- Encabezado -->
+        <header>
+            <h1><i class="fas fa-ban"></i> Límites de Gasto</h1>
+            <div class="header-info">
+                <button class="edit-names-btn" id="edit-names">
+                    <i class="fas fa-edit"></i> Editar nombres
+                </button>
+            </div>
+        </header>
+
+        <!-- Sección de opciones de límite -->
+        <section class="opciones-section">
+            <h3><i class="fas fa-sliders-h"></i> Selecciona tu Límite Diario</h3>
+            <p class="section-subtitle">El exceso se divide entre ambos como ahorro forzado</p>
+            
+            <div class="opciones-grid">
+                <div class="opcion-card" data-limit="30">
+                    <div class="opcion-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Límite Estricto</h4>
+                        <p class="opcion-desc">Control máximo</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor">30.00</span>
+                        </div>
+                    </div>
+                    <div class="opcion-badge">Recomendado</div>
+                </div>
+                
+                <div class="opcion-card" data-limit="20">
+                    <div class="opcion-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Límite Moderado</h4>
+                        <p class="opcion-desc">Equilibrio perfecto</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor">20.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="opcion-card" data-limit="10">
+                    <div class="opcion-icon">
+                        <i class="fas fa-feather"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Límite Suave</h4>
+                        <p class="opcion-desc">Para días tranquilos</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor">10.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="opcion-card" data-limit="0">
+                    <div class="opcion-icon">
+                        <i class="fas fa-infinity"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Sin Límite</h4>
+                        <p class="opcion-desc">Todo se divide en 2</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor">Todo</span>
+                        </div>
+                    </div>
+                    <div class="opcion-badge">Especial</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de entrada -->
+        <section class="input-section">
+            <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
+                <div class="selected-opcion">
+                    <span>Límite seleccionado: <strong id="opcion-seleccionada-texto"></strong></span>
+                    <span>Tipo: <strong id="opcion-seleccionada-tipo"></strong></span>
+                </div>
+            </div>
+
+                <!-- Input de gasto real -->
+                <div class="input-row">
+                    <div class="input-group">
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="gasto-real" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+                    
+                    <input type="text" id="descripcion-limite" placeholder="¿En qué gastamos? (opcional)" maxlength="50">
+                </div>
+
+            <!-- Fecha -->
+            <div class="date-selector">
+                <label for="fecha-limite">
+                    <i class="far fa-calendar"></i> Fecha:
+                </label>
+                <input type="date" id="fecha-limite" value="">
+            </div>
+
+            <!-- Botón principal -->
+            <button id="calcular-btn" class="add-btn" disabled>
+                <i class="fas fa-calculator"></i> CALCULAR
+            </button>
+        </section>
+
+        <!-- Resultado del cálculo -->
+        <section class="result-section" id="result-section" style="display: none;">
+            <h3><i class="fas fa-chart-bar"></i> Resultado del Día</h3>
+            
+            <div class="result-grid">
+                <div class="result-card">
+                    <div class="result-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="result-content">
+                        <h4>Gasto Real</h4>
+                        <div class="result-value" id="result-gasto-real">$0.00</div>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="result-content">
+                        <h4>Límite</h4>
+                        <div class="result-value" id="result-limite">$0.00</div>
+                    </div>
+                </div>
+                
+                <div class="result-card accent">
+                    <div class="result-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="result-content">
+                        <h4>Exceso</h4>
+                        <div class="result-value" id="result-exceso">$0.00</div>
+                    </div>
+                </div>
+                
+                <div class="result-card success">
+                    <div class="result-icon">
+                        <i class="fas fa-piggy-bank"></i>
+                    </div>
+                    <div class="result-content">
+                        <h4>Ahorro Forzado</h4>
+                        <div class="result-value" id="result-ahorro-total">$0.00</div>
+                        <p class="result-detail">(Entre ambos)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desglose por persona -->
+            <div class="person-breakdown">
+                <h4><i class="fas fa-users"></i> Desglose por Persona</h4>
+                <div class="breakdown-grid">
+                    <div class="person-result">
+                        <div class="person-avatar">👤</div>
+                        <div class="person-info">
+                            <span id="name-persona1-result">Yo</span>
+                            <div class="person-amount" id="ahorro-persona1">$0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="person-result">
+                        <div class="person-avatar">👩</div>
+                        <div class="person-info">
+                            <span id="name-persona2-result">Ella</span>
+                            <div class="person-amount" id="ahorro-persona2">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón guardar -->
+            <button id="guardar-btn" class="save-btn">
+                <i class="fas fa-save"></i> GUARDAR REGISTRO
+            </button>
+        </section>
+
+        <!-- Resumen rápido -->
+        <section class="quick-summary">
+            <div class="summary-card">
+                <h4><i class="far fa-clock"></i> Hoy</h4>
+                <div class="summary-amount" id="summary-hoy-limite">$0</div>
+            </div>
+            <div class="summary-card">
+                <h4><i class="far fa-calendar-alt"></i> Esta Semana</h4>
+                <div class="summary-amount" id="summary-semana-limite">$0</div>
+            </div>
+            <div class="summary-card">
+                <h4><i class="fas fa-calendar-alt"></i> Este Mes</h4>
+                <div class="summary-amount" id="summary-mes-limite">$0</div>
+            </div>
+        </section>
+
+        <!-- Sección de gráficos -->
+        <section class="charts-section" id="charts-section">
+            <div class="charts-header">
+                <h3><i class="fas fa-chart-bar"></i> Resumen Visual</h3>
+                <div class="chart-options">
+                    <button class="chart-option active" data-chart="excesos">Excesos por Día</button>
+                    <button class="chart-option" data-chart="ahorros">Ahorro Forzado</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="limites-chart"></canvas>
+            </div>
+        </section>
+
+        <!-- Botones de acción -->
+        <section class="action-buttons">
+            <button class="action-btn" data-action="ver-mis-limites">
+                <i class="fas fa-user"></i> Mis Excesos
+            </button>
+            <button class="action-btn" data-action="ver-sus-limites">
+                <i class="fas fa-user-friends"></i> Sus Excesos
+            </button>
+            <button class="action-btn" data-action="ver-semana-limites">
+                <i class="fas fa-calendar-week"></i> Esta Semana
+            </button>
+            <button class="action-btn" data-action="ver-todos-limites">
+                <i class="fas fa-list"></i> Todos
+            </button>
+        </section>
+
+        <!-- Lista de registros -->
+        <section class="gastos-list-section">
+            <div class="list-header">
+                <h3 id="list-title-limites">Historial de Límites</h3>
+                <div class="list-actions">
+                    <button class="list-action-btn" id="clear-all" title="Limpiar todo">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="gastos-container" id="registros-container">
+                <!-- Los registros se cargan aquí dinámicamente -->
+            </div>
+
+            <!-- Estado vacío -->
+            <div class="empty-state" id="empty-state-limites">
+                <i class="far fa-smile-beam"></i>
+                <h4>¡No hay registros aún!</h4>
+                <p>Calcula y guarda tu primer registro.</p>
+            </div>
+
+            <!-- Totales -->
+            <div class="totales" id="totales-limites">
+                <div class="total-item">
+                    <span>Total ahorro forzado:</span>
+                    <strong id="total-ahorro-forzado">$0.00</strong>
+                </div>
+                <div class="total-item">
+                    <span>Total días con exceso:</span>
+                    <strong id="total-dias-exceso">0</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal para editar nombres -->
+        <div class="modal" id="names-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-users"></i> Personalizar Nombres</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="nombre-persona1">Tu nombre:</label>
+                        <input type="text" id="nombre-persona1" placeholder="Ej: Juan">
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="nombre-persona2">Su nombre:</label>
+                        <input type="text" id="nombre-persona2" placeholder="Ej: María">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-names">Cancelar</button>
+                    <button class="modal-btn save" id="save-names">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app-limites.js"></script>
+</body>
+</html>

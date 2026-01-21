@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💖 Nuestro Ahorro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style-ahorro.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>">
+</head>
+<body>
+    <!-- Modo oscuro toggle -->
+    <div class="theme-toggle">
+        <button id="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <div class="container">
+        <!-- Botón de volver -->
+        <div class="back-button">
+            <button id="back-btn">
+                <i class="fas fa-arrow-left"></i> Volver a Gastos
+            </button>
+        </div>
+
+        <!-- Encabezado -->
+        <header>
+            <h1><i class="fas fa-piggy-bank"></i> Nuestro Ahorro</h1>
+            <div class="header-info">
+                <button class="edit-names-btn" id="edit-names">
+                    <i class="fas fa-edit"></i> Editar nombres
+                </button>
+            </div>
+        </header>
+
+        
+        <!-- Sección de opciones de ahorro -->
+        <section class="opciones-section">
+            <h3><i class="fas fa-coins"></i> Opciones de Ahorro</h3>
+            <p class="section-subtitle">Selecciona una opción para agregar a tu ahorro</p>
+            
+            <div class="opciones-grid">
+                <div class="opcion-card" data-opcion="1">
+                    <div class="opcion-icon">
+                        <i class="fas fa-coffee"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Opción 1</h4>
+                        <p class="opcion-desc">Ahorro pequeño diario</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor" id="monto-opcion1">4.00</span>
+                        </div>
+                    </div>
+                    <div class="opcion-badge">Diario</div>
+                </div>
+                
+                <div class="opcion-card" data-opcion="2">
+                    <div class="opcion-icon">
+                        <i class="fas fa-hamburger"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Opción 2</h4>
+                        <p class="opcion-desc">Ahorro medio semanal</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor" id="monto-opcion2">5.00</span>
+                        </div>
+                    </div>
+                    <div class="opcion-badge">Semanal</div>
+                </div>
+                
+                <div class="opcion-card" data-opcion="3">
+                    <div class="opcion-icon">
+                        <i class="fas fa-film"></i>
+                    </div>
+                    <div class="opcion-content">
+                        <h4>Opción 3</h4>
+                        <p class="opcion-desc">Ahorro grande ocasional</p>
+                        <div class="opcion-monto">
+                            <span class="monto-simbolo">$</span>
+                            <span class="monto-valor" id="monto-opcion3">6.00</span>
+                        </div>
+                    </div>
+                    <div class="opcion-badge">Ocasional</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de entrada -->
+        <section class="input-section">
+            <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
+                <div class="selected-opcion">
+                    <span>Opción seleccionada: <strong id="opcion-seleccionada-texto"></strong></span>
+                    <span>Monto: <strong id="opcion-seleccionada-monto"></strong></span>
+                </div>
+            </div>
+
+            <!-- Selector de persona -->
+            <div class="person-selector">
+                <div class="person-option active" data-person="persona1">
+                    <div class="person-avatar">👤</div>
+                    <span id="name-persona1">Yo</span>
+                </div>
+                <div class="person-option" data-person="persona2">
+                    <div class="person-avatar">👩</div>
+                    <span id="name-persona2">Ella</span>
+                </div>
+            </div>
+
+            <!-- Descripción opcional -->
+            <div class="input-group">
+                <input type="text" id="descripcion-ahorro" placeholder="Descripción (opcional)" maxlength="50">
+            </div>
+
+            <!-- Fecha personalizable -->
+            <div class="date-selector">
+                <label for="fecha-ahorro">
+                    <i class="far fa-calendar"></i> Fecha:
+                </label>
+                <input type="date" id="fecha-ahorro" value="">
+            </div>
+
+            <!-- Botón principal -->
+            <button id="add-ahorro-btn" class="add-btn" disabled>
+                <i class="fas fa-plus-circle"></i> AGREGAR AHORRO
+            </button>
+        </section>
+
+        <!-- Estadísticas motivacionales -->
+        <section class="stats-section">
+            <h3><i class="fas fa-chart-line"></i> Tu Progreso</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h4>Racha Actual</h4>
+                        <div class="stat-value" id="racha-dias">0 días</div>
+                        <p class="stat-desc">Siguiendo el hábito</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h4>Promedio Diario</h4>
+                        <div class="stat-value" id="promedio-diario">$0.00</div>
+                        <p class="stat-desc">Últimos 30 días</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h4>Proyección</h4>
+                        <div class="stat-value" id="proyeccion-6meses">$0.00</div>
+                        <p class="stat-desc">En 6 meses</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h4>Equilibrio</h4>
+                        <div class="stat-value" id="diferencia-ahorro">$0.00</div>
+                        <p class="stat-desc">Diferencia entre ambos</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tips de ahorro -->
+        <section class="tips-section">
+            <div class="tips-header">
+                <h3><i class="fas fa-lightbulb"></i> Tips de Ahorro</h3>
+                <button class="refresh-tip-btn" id="refresh-tip">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+            <div class="tip-content">
+                <p id="tip-text">"Cada moneda cuenta. Pequeños ahorros diarios se convierten en grandes sumas con el tiempo."</p>
+            </div>
+        </section>
+
+        <!-- Botones de acción -->
+        <section class="action-buttons">
+            <button class="action-btn" data-action="ver-mis-ahorros">
+                <i class="fas fa-user"></i> Mis Ahorros
+            </button>
+            <button class="action-btn" data-action="ver-sus-ahorros">
+                <i class="fas fa-user-friends"></i> Sus Ahorros
+            </button>
+            <button class="action-btn" data-action="ver-mes">
+                <i class="fas fa-calendar-alt"></i> Este Mes
+            </button>
+            <button class="action-btn" data-action="ver-todos-ahorros">
+                <i class="fas fa-list"></i> Todos
+            </button>
+        </section>
+
+        <!-- Sección de gráficos -->
+        <section class="charts-section" id="charts-section">
+            <div class="charts-header">
+                <h3><i class="fas fa-chart-pie"></i> Resumen Visual</h3>
+                <div class="chart-options">
+                    <button class="chart-option active" data-chart="opciones">Por Opción</button>
+                    <button class="chart-option" data-chart="personas">Por Persona</button>
+                    <button class="chart-option" data-chart="tiempo">Evolución</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="ahorro-chart"></canvas>
+            </div>
+        </section>
+
+        <!-- Resumen rápido -->
+        <section class="quick-summary">
+            <div class="summary-card">
+                <h4><i class="far fa-clock"></i> Hoy</h4>
+                <div class="summary-amount" id="summary-hoy-ahorro">$0</div>
+            </div>
+            <div class="summary-card">
+                <h4><i class="far fa-calendar-alt"></i> Este Mes</h4>
+                <div class="summary-amount" id="summary-mes-ahorro">$0</div>
+            </div>
+            <div class="summary-card">
+                <h4><i class="fas fa-bullseye"></i> % Meta</h4>
+                <div class="summary-amount" id="summary-porcentaje-meta">0%</div>
+            </div>
+        </section>
+
+        <!-- agregar nuevo aqui -->
+        <!-- Sección de metas -->
+        <section class="metas-section">
+            <div class="metas-header">
+                <h3><i class="fas fa-bullseye"></i> Metas de Ahorro</h3>
+                <button class="edit-meta-btn" id="edit-meta">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+            
+            <div class="metas-display">
+                <div class="meta-card">
+                    <h4>Meta Mensual</h4>
+                    <div class="meta-amount" id="meta-mensual">$500</div>
+                    <div class="progress-bar small">
+                        <div class="progress-fill" id="progress-mensual"></div>
+                    </div>
+                    <div class="meta-info">
+                        <span>Ahorrado: <strong id="ahorrado-mensual">$0</strong></span>
+                        <span>Restante: <strong id="restante-mensual">$500</strong></span>
+                    </div>
+                </div>
+                
+                <div class="meta-card">
+                    <h4>Meta Anual</h4>
+                    <div class="meta-amount" id="meta-anual">$6000</div>
+                    <div class="progress-bar small">
+                        <div class="progress-fill" id="progress-anual"></div>
+                    </div>
+                    <div class="meta-info">
+                        <span>Ahorrado: <strong id="ahorrado-anual">$0</strong></span>
+                        <span>Restante: <strong id="restante-anual">$6000</strong></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Lista de ahorros -->
+        <section class="ahorros-list-section">
+            <div class="list-header">
+                <h3 id="list-title-ahorro">Todos los Ahorros</h3>
+                <div class="list-actions">
+                    <button class="list-action-btn" id="export-ahorro-btn" title="Exportar">
+                        <i class="fas fa-file-export"></i>
+                    </button>
+                    <button class="list-action-btn" id="search-toggle-ahorro" title="Buscar">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="list-action-btn" id="clear-filters-ahorro" title="Limpiar filtros">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Búsqueda -->
+            <div class="search-box" id="search-box-ahorro" style="display: none;">
+                <input type="text" id="search-input-ahorro" placeholder="Buscar por descripción...">
+                <button id="search-clear-ahorro">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filters" id="filters-ahorro">
+                <select id="filter-opcion">
+                    <option value="">Todas las opciones</option>
+                    <option value="1">Opción 1</option>
+                    <option value="2">Opción 2</option>
+                    <option value="3">Opción 3</option>
+                </select>
+                
+                <select id="filter-person-ahorro">
+                    <option value="">Ambas personas</option>
+                    <option value="persona1">Yo</option>
+                    <option value="persona2">Ella</option>
+                </select>
+                
+                <select id="filter-date-ahorro">
+                    <option value="all">Todos los tiempos</option>
+                    <option value="today">Hoy</option>
+                    <option value="week">Esta semana</option>
+                    <option value="month">Este mes</option>
+                    <option value="custom">Personalizado</option>
+                </select>
+            </div>
+
+            <!-- Lista -->
+            <div class="ahorros-container" id="ahorros-container">
+                <!-- Los ahorros se cargan aquí dinámicamente -->
+            </div>
+
+            <!-- Estado vacío -->
+            <div class="empty-state" id="empty-state-ahorro">
+                <i class="far fa-smile-beam"></i>
+                <h4>¡No hay ahorros aún!</h4>
+                <p>Selecciona una opción y agrega tu primer ahorro.</p>
+            </div>
+
+            <!-- Totales -->
+            <div class="totales" id="totales-ahorro">
+                <div class="total-item">
+                    <span>Total filtrado:</span>
+                    <strong id="total-filtrado-ahorro">$0.00</strong>
+                </div>
+                <div class="total-item">
+                    <span>Total general:</span>
+                    <strong id="total-general-ahorro">$0.00</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal para editar nombres -->
+        <div class="modal" id="names-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-users"></i> Personalizar Nombres</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="nombre-persona1">Tu nombre:</label>
+                        <input type="text" id="nombre-persona1" placeholder="Ej: Juan">
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="nombre-persona2">Su nombre:</label>
+                        <input type="text" id="nombre-persona2" placeholder="Ej: María">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-names">Cancelar</button>
+                    <button class="modal-btn save" id="save-names">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para editar metas -->
+        <div class="modal" id="meta-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-bullseye"></i> Configurar Metas</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="meta-mensual-input">Meta mensual de ahorro:</label>
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="meta-mensual-input" value="500" min="0" step="50">
+                        </div>
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="meta-anual-input">Meta anual de ahorro:</label>
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="meta-anual-input" value="6000" min="0" step="100">
+                        </div>
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="reset-mensual">
+                            <input type="checkbox" id="reset-mensual">
+                            Reiniciar meta mensual cada mes
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-meta">Cancelar</button>
+                    <button class="modal-btn save" id="save-meta">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para editar montos de opciones -->
+        <div class="modal" id="montos-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-edit"></i> Editar Montos de Ahorro</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="monto-opcion1-input">Opción 1 (Pequeño):</label>
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="monto-opcion1-input" value="4.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="monto-opcion2-input">Opción 2 (Medio):</label>
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="monto-opcion2-input" value="5.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="monto-opcion3-input">Opción 3 (Grande):</label>
+                        <div class="input-with-currency">
+                            <span class="currency">$</span>
+                            <input type="number" id="monto-opcion3-input" value="6.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-montos">Cancelar</button>
+                    <button class="modal-btn save" id="save-montos">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app-ahorro.js"></script>
+</body>
+</html>

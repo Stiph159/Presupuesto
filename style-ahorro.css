@@ -1,0 +1,360 @@
+/* Estilos específicos para la página de ahorro */
+
+/* Botón de volver */
+.back-button {
+    margin-bottom: 20px;
+}
+
+#back-btn {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#back-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Sección de metas */
+.metas-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.metas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.edit-meta-btn {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.metas-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.meta-card {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+.meta-amount {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 10px 0;
+}
+
+.progress-bar.small {
+    height: 10px;
+    margin: 10px 0;
+}
+
+.meta-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 10px;
+}
+
+/* Opciones de ahorro */
+.opciones-section {
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.section-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.opciones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.opcion-card {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    border: 2px solid var(--border-color);
+}
+
+.opcion-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--hover-shadow);
+    border-color: var(--primary-color);
+}
+
+.opcion-card.selected {
+    border-color: var(--success-color);
+    background: linear-gradient(135deg, var(--bg-color) 0%, rgba(56, 161, 105, 0.1) 100%);
+}
+
+.opcion-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.opcion-content {
+    text-align: center;
+}
+
+.opcion-content h4 {
+    margin-bottom: 5px;
+    color: var(--text-color);
+}
+
+.opcion-desc {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.opcion-monto {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--success-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.monto-simbolo {
+    font-size: 1.2rem;
+}
+
+.opcion-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--primary-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Opción seleccionada */
+.opcion-seleccionada {
+    background: linear-gradient(135deg, var(--success-color) 0%, rgba(56, 161, 105, 0.1) 100%);
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    border: 2px solid var(--success-color);
+}
+
+.selected-opcion {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Estadísticas */
+.stats-section {
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color);
+    margin: 5px 0;
+}
+
+.stat-desc {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Tips de ahorro */
+.tips-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    padding: 20px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+    color: white;
+}
+
+.tips-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.tips-header h3 {
+    color: white;
+    margin: 0;
+}
+
+.refresh-tip-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-tip-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.tip-content {
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+/* Lista de ahorros */
+.ahorros-list-section {
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 40px;
+}
+
+.ahorro-item {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 15px;
+    border-left: 5px solid var(--success-color);
+    position: relative;
+}
+
+.ahorro-item.persona1 {
+    border-left-color: #4299e1;
+}
+
+.ahorro-item.persona2 {
+    border-left-color: #ed64a6;
+}
+
+.ahorro-monto {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.ahorro-opcion {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-right: 10px;
+}
+
+/* Badges para opciones */
+.badge-opcion1 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.badge-opcion2 {
+    background: linear-gradient(135deg, #f56565 0%, #ed8936 100%);
+}
+
+.badge-opcion3 {
+    background: linear-gradient(135deg, #38a169 0%, #68d391 100%);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .metas-display {
+        grid-template-columns: 1fr;
+    }
+    
+    .opciones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .selected-opcion {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
