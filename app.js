@@ -191,10 +191,17 @@ async function deleteGastoFromFirebase(id) {
 // Guardar configuración en Firebase
 async function saveConfigToFirebase() {
     try {
+        // Asegurar que los nombres también se guarden
+        const configData = {
+            ...config,
+            ahorroConfig: window.configAhorro || null, // Referencia a la config de ahorros
+            // Los nombres ya están en config.nombres
+        };
+        
         await firebase.firestore()
             .collection('config')
             .doc('nuestra_pareja')
-            .set(config, { merge: true });
+            .set(configData, { merge: true });
         console.log("✅ Configuración guardada en Firebase");
     } catch (error) {
         console.error("❌ Error guardando configuración:", error);

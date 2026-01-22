@@ -39,3 +39,5 @@ window.firebaseConfig = {
     CONFIG_COLLECTION,
     SHARED_DOC_ID
 };
+
+console.log("✅ Firebase configurado correctamente");
