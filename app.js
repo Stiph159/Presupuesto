@@ -78,6 +78,9 @@ async function loadConfigFromFirebase() {
 }
 
 // Configurar escuchas en tiempo real
+// CONFIGURACIÓN DE LISTENERS - VERSIÓN MEJORADA
+// ====================
+
 function setupRealtimeListeners() {
     // Detener escuchas anteriores si existen
     if (unsubscribeGastos) unsubscribeGastos();
@@ -90,10 +93,67 @@ function setupRealtimeListeners() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            // Limpiar el array completamente
-            gastos = [];
+            console.log("🔄 Cambios detectados en gastos:", snapshot.docChanges().length);
             
-            // Llenar con los datos actuales de Firebase
+            // 🔥 DETECTAR SI HUBO CAMBIOS DESDE OTRO DISPOSITIVO
+            let huboCambiosRemotos = false;
+            const cambios = snapshot.docChanges();
+            
+            cambios.forEach(cambio => {
+                console.log(`  ${cambio.type}: ${cambio.doc.id}`);
+                
+                // Si el documento fue ELIMINADO o MODIFICADO, es muy probable que sea remoto
+                if (cambio.type === 'removed' || cambio.type === 'modified') {
+                    huboCambiosRemotos = true;
+                    console.log("  🔥 Posible cambio remoto detectado");
+                }
+                
+                // Si fue agregado, verificar si es local o remoto
+                if (cambio.type === 'added') {
+                    const docData = cambio.doc.data();
+                    const docId = cambio.doc.id;
+                    
+                    // Verificar si este documento ya existe localmente
+                    const existeLocal = gastos.some(g => g.id === docId);
+                    
+                    // Si NO existe localmente y tiene timestamp reciente (< 2 segundos), podría ser remoto
+                    if (!existeLocal) {
+                        const timestamp = docData.timestamp;
+                        if (timestamp) {
+                            const fechaDoc = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                            const ahora = new Date();
+                            const diferencia = ahora - fechaDoc;
+                            
+                            // Si el documento es más viejo que 2 segundos, probablemente vino de otro dispositivo
+                            if (diferencia > 2000) {
+                                huboCambiosRemotos = true;
+                                console.log("  🔥 Documento remoto detectado (timestamp antiguo)");
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 🔥 LIMPIAR CACHE LOCAL SI HUBO CAMBIOS REMOTOS
+            if (huboCambiosRemotos) {
+                console.log("🧹 Limpiando caché local por cambios remotos...");
+                
+                // Vaciar array local COMPLETAMENTE
+                gastos = [];
+                
+                // Opcional: limpiar localStorage
+                localStorage.removeItem('nuestros_gastos');
+                
+                // Recargar página después de 1 segundo para forzar sincronización
+                setTimeout(() => {
+                    console.log("🔄 Recargando para sincronizar...");
+                    location.reload();
+                }, 1000);
+            }
+            
+            // RECARGAR TODOS LOS DATOS DESDE FIREBASE (siempre)
+            gastos = []; // Vaciar primero
+            
             snapshot.forEach(doc => {
                 const gastoData = {
                     id: doc.id,
@@ -118,16 +178,16 @@ function setupRealtimeListeners() {
             // Actualizar UI
             actualizarUI();
             
-            // Guardar backup local
+            // Guardar en localStorage (SOLO datos de Firebase)
             saveToLocalStorage();
             
-            console.log("🔄 Gastos actualizados desde Firebase:", gastos.length);
+            console.log(`✅ Gastos actualizados: ${gastos.length} items`);
             
         }, (error) => {
             console.error("❌ Error en listener de gastos:", error);
         });
     
-    // Escuchar cambios en configuración
+    // Escuchar cambios en configuración (mantener igual)
     unsubscribeConfig = db.collection('config')
         .doc('nuestra_pareja')
         .onSnapshot((doc) => {

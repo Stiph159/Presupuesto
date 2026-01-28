@@ -92,55 +92,65 @@ function setupRealtimeListenersAhorro() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            const cambios = snapshot.docChanges();
-            let huboCambios = false;
+            console.log("💰 Cambios detectados en ahorros:", snapshot.docChanges().length);
             
-            cambios.forEach((cambio) => {
+            // 🔥 DETECTAR CAMBIOS REMOTOS
+            let huboCambiosRemotos = false;
+            const cambios = snapshot.docChanges();
+            
+            cambios.forEach(cambio => {
+                console.log(`  ${cambio.type}: ${cambio.doc.id}`);
+                
+                if (cambio.type === 'removed' || cambio.type === 'modified') {
+                    huboCambiosRemotos = true;
+                }
+            });
+            
+            // 🔥 LIMPIAR SI HAY CAMBIOS REMOTOS
+            if (huboCambiosRemotos) {
+                console.log("🧹 Limpiando caché de ahorros por cambios remotos...");
+                ahorros = [];
+                localStorage.removeItem('nuestros_ahorros');
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+            
+            // Recargar desde Firebase
+            ahorros = [];
+            
+            snapshot.forEach(doc => {
                 const ahorroData = {
-                    id: cambio.doc.id,
-                    ...cambio.doc.data()
+                    id: doc.id,
+                    ...doc.data()
                 };
                 
-                // Convertir timestamps de Firebase a Date
                 if (ahorroData.timestamp && ahorroData.timestamp.toDate) {
                     ahorroData.timestamp = ahorroData.timestamp.toDate();
                 }
                 
-                const index = ahorros.findIndex(a => a.id === ahorroData.id);
-                
-                if (cambio.type === 'added' && index === -1) {
-                    ahorros.unshift(ahorroData);
-                    huboCambios = true;
-                } else if (cambio.type === 'modified' && index !== -1) {
-                    ahorros[index] = ahorroData;
-                    huboCambios = true;
-                } else if (cambio.type === 'removed' && index !== -1) {
-                    ahorros.splice(index, 1);
-                    huboCambios = true;
-                }
+                ahorros.push(ahorroData);
             });
             
-            if (huboCambios) {
-                // Ordenar por fecha
-                ahorros.sort((a, b) => {
-                    const dateA = a.timestamp || new Date(a.fecha);
-                    const dateB = b.timestamp || new Date(b.fecha);
-                    return dateB - dateA;
-                });
-                
-                // Actualizar UI
-                actualizarUIAhorro();
-                
-                // Guardar backup local
-                saveAhorrosToLocalStorage();
-                
-                console.log("🔄 Ahorros actualizados desde la nube");
-            }
+            // Ordenar
+            ahorros.sort((a, b) => {
+                const dateA = a.timestamp || new Date(a.fecha);
+                const dateB = b.timestamp || new Date(b.fecha);
+                return dateB - dateA;
+            });
+            
+            // Actualizar UI
+            actualizarUIAhorro();
+            
+            // Guardar localmente
+            saveAhorrosToLocalStorage();
+            
         }, (error) => {
             console.error("❌ Error en listener de ahorros:", error);
         });
     
-    // Escuchar cambios en configuración
+    // Configuración (mantener igual)
     unsubscribeConfigAhorro = db.collection('config')
         .doc('nuestra_pareja')
         .onSnapshot((doc) => {
@@ -155,7 +165,6 @@ function setupRealtimeListenersAhorro() {
                 }
                 actualizarUIAhorro();
                 saveAhorrosToLocalStorage();
-                console.log("🔄 Configuración de ahorros actualizada desde la nube");
             }
         }, (error) => {
             console.error("❌ Error en listener de configuración de ahorros:", error);

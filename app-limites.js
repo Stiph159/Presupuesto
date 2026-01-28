@@ -62,7 +62,7 @@ async function loadConfigLimitesFromFirebase() {
 }
 
 function setupRealtimeListenersLimites() {
-    // Detener escuchas anteriores si existen
+    // Detener escuchas anteriores
     if (unsubscribeLimites) unsubscribeLimites();
     if (unsubscribeConfigLimites) unsubscribeConfigLimites();
     
@@ -73,55 +73,65 @@ function setupRealtimeListenersLimites() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            const cambios = snapshot.docChanges();
-            let huboCambios = false;
+            console.log("🚫 Cambios detectados en límites:", snapshot.docChanges().length);
             
-            cambios.forEach((cambio) => {
+            // 🔥 DETECTAR CAMBIOS REMOTOS
+            let huboCambiosRemotos = false;
+            const cambios = snapshot.docChanges();
+            
+            cambios.forEach(cambio => {
+                console.log(`  ${cambio.type}: ${cambio.doc.id}`);
+                
+                if (cambio.type === 'removed' || cambio.type === 'modified') {
+                    huboCambiosRemotos = true;
+                }
+            });
+            
+            // 🔥 LIMPIAR SI HAY CAMBIOS REMOTOS
+            if (huboCambiosRemotos) {
+                console.log("🧹 Limpiando caché de límites por cambios remotos...");
+                registrosLimites = [];
+                localStorage.removeItem('limites_registros');
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+            
+            // Recargar desde Firebase
+            registrosLimites = [];
+            
+            snapshot.forEach(doc => {
                 const limiteData = {
-                    id: cambio.doc.id,
-                    ...cambio.doc.data()
+                    id: doc.id,
+                    ...doc.data()
                 };
                 
-                // Convertir timestamps de Firebase a Date
                 if (limiteData.timestamp && limiteData.timestamp.toDate) {
                     limiteData.timestamp = limiteData.timestamp.toDate();
                 }
                 
-                const index = registrosLimites.findIndex(r => r.id === limiteData.id);
-                
-                if (cambio.type === 'added' && index === -1) {
-                    registrosLimites.unshift(limiteData);
-                    huboCambios = true;
-                } else if (cambio.type === 'modified' && index !== -1) {
-                    registrosLimites[index] = limiteData;
-                    huboCambios = true;
-                } else if (cambio.type === 'removed' && index !== -1) {
-                    registrosLimites.splice(index, 1);
-                    huboCambios = true;
-                }
+                registrosLimites.push(limiteData);
             });
             
-            if (huboCambios) {
-                // Ordenar por fecha
-                registrosLimites.sort((a, b) => {
-                    const dateA = a.timestamp || new Date(a.fecha);
-                    const dateB = b.timestamp || new Date(b.fecha);
-                    return dateB - dateA;
-                });
-                
-                // Actualizar UI
-                actualizarUILimites();
-                
-                // Guardar backup local
-                saveLimitesToLocalStorage();
-                
-                console.log("🔄 Límites actualizados desde la nube");
-            }
+            // Ordenar
+            registrosLimites.sort((a, b) => {
+                const dateA = a.timestamp || new Date(a.fecha);
+                const dateB = b.timestamp || new Date(b.fecha);
+                return dateB - dateA;
+            });
+            
+            // Actualizar UI
+            actualizarUILimites();
+            
+            // Guardar localmente
+            saveLimitesToLocalStorage();
+            
         }, (error) => {
             console.error("❌ Error en listener de límites:", error);
         });
     
-    // Escuchar cambios en configuración
+    // Configuración
     unsubscribeConfigLimites = db.collection('config')
         .doc('nuestra_pareja')
         .onSnapshot((doc) => {
@@ -133,7 +143,6 @@ function setupRealtimeListenersLimites() {
                 }
                 actualizarUILimites();
                 saveLimitesToLocalStorage();
-                console.log("🔄 Configuración de límites actualizada desde la nube");
             }
         }, (error) => {
             console.error("❌ Error en listener de configuración de límites:", error);
