@@ -449,11 +449,11 @@ async function guardarRegistroLimite() {
     };
     
     // Agregar al array local
-    registrosLimites.push(nuevoRegistro);
+    //registrosLimites.push(nuevoRegistro);
     
     // Actualizar UI
-    actualizarUILimites();
-    cargarRegistrosLimites();
+    //actualizarUILimites();
+    //cargarRegistrosLimites();
     
     // Limpiar formulario
     document.getElementById('gasto-real').value = '';

@@ -358,9 +358,9 @@ async function agregarAhorro() {
     };
     
     // Agregar al array local
-    ahorros.unshift(nuevoAhorro);
+    //ahorros.unshift(nuevoAhorro);     LOCAL ELIMINADO POR STIPH, PARA QUE NO SE DUPLIQUE
     
-    // Limpiar formulario
+     // Limpiar formulario
     document.getElementById('descripcion-ahorro').value = '';
     document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
     document.getElementById('opcion-seleccionada-info').style.display = 'none';
@@ -368,7 +368,7 @@ async function agregarAhorro() {
     habilitarBotonAgregar();
     
     // Actualizar UI inmediatamente
-    actualizarUIAhorro();
+    //actualizarUIAhorro();             LOCAL ELIMINADO POR STIPH, PARA QUE NO SE DUPLIQUE
     
     // Mostrar confirmación
     const nombrePersona = personaSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
