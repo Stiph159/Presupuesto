@@ -490,27 +490,28 @@ async function guardarRegistroLimite() {
 async function eliminarRegistroLimite(id) {
     if (!confirm('¿Estás seguro de eliminar este registro?')) return;
     
-    // Eliminar localmente
-    const index = registrosLimites.findIndex(r => r.id === id);
-    if (index === -1) return;
-    
-    registrosLimites.splice(index, 1);
-    
-    // Actualizar UI
-    actualizarUILimites();
-    mostrarNotificacion('Registro eliminado', 'success');
+    // Mostrar notificación inmediatamente
+    mostrarNotificacion('⏳ Eliminando registro...', 'info');
     
     // Intentar eliminar de Firebase
-    if (id && !id.toString().startsWith('local_')) {
-        try {
+    try {
+        if (id && !id.toString().startsWith('local_')) {
             await deleteLimiteFromFirebase(id);
-        } catch (error) {
-            console.error("No se pudo eliminar de Firebase:", error);
+            // La notificación de éxito vendrá del listener de Firebase
+        } else {
+            // Si es un ID local, eliminar del array local
+            const index = registrosLimites.findIndex(r => r.id === id);
+            if (index !== -1) {
+                registrosLimites.splice(index, 1);
+                actualizarUILimites();
+                saveLimitesToLocalStorage();
+                mostrarNotificacion('Registro eliminado (local)', 'success');
+            }
         }
+    } catch (error) {
+        console.error("Error eliminando registro:", error);
+        mostrarNotificacion('Error al eliminar el registro', 'error');
     }
-    
-    // Guardar backup local
-    saveLimitesToLocalStorage();
 }
 
 async function guardarNombres() {

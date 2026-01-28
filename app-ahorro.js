@@ -392,28 +392,28 @@ async function agregarAhorro() {
 async function eliminarAhorro(id) {
     if (!confirm('¿Estás seguro de eliminar este ahorro?')) return;
     
-    // Eliminar localmente
-    const index = ahorros.findIndex(a => a.id === id);
-    if (index === -1) return;
-    
-    const ahorroEliminado = ahorros[index];
-    ahorros.splice(index, 1);
-    
-    // Actualizar UI
-    actualizarUIAhorro();
-    mostrarNotificacion('Ahorro eliminado', 'success');
+    // Mostrar notificación inmediatamente
+    mostrarNotificacion('⏳ Eliminando ahorro...', 'info');
     
     // Intentar eliminar de Firebase
-    if (id && !id.toString().startsWith('local_')) {
-        try {
+    try {
+        if (id && !id.toString().startsWith('local_')) {
             await deleteAhorroFromFirebase(id);
-        } catch (error) {
-            console.error("No se pudo eliminar de Firebase:", error);
+            // La notificación de éxito vendrá del listener de Firebase
+        } else {
+            // Si es un ID local, eliminar del array local
+            const index = ahorros.findIndex(a => a.id === id);
+            if (index !== -1) {
+                ahorros.splice(index, 1);
+                actualizarUIAhorro();
+                saveAhorrosToLocalStorage();
+                mostrarNotificacion('Ahorro eliminado (local)', 'success');
+            }
         }
+    } catch (error) {
+        console.error("Error eliminando ahorro:", error);
+        mostrarNotificacion('Error al eliminar el ahorro', 'error');
     }
-    
-    // Guardar backup local
-    saveAhorrosToLocalStorage();
 }
 
 async function guardarNombres() {

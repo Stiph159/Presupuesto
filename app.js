@@ -90,13 +90,14 @@ function setupRealtimeListeners() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            const cambios = snapshot.docChanges();
-            let huboCambios = false;
+            // Limpiar el array completamente
+            gastos = [];
             
-            cambios.forEach((cambio) => {
+            // Llenar con los datos actuales de Firebase
+            snapshot.forEach(doc => {
                 const gastoData = {
-                    id: cambio.doc.id,
-                    ...cambio.doc.data()
+                    id: doc.id,
+                    ...doc.data()
                 };
                 
                 // Convertir timestamps de Firebase a Date
@@ -104,36 +105,24 @@ function setupRealtimeListeners() {
                     gastoData.timestamp = gastoData.timestamp.toDate();
                 }
                 
-                const index = gastos.findIndex(g => g.id === gastoData.id);
-                
-                if (cambio.type === 'added' && index === -1) {
-                    gastos.unshift(gastoData);
-                    huboCambios = true;
-                } else if (cambio.type === 'modified' && index !== -1) {
-                    gastos[index] = gastoData;
-                    huboCambios = true;
-                } else if (cambio.type === 'removed' && index !== -1) {
-                    gastos.splice(index, 1);
-                    huboCambios = true;
-                }
+                gastos.push(gastoData);
             });
             
-            if (huboCambios) {
-                // Ordenar por fecha
-                gastos.sort((a, b) => {
-                    const dateA = a.timestamp || new Date(a.fecha);
-                    const dateB = b.timestamp || new Date(b.fecha);
-                    return dateB - dateA;
-                });
-                
-                // Actualizar UI
-                actualizarUI();
-                
-                // Guardar backup local
-                saveToLocalStorage();
-                
-                console.log("🔄 Gastos actualizados desde la nube");
-            }
+            // Ordenar por fecha
+            gastos.sort((a, b) => {
+                const dateA = a.timestamp || new Date(a.fecha);
+                const dateB = b.timestamp || new Date(b.fecha);
+                return dateB - dateA;
+            });
+            
+            // Actualizar UI
+            actualizarUI();
+            
+            // Guardar backup local
+            saveToLocalStorage();
+            
+            console.log("🔄 Gastos actualizados desde Firebase:", gastos.length);
+            
         }, (error) => {
             console.error("❌ Error en listener de gastos:", error);
         });
@@ -315,7 +304,7 @@ async function agregarGasto() {
     };
     
     // Agregar al array local
-    gastos.unshift(nuevoGasto);
+    // gastos.unshift(nuevoGasto);  // ← COMENTADA: NO guardar localmente
     
     // Limpiar formulario
     document.getElementById('monto').value = '';
@@ -323,7 +312,7 @@ async function agregarGasto() {
     document.getElementById('monto').focus();
     
     // Actualizar UI inmediatamente
-    actualizarUI();
+    // actualizarUI();  // ← COMENTADA: NO actualizar UI localmente
     
     // Mostrar confirmación
     const nombrePersona = personaSeleccionada === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
@@ -347,28 +336,36 @@ async function agregarGasto() {
 async function eliminarGasto(id) {
     if (!confirm('¿Estás seguro de eliminar este gasto?')) return;
     
-    // Eliminar localmente
-    const index = gastos.findIndex(g => g.id === id);
-    if (index === -1) return;
+    // Mostrar notificación inmediatamente
+    mostrarNotificacion('⏳ Eliminando gasto...', 'info');
     
-    const gastoEliminado = gastos[index];
-    gastos.splice(index, 1);
+    // NO eliminar localmente - dejar que Firebase lo haga
+    // const index = gastos.findIndex(g => g.id === id);
+    // if (index === -1) return;
+    // gastos.splice(index, 1);  // ← COMENTADA
     
-    // Actualizar UI
-    actualizarUI();
-    mostrarNotificacion('Gasto eliminado', 'success');
+    // NO actualizar UI localmente - Firebase lo hará
+    // actualizarUI();  // ← COMENTADA
     
     // Intentar eliminar de Firebase
-    if (id && !id.toString().startsWith('local_')) {
-        try {
+    try {
+        if (id && !id.toString().startsWith('local_')) {
             await deleteGastoFromFirebase(id);
-        } catch (error) {
-            console.error("No se pudo eliminar de Firebase:", error);
+            // La notificación de éxito vendrá del listener de Firebase
+        } else {
+            // Si es un ID local, eliminar del array local
+            const index = gastos.findIndex(g => g.id === id);
+            if (index !== -1) {
+                gastos.splice(index, 1);
+                actualizarUI();
+                saveToLocalStorage();
+                mostrarNotificacion('Gasto eliminado (local)', 'success');
+            }
         }
+    } catch (error) {
+        console.error("Error eliminando gasto:", error);
+        mostrarNotificacion('Error al eliminar el gasto', 'error');
     }
-    
-    // Guardar backup local
-    saveToLocalStorage();
 }
 
 async function guardarNombres() {
