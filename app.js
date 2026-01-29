@@ -938,6 +938,9 @@ function ejecutarAccion(accion) {
         case 'ver-ahorros':
             window.location.href = 'ahorro.html';
             break;
+        case 'ver-dias-especiales':
+            window.location.href = 'dias-especiales.html';
+        break;
     }
 }
 

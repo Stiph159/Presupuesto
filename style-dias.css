@@ -1,0 +1,387 @@
+/* style-dias.css - Estilos específicos para días especiales */
+
+.back-button {
+    margin-bottom: 20px;
+}
+
+#back-btn {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#back-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Labels para inputs */
+.date-label, .toggle-label, .icon-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Toggle switch */
+.toggle-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+    margin-top: 5px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--success-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(30px);
+}
+
+/* Selector de iconos */
+.icon-selector {
+    margin: 20px 0;
+}
+
+.icon-options {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.icon-option {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    background: var(--card-bg);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid transparent;
+    box-shadow: var(--shadow);
+}
+
+.icon-option:hover {
+    transform: scale(1.1);
+    background: var(--primary-light);
+}
+
+.icon-option.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+}
+
+/* Sección de próximos días */
+.proximos-section {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+}
+
+.proximos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.proximos-header h3 {
+    margin: 0;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#dias-restantes {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.proximos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.proximo-item {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.proximo-icon {
+    font-size: 2.5rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+.proximo-content {
+    flex-grow: 1;
+}
+
+.proximo-content h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.2rem;
+}
+
+.proximo-content p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 0.95rem;
+}
+
+/* Items de día en la lista */
+.dia-item {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-left: 5px solid var(--primary-color);
+    animation: slideIn 0.3s ease;
+}
+
+.dia-item.pasado {
+    opacity: 0.7;
+    border-left-color: var(--text-secondary);
+}
+
+.dia-icon {
+    font-size: 2.5rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+.dia-content {
+    flex-grow: 1;
+}
+
+.dia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dia-nombre {
+    font-weight: bold;
+    color: var(--text-color);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.dia-fecha {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dia-notificacion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.dia-notificacion.on {
+    color: var(--success-color);
+}
+
+.dia-notificacion.off {
+    color: var(--text-secondary);
+}
+
+.dia-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Botón eliminar específico para días */
+.dia-actions .delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.dia-actions .delete-btn:hover {
+    background: rgba(245, 101, 101, 0.1);
+    transform: scale(1.1);
+}
+
+/* Estado vacío específico */
+#empty-state-dias {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+#empty-state-dias i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    opacity: 0.5;
+}
+
+#empty-state-dias h4 {
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+#empty-state-dias p {
+    color: var(--text-secondary);
+}
+
+/* Animaciones */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .proximo-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .proximo-icon {
+        min-width: auto;
+        font-size: 2rem;
+    }
+    
+    .icon-options {
+        justify-content: center;
+    }
+    
+    .icon-option {
+        width: 45px;
+        height: 45px;
+        font-size: 1.5rem;
+    }
+    
+    .dia-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .dia-icon {
+        min-width: auto;
+        font-size: 2rem;
+    }
+    
+    .dia-header {
+        justify-content: center;
+        flex-direction: column;
+    }
+    
+    .back-button button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .input-row {
+        flex-direction: column;
+    }
+    
+    .toggle-group {
+        margin-top: 15px;
+    }
+    
+    .filters {
+        flex-direction: column;
+    }
+    
+    .filters select {
+        width: 100%;
+    }
+}

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📅 Nuestros Días Especiales</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style-dias.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
+</head>
+<body>
+    <!-- Modo oscuro toggle -->
+    <div class="theme-toggle">
+        <button id="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <div class="container">
+        <!-- Botón de volver -->
+        <div class="back-button">
+            <button id="back-btn">
+                <i class="fas fa-arrow-left"></i> Volver a Gastos
+            </button>
+        </div>
+
+        <!-- Encabezado -->
+        <header>
+            <h1><i class="fas fa-calendar-heart"></i> Nuestros Días Especiales</h1>
+            <div class="header-info">
+                <button class="edit-names-btn" id="edit-names">
+                    <i class="fas fa-edit"></i> Editar nombres
+                </button>
+            </div>
+        </header>
+
+        <!-- Sección de entrada -->
+        <section class="input-section">
+            <div class="input-group">
+                <input type="text" id="nombre-dia" placeholder="¿Qué celebramos? (ej: Aniversario)" maxlength="30">
+            </div>
+            
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="fecha-dia" class="date-label">
+                        <i class="far fa-calendar"></i> Fecha:
+                    </label>
+                    <input type="date" id="fecha-dia" value="">
+                </div>
+                
+                <div class="toggle-group">
+                    <label for="notificacion-dia" class="toggle-label">
+                        <i class="fas fa-bell"></i> Notificación:
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" id="notificacion-dia" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Selector de icono -->
+            <div class="icon-selector">
+                <label class="icon-label"><i class="fas fa-icons"></i> Icono:</label>
+                <div class="icon-options">
+                    <div class="icon-option active" data-icon="❤️">❤️</div>
+                    <div class="icon-option" data-icon="🎂">🎂</div>
+                    <div class="icon-option" data-icon="🎉">🎉</div>
+                    <div class="icon-option" data-icon="🎁">🎁</div>
+                    <div class="icon-option" data-icon="🌟">🌟</div>
+                    <div class="icon-option" data-icon="💖">💖</div>
+                </div>
+            </div>
+
+            <!-- Botón principal -->
+            <button id="add-dia-btn" class="add-btn">
+                <i class="fas fa-calendar-plus"></i> AGREGAR DÍA ESPECIAL
+            </button>
+        </section>
+
+        <!-- Próximos días -->
+        <section class="proximos-section">
+            <div class="proximos-header">
+                <h3><i class="fas fa-calendar-day"></i> Próximos Días</h3>
+                <span id="dias-restantes">0 días próximos</span>
+            </div>
+            
+            <div class="proximos-container" id="proximos-container">
+                <!-- Los próximos días se cargan aquí -->
+            </div>
+        </section>
+
+        <!-- Lista de días -->
+        <section class="dias-list-section">
+            <div class="list-header">
+                <h3 id="list-title-dias">Todos los Días Especiales</h3>
+                <div class="list-actions">
+                    <button class="list-action-btn" id="search-toggle-dias" title="Buscar">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="list-action-btn" id="clear-filters-dias" title="Limpiar filtros">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Búsqueda -->
+            <div class="search-box" id="search-box-dias" style="display: none;">
+                <input type="text" id="search-input-dias" placeholder="Buscar por nombre...">
+                <button id="search-clear-dias">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filters" id="filters-dias">
+                <select id="filter-notificacion">
+                    <option value="">Todas las notificaciones</option>
+                    <option value="on">Con notificación</option>
+                    <option value="off">Sin notificación</option>
+                </select>
+                
+                <select id="filter-mes">
+                    <option value="">Todos los meses</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+                
+                <select id="filter-ano">
+                    <option value="">Todos los años</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                </select>
+            </div>
+
+            <!-- Lista -->
+            <div class="dias-container" id="dias-container">
+                <!-- Los días se cargan aquí dinámicamente -->
+            </div>
+
+            <!-- Estado vacío -->
+            <div class="empty-state" id="empty-state-dias">
+                <i class="far fa-calendar-plus"></i>
+                <h4>¡No hay días especiales aún!</h4>
+                <p>Agrega tu primer día especial usando el formulario arriba.</p>
+            </div>
+        </section>
+
+        <!-- Modal para editar nombres (IGUAL QUE TUS OTRAS PÁGINAS) -->
+        <div class="modal" id="names-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-users"></i> Personalizar Nombres</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="nombre-persona1">Tu nombre:</label>
+                        <input type="text" id="nombre-persona1" placeholder="Ej: Juan">
+                    </div>
+                    <div class="input-group-modal">
+                        <label for="nombre-persona2">Su nombre:</label>
+                        <input type="text" id="nombre-persona2" placeholder="Ej: María">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-names">Cancelar</button>
+                    <button class="modal-btn save" id="save-names">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app-dias.js"></script>
+</body>
+</html>
