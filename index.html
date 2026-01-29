@@ -33,7 +33,7 @@
             <div class="input-row">
                 <div class="input-group">
                     <input type="number" id="monto" placeholder="0.00" step="0.01" min="0">
-                    <span class="currency">$</span>
+                    <span class="currency">S/</span>
                 </div>
                 
                 <input type="text" id="descripcion" placeholder="¿En qué gastamos?" maxlength="50">
@@ -97,8 +97,8 @@
             
             <div class="budget-display">
                 <div class="budget-info">
-                    <span>Meta: $<span id="budget-amount">1500</span></span>
-                    <span>Restante: $<span id="budget-remaining">1500</span></span>
+                    <span>Meta: S/<span id="budget-amount">1500</span></span>
+                    <span>Restante: S/<span id="budget-remaining">1500</span></span>
                 </div>
                 <div class="progress-bar">
                     <div class="progress-fill" id="budget-progress"></div>
@@ -106,11 +106,11 @@
                 <div class="budget-stats">
                     <div class="stat">
                         <span class="stat-label">Tú</span>
-                        <span class="stat-value" id="budget-persona1">$0</span>
+                        <span class="stat-value" id="budget-persona1">S/0</span>
                     </div>
                     <div class="stat">
                         <span class="stat-label">Ella</span>
-                        <span class="stat-value" id="budget-persona2">$0</span>
+                        <span class="stat-value" id="budget-persona2">S/0</span>
                     </div>
                 </div>
             </div>
@@ -133,7 +133,7 @@
                 <i class="fas fa-user-friends"></i> Sus Gastos
             </button>
             <button class="action-btn" data-action="ver-dias-especiales">
-                <i class="fas fa-calendar-heart"></i> Días Especiales
+                <i class="fas fa-star"></i>  Días Especiales
             </button>
             <button class="action-btn" data-action="ver-todos">
                 <i class="fas fa-list"></i> Todos
@@ -159,15 +159,15 @@
         <section class="quick-summary">
             <div class="summary-card">
                 <h4><i class="far fa-clock"></i> Hoy</h4>
-                <div class="summary-amount" id="summary-hoy">$0</div>
+                <div class="summary-amount" id="summary-hoy">S/0</div>
             </div>
             <div class="summary-card">
                 <h4><i class="far fa-calendar-alt"></i> Esta Semana</h4>
-                <div class="summary-amount" id="summary-semana">$0</div>
+                <div class="summary-amount" id="summary-semana">S/0</div>
             </div>
             <div class="summary-card">
                 <h4><i class="fas fa-balance-scale"></i> Diferencia</h4>
-                <div class="summary-amount" id="summary-diferencia">$0</div>
+                <div class="summary-amount" id="summary-diferencia">S/0</div>
             </div>
         </section>
 
@@ -238,11 +238,11 @@
             <div class="totales" id="totales">
                 <div class="total-item">
                     <span>Total filtrado:</span>
-                    <strong id="total-filtrado">$0.00</strong>
+                    <strong id="total-filtrado">S/0.00</strong>
                 </div>
                 <div class="total-item">
                     <span>Total general:</span>
-                    <strong id="total-general">$0.00</strong>
+                    <strong id="total-general">S/0.00</strong>
                 </div>
             </div>
         </section>
@@ -276,7 +276,7 @@
                     <div class="input-group-modal">
                         <label for="presupuesto-semanal">Presupuesto semanal:</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="presupuesto-semanal" value="1500" min="0" step="100">
                         </div>
                     </div>

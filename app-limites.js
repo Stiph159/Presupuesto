@@ -477,7 +477,7 @@ async function guardarRegistroLimite() {
     // Mostrar confirmación
     const mensaje = calculo.dentroDeLimite 
         ? '⏳ Guardando... ¡Excelente! Cumpliste el límite del día'
-        : `⏳ Guardando... Ahorro forzado: $${calculo.ahorroTotal.toFixed(2)}`;
+        : `⏳ Guardando... Ahorro forzado: S/${calculo.ahorroTotal.toFixed(2)}`;
     
     mostrarNotificacion(mensaje, 'info');
     
@@ -606,12 +606,12 @@ function calcularLimite() {
     });
     
     // Mostrar resultados
-    document.getElementById('result-gasto-real').textContent = `$${gastoReal.toFixed(2)}`;
-    document.getElementById('result-limite').textContent = montoLimite === 0 ? 'Sin límite' : `$${montoLimite.toFixed(2)}`;
-    document.getElementById('result-exceso').textContent = `$${exceso.toFixed(2)}`;
-    document.getElementById('result-ahorro-total').textContent = `$${ahorroTotal.toFixed(2)}`;
-    document.getElementById('ahorro-persona1').textContent = `$${ahorroPorPersona.toFixed(2)}`;
-    document.getElementById('ahorro-persona2').textContent = `$${ahorroPorPersona.toFixed(2)}`;
+    document.getElementById('result-gasto-real').textContent = `S/${gastoReal.toFixed(2)}`;
+    document.getElementById('result-limite').textContent = montoLimite === 0 ? 'Sin límite' : `S/${montoLimite.toFixed(2)}`;
+    document.getElementById('result-exceso').textContent = `S/${exceso.toFixed(2)}`;
+    document.getElementById('result-ahorro-total').textContent = `S/${ahorroTotal.toFixed(2)}`;
+    document.getElementById('ahorro-persona1').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
+    document.getElementById('ahorro-persona2').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
     
     // Mostrar sección de resultados
     document.getElementById('result-section').style.display = 'block';
@@ -667,10 +667,10 @@ function actualizarResumenLimites() {
     const totalAhorroElement = document.getElementById('total-ahorro-forzado');
     const totalExcesosElement = document.getElementById('total-dias-exceso');
     
-    if (hoyElement) hoyElement.textContent = `$${totalHoy.toFixed(2)}`;
-    if (semanaElement) semanaElement.textContent = `$${totalSemana.toFixed(2)}`;
-    if (mesElement) mesElement.textContent = `$${totalMes.toFixed(2)}`;
-    if (totalAhorroElement) totalAhorroElement.textContent = `$${totalAhorro.toFixed(2)}`;
+    if (hoyElement) hoyElement.textContent = `S/${totalHoy.toFixed(2)}`;
+    if (semanaElement) semanaElement.textContent = `S/${totalSemana.toFixed(2)}`;
+    if (mesElement) mesElement.textContent = `S/${totalMes.toFixed(2)}`;
+    if (totalAhorroElement) totalAhorroElement.textContent = `S/${totalAhorro.toFixed(2)}`;
     if (totalExcesosElement) totalExcesosElement.textContent = totalExcesos;
 }
 
@@ -708,13 +708,13 @@ function cargarRegistrosLimites() {
         
         const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
         const statusText = registro.dentroDeLimite ? 'Dentro de límite' : 'Con exceso';
-        const limiteText = registro.limite === 0 ? 'Sin límite' : `Límite: $${registro.limite}`;
+        const limiteText = registro.limite === 0 ? 'Sin límite' : `Límite: S/${registro.limite}`;
         
         html += `
             <div class="registro-item ${clase}">
                 <div class="registro-header">
                     <div class="registro-status ${clase}">${statusText}</div>
-                    <div class="registro-monto">$${registro.gastoReal.toFixed(2)}</div>
+                    <div class="registro-monto">S/${registro.gastoReal.toFixed(2)}</div>
                     <button class="delete-btn" onclick="eliminarRegistroLimite('${registro.id}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -724,7 +724,7 @@ function cargarRegistrosLimites() {
                     <div class="gasto-info">
                         <span>${limiteText}</span>
                         ${!registro.dentroDeLimite ? 
-                            `<span>Ahorro: $${registro.ahorroTotal.toFixed(2)}</span>` : 
+                            `<span>Ahorro: S/${registro.ahorroTotal.toFixed(2)}</span>` : 
                             ''
                         }
                     </div>
@@ -753,7 +753,7 @@ function inicializarGraficoLimites() {
         data: {
             labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
             datasets: [{
-                label: 'Ahorro Forzado ($)',
+                label: 'Ahorro Forzado (S/)',
                 data: [0, 0, 0, 0, 0, 0, 0],
                 backgroundColor: '#667eea',
                 borderColor: '#764ba2',
@@ -857,7 +857,7 @@ function actualizarGraficoLimites(tipo) {
             datos.push(totalAhorro);
         });
         
-        chartLimitesInstance.data.datasets[0].label = 'Ahorro Semanal ($)';
+        chartLimitesInstance.data.datasets[0].label = 'Ahorro Semanal (S/)';
         chartLimitesInstance.data.datasets[0].backgroundColor = '#38a169';
     }
     

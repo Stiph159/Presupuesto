@@ -296,6 +296,10 @@ h1 {
     background: var(--bg-color);
     color: var(--text-color);
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
 /* Botón agregar */
@@ -673,3 +677,10 @@ h1 {
     border-color: #f44336;
     color: #fff;
 }
+
+.action-btn[data-action="ver-dias-especiales"] {
+    background-color: #ffa600;  /* Amarillo */
+    border-color: #ff9900;      /* Naranja */
+    color: #fff;
+}
+

@@ -51,7 +51,7 @@
                         <h4>Opción 1</h4>
                         <p class="opcion-desc">Ahorro pequeño diario</p>
                         <div class="opcion-monto">
-                            <span class="monto-simbolo">$</span>
+                            <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion1">4.00</span>
                         </div>
                     </div>
@@ -66,7 +66,7 @@
                         <h4>Opción 2</h4>
                         <p class="opcion-desc">Ahorro medio semanal</p>
                         <div class="opcion-monto">
-                            <span class="monto-simbolo">$</span>
+                            <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion2">5.00</span>
                         </div>
                     </div>
@@ -81,7 +81,7 @@
                         <h4>Opción 3</h4>
                         <p class="opcion-desc">Ahorro grande ocasional</p>
                         <div class="opcion-monto">
-                            <span class="monto-simbolo">$</span>
+                            <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion3">6.00</span>
                         </div>
                     </div>
@@ -151,7 +151,7 @@
                     </div>
                     <div class="stat-content">
                         <h4>Promedio Diario</h4>
-                        <div class="stat-value" id="promedio-diario">$0.00</div>
+                        <div class="stat-value" id="promedio-diario">S/0.00</div>
                         <p class="stat-desc">Últimos 30 días</p>
                     </div>
                 </div>
@@ -162,7 +162,7 @@
                     </div>
                     <div class="stat-content">
                         <h4>Proyección</h4>
-                        <div class="stat-value" id="proyeccion-6meses">$0.00</div>
+                        <div class="stat-value" id="proyeccion-6meses">S/0.00</div>
                         <p class="stat-desc">En 6 meses</p>
                     </div>
                 </div>
@@ -173,7 +173,7 @@
                     </div>
                     <div class="stat-content">
                         <h4>Equilibrio</h4>
-                        <div class="stat-value" id="diferencia-ahorro">$0.00</div>
+                        <div class="stat-value" id="diferencia-ahorro">S/0.00</div>
                         <p class="stat-desc">Diferencia entre ambos</p>
                     </div>
                 </div>
@@ -228,11 +228,11 @@
         <section class="quick-summary">
             <div class="summary-card">
                 <h4><i class="far fa-clock"></i> Hoy</h4>
-                <div class="summary-amount" id="summary-hoy-ahorro">$0</div>
+                <div class="summary-amount" id="summary-hoy-ahorro">S/0</div>
             </div>
             <div class="summary-card">
                 <h4><i class="far fa-calendar-alt"></i> Este Mes</h4>
-                <div class="summary-amount" id="summary-mes-ahorro">$0</div>
+                <div class="summary-amount" id="summary-mes-ahorro">S/0</div>
             </div>
             <div class="summary-card">
                 <h4><i class="fas fa-bullseye"></i> % Meta</h4>
@@ -253,25 +253,25 @@
             <div class="metas-display">
                 <div class="meta-card">
                     <h4>Meta Mensual</h4>
-                    <div class="meta-amount" id="meta-mensual">$500</div>
+                    <div class="meta-amount" id="meta-mensual">S/500</div>
                     <div class="progress-bar small">
                         <div class="progress-fill" id="progress-mensual"></div>
                     </div>
                     <div class="meta-info">
-                        <span>Ahorrado: <strong id="ahorrado-mensual">$0</strong></span>
-                        <span>Restante: <strong id="restante-mensual">$500</strong></span>
+                        <span>Ahorrado: <strong id="ahorrado-mensual">S/0</strong></span>
+                        <span>Restante: <strong id="restante-mensual">S/500</strong></span>
                     </div>
                 </div>
                 
                 <div class="meta-card">
                     <h4>Meta Anual</h4>
-                    <div class="meta-amount" id="meta-anual">$6000</div>
+                    <div class="meta-amount" id="meta-anual">S/6000</div>
                     <div class="progress-bar small">
                         <div class="progress-fill" id="progress-anual"></div>
                     </div>
                     <div class="meta-info">
-                        <span>Ahorrado: <strong id="ahorrado-anual">$0</strong></span>
-                        <span>Restante: <strong id="restante-anual">$6000</strong></span>
+                        <span>Ahorrado: <strong id="ahorrado-anual">S/0</strong></span>
+                        <span>Restante: <strong id="restante-anual">S/6000</strong></span>
                     </div>
                 </div>
             </div>
@@ -343,11 +343,11 @@
             <div class="totales" id="totales-ahorro">
                 <div class="total-item">
                     <span>Total filtrado:</span>
-                    <strong id="total-filtrado-ahorro">$0.00</strong>
+                    <strong id="total-filtrado-ahorro">S/0.00</strong>
                 </div>
                 <div class="total-item">
                     <span>Total general:</span>
-                    <strong id="total-general-ahorro">$0.00</strong>
+                    <strong id="total-general-ahorro">S/0.00</strong>
                 </div>
             </div>
         </section>
@@ -381,14 +381,14 @@
                     <div class="input-group-modal">
                         <label for="meta-mensual-input">Meta mensual de ahorro:</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="meta-mensual-input" value="500" min="0" step="50">
                         </div>
                     </div>
                     <div class="input-group-modal">
                         <label for="meta-anual-input">Meta anual de ahorro:</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="meta-anual-input" value="6000" min="0" step="100">
                         </div>
                     </div>
@@ -414,21 +414,21 @@
                     <div class="input-group-modal">
                         <label for="monto-opcion1-input">Opción 1 (Pequeño):</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="monto-opcion1-input" value="4.00" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="input-group-modal">
                         <label for="monto-opcion2-input">Opción 2 (Medio):</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="monto-opcion2-input" value="5.00" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="input-group-modal">
                         <label for="monto-opcion3-input">Opción 3 (Grande):</label>
                         <div class="input-with-currency">
-                            <span class="currency">$</span>
+                            <span class="currency">S/</span>
                             <input type="number" id="monto-opcion3-input" value="6.00" min="0" step="0.01">
                         </div>
                     </div>

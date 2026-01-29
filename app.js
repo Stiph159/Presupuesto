@@ -376,7 +376,7 @@ async function agregarGasto() {
     
     // Mostrar confirmación
     const nombrePersona = personaSeleccionada === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-    mostrarNotificacion(`⏳ Guardando gasto de $${monto.toFixed(2)}...`, 'info');
+    mostrarNotificacion(`⏳ Guardando gasto de S/${monto.toFixed(2)}...`, 'info');
     
     // Guardar en Firebase (en segundo plano)
     setTimeout(async () => {
@@ -384,10 +384,10 @@ async function agregarGasto() {
             const firebaseId = await saveGastoToFirebase(nuevoGasto);
             // Actualizar el ID local con el de Firebase
             nuevoGasto.id = firebaseId;
-            mostrarNotificacion(`✅ ${nombrePersona} gastó $${monto.toFixed(2)}`, 'success');
+            mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)}`, 'success');
         } catch (error) {
             console.error("Error guardando en Firebase, usando solo local:", error);
-            mostrarNotificacion(`✅ ${nombrePersona} gastó $${monto.toFixed(2)} (guardado local)`, 'warning');
+            mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)} (guardado local)`, 'warning');
         }
         saveToLocalStorage();
     }, 500);
@@ -468,7 +468,7 @@ async function guardarPresupuesto() {
         // Guardar en Firebase
         try {
             await saveConfigToFirebase();
-            mostrarNotificacion(`Presupuesto: $${presupuesto.toFixed(2)}`, 'success');
+            mostrarNotificacion(`Presupuesto: S/${presupuesto.toFixed(2)}`, 'success');
         } catch (error) {
             console.error("Error guardando presupuesto en Firebase:", error);
             mostrarNotificacion('Presupuesto actualizado (local)', 'warning');
@@ -601,15 +601,15 @@ function actualizarResumen() {
     const totalHoy = gastosHoy.reduce((sum, g) => sum + g.monto, 0);
     const totalSemana = gastosSemana.reduce((sum, g) => sum + g.monto, 0);
     
-    document.getElementById('summary-hoy').textContent = `$${totalHoy.toFixed(2)}`;
-    document.getElementById('summary-semana').textContent = `$${totalSemana.toFixed(2)}`;
+    document.getElementById('summary-hoy').textContent = `S/${totalHoy.toFixed(2)}`;
+    document.getElementById('summary-semana').textContent = `S/${totalSemana.toFixed(2)}`;
     
     // Calcular diferencia
     const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
     const gastosPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
     const diferencia = Math.abs(gastosPersona1 - gastosPersona2);
     
-    document.getElementById('summary-diferencia').textContent = `$${diferencia.toFixed(2)}`;
+    document.getElementById('summary-diferencia').textContent = `S/${diferencia.toFixed(2)}`;
     
     // Color según diferencia
     const diferenciaElement = document.getElementById('summary-diferencia');
@@ -648,8 +648,8 @@ function actualizarPresupuesto() {
     const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
     const gastosPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
     
-    document.getElementById('budget-persona1').textContent = `$${gastosPersona1.toFixed(2)}`;
-    document.getElementById('budget-persona2').textContent = `$${gastosPersona2.toFixed(2)}`;
+    document.getElementById('budget-persona1').textContent = `S/${gastosPersona1.toFixed(2)}`;
+    document.getElementById('budget-persona2').textContent = `S/${gastosPersona2.toFixed(2)}`;
 }
 
 // ====================
@@ -712,8 +712,8 @@ function filtrarGastos() {
     const totalFiltrado = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
     const totalGeneral = gastos.reduce((sum, g) => sum + g.monto, 0);
     
-    document.getElementById('total-filtrado').textContent = `$${totalFiltrado.toFixed(2)}`;
-    document.getElementById('total-general').textContent = `$${totalGeneral.toFixed(2)}`;
+    document.getElementById('total-filtrado').textContent = `S/${totalFiltrado.toFixed(2)}`;
+    document.getElementById('total-general').textContent = `S/${totalGeneral.toFixed(2)}`;
 }
 
 function mostrarGastosFiltrados(gastosFiltrados) {
@@ -770,7 +770,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         html += `
             <div class="gasto-item ${gasto.persona}">
                 <div class="gasto-header">
-                    <div class="gasto-monto">$${gasto.monto.toFixed(2)}</div>
+                    <div class="gasto-monto">S/${gasto.monto.toFixed(2)}</div>
                     <button class="delete-btn" onclick="eliminarGasto('${idSeguro}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -835,7 +835,7 @@ function inicializarGrafico() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `$${context.parsed.toFixed(2)}`;
+                            return `S/${context.parsed.toFixed(2)}`;
                         }
                     }
                 }
@@ -1066,8 +1066,8 @@ function actualizarQuickSummary() {
     const totalHoy = gastosHoy.reduce((sum, g) => sum + g.monto, 0);
     const totalSemana = gastosSemana.reduce((sum, g) => sum + g.monto, 0);
     
-    document.getElementById('summary-hoy').textContent = `$${totalHoy.toFixed(2)}`;
-    document.getElementById('summary-semana').textContent = `$${totalSemana.toFixed(2)}`;
+    document.getElementById('summary-hoy').textContent = `S/${totalHoy.toFixed(2)}`;
+    document.getElementById('summary-semana').textContent = `S/${totalSemana.toFixed(2)}`;
     
     // Calcular diferencia
     const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1')
@@ -1076,7 +1076,7 @@ function actualizarQuickSummary() {
         .reduce((sum, g) => sum + g.monto, 0);
     
     const diferencia = Math.abs(gastosPersona1 - gastosPersona2);
-    document.getElementById('summary-diferencia').textContent = `$${diferencia.toFixed(2)}`;
+    document.getElementById('summary-diferencia').textContent = `S/${diferencia.toFixed(2)}`;
 }
 
 // ====================

@@ -301,8 +301,8 @@ function inicializarAhorroApp() {
     document.getElementById('monto-opcion3').textContent = configAhorro.montosOpciones.opcion3.toFixed(2);
     
     // Configurar metas
-    document.getElementById('meta-mensual').textContent = `$${configAhorro.metaMensual}`;
-    document.getElementById('meta-anual').textContent = `$${configAhorro.metaAnual}`;
+    document.getElementById('meta-mensual').textContent = `S/${configAhorro.metaMensual}`;
+    document.getElementById('meta-anual').textContent = `S/${configAhorro.metaAnual}`;
     
     // Inicializar gráfico
     inicializarGraficoAhorro();
@@ -381,7 +381,7 @@ async function agregarAhorro() {
     
     // Mostrar confirmación
     const nombrePersona = personaSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
-    mostrarNotificacion(`⏳ Guardando ahorro de $${monto.toFixed(2)}...`, 'info');
+    mostrarNotificacion(`⏳ Guardando ahorro de S/${monto.toFixed(2)}...`, 'info');
     
     // Guardar en Firebase (en segundo plano)
     setTimeout(async () => {
@@ -389,10 +389,10 @@ async function agregarAhorro() {
             const firebaseId = await saveAhorroToFirebase(nuevoAhorro);
             // Actualizar el ID local con el de Firebase
             nuevoAhorro.id = firebaseId;
-            mostrarNotificacion(`✅ ${nombrePersona} ahorró $${monto.toFixed(2)}`, 'success');
+            mostrarNotificacion(`✅ ${nombrePersona} ahorró S/${monto.toFixed(2)}`, 'success');
         } catch (error) {
             console.error("Error guardando en Firebase, usando solo local:", error);
-            mostrarNotificacion(`✅ ${nombrePersona} ahorró $${monto.toFixed(2)} (guardado local)`, 'warning');
+            mostrarNotificacion(`✅ ${nombrePersona} ahorró S/${monto.toFixed(2)} (guardado local)`, 'warning');
         }
         saveAhorrosToLocalStorage();
     }, 500);
@@ -461,8 +461,8 @@ async function guardarMetas() {
         configAhorro.resetMensual = resetMensual;
         
         // Actualizar UI
-        document.getElementById('meta-mensual').textContent = `$${metaMensual}`;
-        document.getElementById('meta-anual').textContent = `$${metaAnual}`;
+        document.getElementById('meta-mensual').textContent = `S/${metaMensual}`;
+        document.getElementById('meta-anual').textContent = `S/${metaAnual}`;
         actualizarUIAhorro();
         ocultarModal('meta-modal');
         
@@ -583,7 +583,7 @@ function configurarEventosAhorro() {
                 }
                 
                 texto.textContent = nombreOpcion;
-                monto.textContent = `$${montoOpcion.toFixed(2)}`;
+                monto.textContent = `S/${montoOpcion.toFixed(2)}`;
                 opcionInfo.style.display = 'block';
                 console.log("📝 Mostrando info:", nombreOpcion, montoOpcion);
             }
@@ -733,8 +733,8 @@ function actualizarResumenAhorro() {
     const mesElement = document.getElementById('summary-mes-ahorro');
     const porcentajeElement = document.getElementById('summary-porcentaje-meta');
     
-    if (hoyElement) hoyElement.textContent = `$${totalHoy.toFixed(2)}`;
-    if (mesElement) mesElement.textContent = `$${totalMes.toFixed(2)}`;
+    if (hoyElement) hoyElement.textContent = `S/${totalHoy.toFixed(2)}`;
+    if (mesElement) mesElement.textContent = `S/${totalMes.toFixed(2)}`;
     
     if (porcentajeElement) {
         const porcentajeMeta = (totalMes / configAhorro.metaMensual) * 100;
@@ -769,10 +769,10 @@ function actualizarMetas() {
     const progressMensual = document.getElementById('progress-mensual');
     const progressAnual = document.getElementById('progress-anual');
     
-    if (ahorradoMensual) ahorradoMensual.textContent = `$${totalMes.toFixed(2)}`;
-    if (restanteMensual) restanteMensual.textContent = `$${Math.max(configAhorro.metaMensual - totalMes, 0).toFixed(2)}`;
-    if (ahorradoAnual) ahorradoAnual.textContent = `$${totalAnio.toFixed(2)}`;
-    if (restanteAnual) restanteAnual.textContent = `$${Math.max(configAhorro.metaAnual - totalAnio, 0).toFixed(2)}`;
+    if (ahorradoMensual) ahorradoMensual.textContent = `S/${totalMes.toFixed(2)}`;
+    if (restanteMensual) restanteMensual.textContent = `S/${Math.max(configAhorro.metaMensual - totalMes, 0).toFixed(2)}`;
+    if (ahorradoAnual) ahorradoAnual.textContent = `S/${totalAnio.toFixed(2)}`;
+    if (restanteAnual) restanteAnual.textContent = `S/${Math.max(configAhorro.metaAnual - totalAnio, 0).toFixed(2)}`;
     
     if (progressMensual && progressAnual) {
         const porcentajeMensual = Math.min((totalMes / configAhorro.metaMensual) * 100, 100);
@@ -851,7 +851,7 @@ function mostrarAhorros() {
         html += `
             <div class="ahorro-item ${ahorro.persona}">
                 <div class="gasto-header">
-                    <div class="ahorro-monto">$${ahorro.monto.toFixed(2)}</div>
+                    <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)}</div>
                     <button class="delete-btn" onclick="eliminarAhorro('${ahorro.id}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
