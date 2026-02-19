@@ -917,6 +917,14 @@ function ejecutarAccion(accion) {
             filtrarGastos();
             break;
         
+        case 'ver-mis-finanzas':
+            window.location.href = 'finanzas-personales.html?persona=yo';
+            break;
+            
+        case 'ver-sus-finanzas':
+            window.location.href = 'finanzas-personales.html?persona=ella';
+            break;
+            
         case 'ver-limites':
             window.location.href = 'limites.html';
             break;
@@ -938,9 +946,10 @@ function ejecutarAccion(accion) {
         case 'ver-ahorros':
             window.location.href = 'ahorro.html';
             break;
+            
         case 'ver-dias-especiales':
             window.location.href = 'dias-especiales.html';
-        break;
+            break;
     }
 }
 

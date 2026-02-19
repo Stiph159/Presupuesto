@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Mis Finanzas Personales</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style-finanzas.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+</head>
+<body>
+    <!-- Modo oscuro toggle -->
+    <div class="theme-toggle">
+        <button id="theme-btn">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <div class="container">
+        <!-- Botón de volver -->
+        <div class="back-button">
+            <button id="back-btn">
+                <i class="fas fa-arrow-left"></i> Volver a Gastos
+            </button>
+        </div>
+
+        <!-- Encabezado -->
+        <header>
+            <h1><i class="fas fa-wallet"></i> <span id="page-title">Mis Finanzas</span></h1>
+            <div class="header-info">
+                <button class="edit-names-btn" id="edit-names">
+                    <i class="fas fa-edit"></i> Editar nombre
+                </button>
+            </div>
+        </header>
+
+        <!-- Selector de persona (pestañas) -->
+        <div class="person-tabs">
+            <button class="person-tab active" data-person="yo">
+                <i class="fas fa-user"></i> <span id="tab-yo">Mi Espacio</span>
+            </button>
+            <button class="person-tab" data-person="ella">
+                <i class="fas fa-user-friends"></i> <span id="tab-ella">Su Espacio</span>
+            </button>
+        </div>
+
+        <!-- Resumen financiero -->
+        <section class="resumen-section">
+            <div class="resumen-grid">
+                <div class="resumen-card ingresos">
+                    <div class="resumen-icon">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="resumen-content">
+                        <h4>Ingresos del Mes</h4>
+                        <div class="resumen-monto" id="resumen-ingresos">S/0.00</div>
+                    </div>
+                </div>
+                
+                <div class="resumen-card gastos">
+                    <div class="resumen-icon">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                    <div class="resumen-content">
+                        <h4>Gastos del Mes</h4>
+                        <div class="resumen-monto" id="resumen-gastos">S/0.00</div>
+                    </div>
+                </div>
+                
+                <div class="resumen-card disponible">
+                    <div class="resumen-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="resumen-content">
+                        <h4>Disponible</h4>
+                        <div class="resumen-monto" id="resumen-disponible">S/0.00</div>
+                    </div>
+                </div>
+                
+                <div class="resumen-card deuda-total">
+                    <div class="resumen-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <div class="resumen-content">
+                        <h4>Deuda Total</h4>
+                        <div class="resumen-monto" id="resumen-deuda">S/0.00</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de ingresos -->
+        <section class="ingresos-section">
+            <div class="section-header">
+                <h3><i class="fas fa-arrow-down"></i> Ingresos</h3>
+                <button class="add-section-btn" id="show-ingreso-form">
+                    <i class="fas fa-plus"></i> Nuevo ingreso
+                </button>
+            </div>
+
+            <!-- Formulario de ingreso (oculto inicialmente) -->
+            <div class="form-oculto" id="form-ingreso" style="display: none;">
+                <div class="input-row">
+                    <div class="input-group">
+                        <div class="input-with-currency">
+                            <span class="currency">S/</span>
+                            <input type="number" id="monto-ingreso" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+                    
+                    <input type="text" id="descripcion-ingreso" placeholder="Ej: Sueldo, freelance..." maxlength="50">
+                </div>
+
+                <div class="input-row">
+                    <div class="date-selector">
+                        <label for="fecha-ingreso">
+                            <i class="far fa-calendar"></i> Fecha:
+                        </label>
+                        <input type="date" id="fecha-ingreso">
+                    </div>
+                    
+                    <select id="tipo-ingreso">
+                        <option value="fijo">Fijo (mensual)</option>
+                        <option value="variable">Variable</option>
+                        <option value="extra">Extra</option>
+                    </select>
+                </div>
+
+                <button class="add-btn small" id="guardar-ingreso">
+                    <i class="fas fa-save"></i> GUARDAR INGRESO
+                </button>
+            </div>
+
+            <!-- Lista de ingresos recientes -->
+            <div class="lista-container" id="lista-ingresos">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Sección de gastos personales -->
+        <section class="gastos-personales-section">
+            <div class="section-header">
+                <h3><i class="fas fa-arrow-up"></i> Gastos Personales</h3>
+                <button class="add-section-btn" id="show-gasto-form">
+                    <i class="fas fa-plus"></i> Nuevo gasto
+                </button>
+            </div>
+
+            <!-- Formulario de gasto (oculto inicialmente) -->
+            <div class="form-oculto" id="form-gasto" style="display: none;">
+                <div class="input-row">
+                    <div class="input-group">
+                        <div class="input-with-currency">
+                            <span class="currency">S/</span>
+                            <input type="number" id="monto-gasto" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+                    
+                    <input type="text" id="descripcion-gasto" placeholder="¿En qué gastaste?" maxlength="50">
+                </div>
+
+                <div class="input-row">
+                    <div class="date-selector">
+                        <label for="fecha-gasto-personal">
+                            <i class="far fa-calendar"></i> Fecha:
+                        </label>
+                        <input type="date" id="fecha-gasto-personal">
+                    </div>
+                    
+                    <select id="categoria-gasto">
+                        <option value="comida">Comida</option>
+                        <option value="transporte">Transporte</option>
+                        <option value="ocio">Ocio</option>
+                        <option value="salud">Salud</option>
+                        <option value="educacion">Educación</option>
+                        <option value="otros">Otros</option>
+                    </select>
+                </div>
+
+                <button class="add-btn small" id="guardar-gasto">
+                    <i class="fas fa-save"></i> GUARDAR GASTO
+                </button>
+            </div>
+
+            <!-- Lista de gastos recientes -->
+            <div class="lista-container" id="lista-gastos">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Sección de deudas -->
+        <section class="deudas-section">
+            <div class="section-header">
+                <h3><i class="fas fa-credit-card"></i> Deudas</h3>
+                <button class="add-section-btn" id="show-deuda-form">
+                    <i class="fas fa-plus"></i> Nueva deuda
+                </button>
+            </div>
+
+            <!-- Formulario de deuda (oculto inicialmente) -->
+            <div class="form-oculto" id="form-deuda" style="display: none;">
+                <div class="input-row">
+                    <input type="text" id="descripcion-deuda" placeholder="¿Por qué es la deuda?" maxlength="50">
+                </div>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <div class="input-with-currency">
+                            <span class="currency">S/</span>
+                            <input type="number" id="monto-deuda" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+                    
+                    <input type="text" id="acreedor-deuda" placeholder="¿A quién le debes? (Banco, amigo...)" maxlength="50">
+                </div>
+
+                <div class="input-row">
+                    <div class="date-selector">
+                        <label for="fecha-vencimiento">
+                            <i class="far fa-calendar"></i> Vence:
+                        </label>
+                        <input type="date" id="fecha-vencimiento">
+                    </div>
+                    
+                    <select id="estado-deuda">
+                        <option value="pendiente">Pendiente</option>
+                        <option value="pagada">Pagada</option>
+                    </select>
+                </div>
+
+                <button class="add-btn small" id="guardar-deuda">
+                    <i class="fas fa-save"></i> GUARDAR DEUDA
+                </button>
+            </div>
+
+            <!-- Pestañas de deudas: Pendientes / Pagadas -->
+            <div class="deudas-tabs">
+                <button class="deuda-tab active" data-deuda-tab="pendientes">
+                    <i class="fas fa-hourglass-half"></i> Pendientes
+                </button>
+                <button class="deuda-tab" data-deuda-tab="pagadas">
+                    <i class="fas fa-check-circle"></i> Pagadas
+                </button>
+            </div>
+
+            <!-- Lista de deudas pendientes -->
+            <div class="lista-container" id="lista-deudas-pendientes">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <!-- Lista de deudas pagadas (oculta inicialmente) -->
+            <div class="lista-container" id="lista-deudas-pagadas" style="display: none;">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <!-- Modal para pagar deuda -->
+            <div class="modal" id="pago-modal">
+                <div class="modal-content">
+                    <h3><i class="fas fa-hand-holding-usd"></i> Pagar Deuda</h3>
+                    <div class="modal-inputs">
+                        <div class="input-group-modal">
+                            <label for="monto-pago">Monto a pagar:</label>
+                            <div class="input-with-currency">
+                                <span class="currency">S/</span>
+                                <input type="number" id="monto-pago" step="0.01" min="0.01">
+                            </div>
+                        </div>
+                        <div class="input-group-modal">
+                            <label for="fecha-pago">Fecha de pago:</label>
+                            <input type="date" id="fecha-pago">
+                        </div>
+                        <div class="input-group-modal">
+                            <label>
+                                <input type="checkbox" id="pago-completo"> Pagar monto completo
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="modal-btn cancel" id="cancel-pago">Cancelar</button>
+                        <button class="modal-btn save" id="confirmar-pago">Pagar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal para editar nombre -->
+        <div class="modal" id="names-modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-user-edit"></i> Personalizar Nombre</h3>
+                <div class="modal-inputs">
+                    <div class="input-group-modal">
+                        <label for="nombre-personal">Tu nombre en este espacio:</label>
+                        <input type="text" id="nombre-personal" placeholder="Ej: Juan">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" id="cancel-names">Cancelar</button>
+                    <button class="modal-btn save" id="save-names">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="app-finanzas.js"></script>
+</body>
+</html>
