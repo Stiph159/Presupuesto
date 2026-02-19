@@ -1,7 +1,4 @@
-// File: app-ahorro.js
-// ====================
 // VERSIÓN CORREGIDA - SIN RECARGAS
-// ====================
 
 let ahorros = [];
 let configAhorro = {
@@ -25,15 +22,8 @@ let chartAhorroInstance = null;
 let unsubscribeAhorros = null;
 let unsubscribeConfigAhorro = null;
 
-const tipsAhorro = [
-    "Cada moneda cuenta. Pequeños ahorros diarios se convierten en grandes sumas con el tiempo.",
-    "Antes de comprar algo, pregúntate: ¿Realmente lo necesito o solo lo quiero?",
-    "El ahorro no es un sacrificio, es una inversión en tu futuro tranquilo."
-];
-
-// ====================
 // FUNCIONES FIREBASE
-// ====================
+
 
 async function initFirebaseAhorro() {
     try {
@@ -66,9 +56,9 @@ async function loadConfigAhorroFromFirebase() {
     }
 }
 
-// ====================
+
 // LISTENER CORREGIDO (SIN RECARGAS)
-// ====================
+
 
 function setupRealtimeListenersAhorro() {
     if (unsubscribeAhorros) unsubscribeAhorros();
@@ -268,7 +258,6 @@ function inicializarAhorroApp() {
     document.getElementById('meta-anual').textContent = `S/${configAhorro.metaAnual}`;
     
     inicializarGraficoAhorro();
-    mostrarTipAleatorio();
 }
 
 function actualizarNombresEnUIAhorro() {
@@ -531,9 +520,6 @@ function configurarEventosAhorro() {
         });
     }
     
-    const refreshTipBtn = document.getElementById('refresh-tip');
-    if (refreshTipBtn) refreshTipBtn.addEventListener('click', mostrarTipAleatorio);
-    
     const editNamesBtn = document.getElementById('edit-names');
     if (editNamesBtn) {
         editNamesBtn.addEventListener('click', () => {
@@ -588,7 +574,6 @@ function habilitarBotonAgregar() {
 function actualizarUIAhorro() {
     actualizarResumenAhorro();
     actualizarMetas();
-    actualizarEstadisticas();
     actualizarGraficoAhorro('opciones');
     mostrarAhorros();
     actualizarQuickSummaryAhorro();
@@ -792,13 +777,6 @@ function actualizarGraficoAhorro(tipo) {
     chartAhorroInstance.update();
 }
 
-function actualizarEstadisticas() {
-    document.getElementById('racha-dias').textContent = '0 días';
-    document.getElementById('promedio-diario').textContent = 'S/0.00';
-    document.getElementById('proyeccion-6meses').textContent = 'S/0.00';
-    document.getElementById('diferencia-ahorro').textContent = 'S/0.00';
-}
-
 function actualizarQuickSummaryAhorro() {}
 
 function toggleTema() {
@@ -816,14 +794,6 @@ function actualizarIconoTema(tema) {
     const icono = document.querySelector('#theme-btn i');
     if (!icono) return;
     icono.className = tema === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-}
-
-function mostrarTipAleatorio() {
-    const tipText = document.getElementById('tip-text');
-    if (tipText && tipsAhorro.length > 0) {
-        const randomIndex = Math.floor(Math.random() * tipsAhorro.length);
-        tipText.textContent = `"${tipsAhorro[randomIndex]}"`;
-    }
 }
 
 function mostrarNotificacion(mensaje, tipo = 'info') {

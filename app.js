@@ -540,9 +540,9 @@ function ejecutarAccion(accion) {
         case 'ver-mis-finanzas':
             window.location.href = 'finanzas-personales.html?persona=yo';
             break;
-        case 'ver-sus-finanzas':
-            window.location.href = 'finanzas-personales.html?persona=ella';
-            break;
+        //case 'ver-sus-finanzas':
+        //    window.location.href = 'finanzas-personales.html?persona=ella';
+        //    break;
         case 'ver-limites':
             window.location.href = 'limites.html';
             break;
@@ -554,9 +554,9 @@ function ejecutarAccion(accion) {
             document.getElementById('filter-date').value = 'week';
             filtrarGastos();
             break;
-        case 'ver-todos':
-            limpiarFiltros();
-            break;
+        //case 'ver-todos':
+        //    limpiarFiltros();
+        //    break;
         case 'ver-ahorros':
             window.location.href = 'ahorro.html';
             break;
