@@ -1,84 +1,50 @@
-/* ===========================================
-   ESTILOS PARA DÍAS ESPECIALES - VERSIÓN PROFESIONAL
-   =========================================== */
+/* style-dias.css - Estilos específicos para días especiales */
 
-/* Botón de volver premium */
 .back-button {
-    margin-bottom: 30px;
-    animation: fadeIn 0.6s ease;
+    margin-bottom: 20px;
 }
 
 #back-btn {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    border: none;
-    color: white;
-    padding: 14px 28px;
-    border-radius: var(--radius-lg);
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 10px 20px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-    font-size: 1rem;
-    letter-spacing: 0.3px;
-}
-
-#back-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.7s;
+    gap: 8px;
 }
 
 #back-btn:hover {
-    transform: translateY(-3px) translateX(-5px);
-    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+    background: var(--primary-color);
+    color: white;
 }
 
-#back-btn:hover::before {
-    left: 100%;
-}
-
-/* Labels para inputs mejorados */
+/* Labels para inputs */
 .date-label, .toggle-label, .icon-label {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 8px;
+    margin-bottom: 8px;
     color: var(--text-color);
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
 }
 
-.date-label i, .toggle-label i, .icon-label i {
-    color: var(--primary-color);
-    font-size: 1.2rem;
-    width: 24px;
-    text-align: center;
-}
-
-/* Toggle switch premium */
+/* Toggle switch */
 .toggle-group {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-width: 140px;
 }
 
 .switch {
     position: relative;
     display: inline-block;
-    width: 68px;
-    height: 34px;
-    margin-top: 8px;
+    width: 60px;
+    height: 30px;
+    margin-top: 5px;
 }
 
 .switch input {
@@ -95,125 +61,83 @@
     right: 0;
     bottom: 0;
     background-color: var(--border-color);
-    transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: .4s;
     border-radius: 34px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .slider:before {
     position: absolute;
     content: "";
-    height: 26px;
-    width: 26px;
+    height: 22px;
+    width: 22px;
     left: 4px;
     bottom: 4px;
     background-color: white;
-    transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: .4s;
     border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .slider {
     background-color: var(--success-color);
-    box-shadow: inset 0 2px 4px rgba(56, 161, 105, 0.3);
 }
 
 input:checked + .slider:before {
-    transform: translateX(34px);
-    background-color: white;
+    transform: translateX(30px);
 }
 
-/* Selector de iconos premium */
+/* Selector de iconos */
 .icon-selector {
-    margin: 25px 0 30px;
-    background: var(--card-bg);
-    padding: 25px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-    animation: slideUp 0.5s ease 0.2s backwards;
+    margin: 20px 0;
 }
 
 .icon-options {
     display: flex;
-    gap: 15px;
-    margin-top: 15px;
+    gap: 12px;
+    margin-top: 10px;
     flex-wrap: wrap;
-    justify-content: center;
 }
 
 .icon-option {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.2rem;
-    background: var(--bg-color);
-    border-radius: var(--radius-md);
+    font-size: 1.8rem;
+    background: var(--card-bg);
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s ease;
     border: 3px solid transparent;
     box-shadow: var(--shadow);
-    position: relative;
-    overflow: hidden;
-}
-
-.icon-option::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
 }
 
 .icon-option:hover {
-    transform: scale(1.15) rotate(5deg);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-}
-
-.icon-option:hover::before {
-    opacity: 1;
+    transform: scale(1.1);
+    background: var(--primary-light);
 }
 
 .icon-option.active {
     border-color: var(--primary-color);
     background: var(--primary-color);
     color: white;
-    box-shadow: 0 0 25px rgba(102, 126, 234, 0.4);
-    transform: scale(1.1);
-    animation: iconGlow 2s infinite alternate;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
 }
 
-@keyframes iconGlow {
-    0% {
-        box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
-    }
-    100% {
-        box-shadow: 0 0 30px rgba(102, 126, 234, 0.6);
-    }
-}
-
-/* Sección de próximos días premium */
+/* Sección de próximos días */
 .proximos-section {
     background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    padding: 30px;
-    margin-bottom: 30px;
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 25px;
     box-shadow: var(--shadow);
-    animation: slideUp 0.5s ease 0.3s backwards;
 }
 
 .proximos-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-    gap: 15px;
+    margin-bottom: 20px;
 }
 
 .proximos-header h3 {
@@ -221,76 +145,40 @@ input:checked + .slider:before {
     color: var(--text-color);
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 1.4rem;
-    font-weight: 700;
-}
-
-.proximos-header h3 i {
-    color: var(--primary-color);
-    font-size: 1.6rem;
+    gap: 10px;
 }
 
 #dias-restantes {
     background: var(--gradient-primary);
     color: white;
-    padding: 8px 20px;
-    border-radius: 25px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-    animation: pulse 2s infinite;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .proximos-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .proximo-item {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    background: var(--gradient-primary);
     color: white;
-    padding: 25px;
-    border-radius: var(--radius-lg);
+    padding: 20px;
+    border-radius: 15px;
     display: flex;
     align-items: center;
-    gap: 25px;
-    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.proximo-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.proximo-item:hover {
-    transform: translateX(10px);
-    box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
-}
-
-.proximo-item:hover::before {
-    opacity: 1;
+    gap: 20px;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 .proximo-icon {
-    font-size: 3rem;
-    min-width: 70px;
+    font-size: 2.5rem;
+    min-width: 60px;
     text-align: center;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
 .proximo-content {
@@ -298,304 +186,153 @@ input:checked + .slider:before {
 }
 
 .proximo-content h4 {
-    margin: 0 0 10px 0;
-    font-size: 1.4rem;
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    margin: 0 0 8px 0;
+    font-size: 1.2rem;
 }
 
 .proximo-content p {
     margin: 0;
     opacity: 0.9;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    font-size: 0.95rem;
 }
 
-.proximo-content p::before {
-    content: '🎯';
-    font-size: 1.1rem;
-}
-
-/* Items de día en la lista premium */
-.dias-list-section {
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow);
-    margin-bottom: 40px;
-    animation: slideUp 0.5s ease 0.4s backwards;
-}
-
+/* Items de día en la lista */
 .dia-item {
-    background: var(--bg-color);
-    border-radius: var(--radius-lg);
-    padding: 30px;
-    margin-bottom: 20px;
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 15px;
     box-shadow: var(--shadow);
     display: flex;
     align-items: center;
-    gap: 25px;
-    border-left: 6px solid var(--primary-color);
-    animation: slideInItem 0.5s ease;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-}
-
-.dia-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.dia-item:hover {
-    transform: translateX(8px);
-    box-shadow: var(--hover-shadow);
-}
-
-.dia-item:hover::before {
-    opacity: 1;
+    gap: 20px;
+    border-left: 5px solid var(--primary-color);
+    animation: slideIn 0.3s ease;
 }
 
 .dia-item.pasado {
     opacity: 0.7;
     border-left-color: var(--text-secondary);
-    background: linear-gradient(135deg, var(--bg-color) 0%, rgba(148, 163, 184, 0.05) 100%);
-}
-
-.dia-item.pasado:hover {
-    opacity: 0.9;
 }
 
 .dia-icon {
-    font-size: 3rem;
-    min-width: 70px;
+    font-size: 2.5rem;
+    min-width: 60px;
     text-align: center;
-    transition: transform 0.3s;
-}
-
-.dia-item:hover .dia-icon {
-    transform: scale(1.1) rotate(5deg);
 }
 
 .dia-content {
     flex-grow: 1;
-    min-width: 0;
 }
 
 .dia-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 10px;
 }
 
 .dia-nombre {
-    font-weight: 800;
+    font-weight: bold;
     color: var(--text-color);
     margin: 0;
-    font-size: 1.3rem;
-    line-height: 1.3;
-    flex: 1;
-    min-width: 200px;
+    font-size: 1.1rem;
 }
 
 .dia-fecha {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    padding: 8px 18px;
-    border-radius: 25px;
-    font-size: 0.9rem;
-    font-weight: 700;
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
     white-space: nowrap;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-}
-
-.dia-item.pasado .dia-fecha {
-    background: linear-gradient(135deg, var(--text-secondary) 0%, #94a3b8 100%);
 }
 
 .dia-notificacion {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 8px 16px;
-    border-radius: 20px;
-    width: fit-content;
-    margin-top: 5px;
+    gap: 8px;
+    font-size: 0.9rem;
 }
 
 .dia-notificacion.on {
-    background: rgba(56, 161, 105, 0.15);
     color: var(--success-color);
-    border: 2px solid rgba(56, 161, 105, 0.3);
 }
 
 .dia-notificacion.off {
-    background: rgba(148, 163, 184, 0.15);
     color: var(--text-secondary);
-    border: 2px solid rgba(148, 163, 184, 0.3);
-}
-
-.dia-notificacion i {
-    font-size: 1.1rem;
 }
 
 .dia-actions {
     display: flex;
-    gap: 12px;
-    flex-shrink: 0;
+    gap: 10px;
 }
 
-/* Botón eliminar premium para días */
+/* Botón eliminar específico para días */
 .dia-actions .delete-btn {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: transparent;
     border: none;
-    color: white;
+    color: var(--accent-color);
     cursor: pointer;
-    padding: 12px;
-    border-radius: var(--radius-md);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 50px;
-    height: 50px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-}
-
-.dia-actions .delete-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.6s;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s;
 }
 
 .dia-actions .delete-btn:hover {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+    background: rgba(245, 101, 101, 0.1);
+    transform: scale(1.1);
 }
 
-.dia-actions .delete-btn:hover::before {
-    left: 100%;
-}
-
-/* Estado vacío premium */
+/* Estado vacío específico */
 #empty-state-dias {
     text-align: center;
-    padding: 80px 20px;
-    background: var(--card-bg);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow);
-    margin: 20px 0;
-    animation: fadeIn 0.6s ease;
+    padding: 40px 20px;
 }
 
 #empty-state-dias i {
-    font-size: 5rem;
-    margin-bottom: 25px;
+    font-size: 4rem;
+    margin-bottom: 20px;
     color: var(--primary-color);
-    opacity: 0.2;
-    animation: float 3s ease-in-out infinite;
+    opacity: 0.5;
 }
 
 #empty-state-dias h4 {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: var(--text-color);
-    font-size: 1.8rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
 }
 
 #empty-state-dias p {
     color: var(--text-secondary);
-    font-size: 1.1rem;
-    max-width: 400px;
-    margin: 0 auto;
-    line-height: 1.6;
 }
 
-/* Animaciones premium */
+/* Animaciones */
 @keyframes slideIn {
     from {
         opacity: 0;
-        transform: translateY(15px) scale(0.95);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-@keyframes slideInItem {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes float {
-    0%, 100% {
         transform: translateY(0);
     }
-    50% {
-        transform: translateY(-10px);
-    }
 }
 
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-    }
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-}
-
-/* ===========================================
-   RESPONSIVE PARA DÍAS ESPECIALES
-   =========================================== */
-
+/* Responsive */
 @media (max-width: 768px) {
     .proximo-item {
         flex-direction: column;
         text-align: center;
-        gap: 20px;
-        padding: 25px;
+        gap: 15px;
+        padding: 15px;
     }
     
     .proximo-icon {
         min-width: auto;
-        font-size: 2.8rem;
-    }
-    
-    .proximo-content h4 {
-        font-size: 1.3rem;
+        font-size: 2rem;
     }
     
     .icon-options {
@@ -603,48 +340,31 @@ input:checked + .slider:before {
     }
     
     .icon-option {
-        width: 55px;
-        height: 55px;
-        font-size: 2rem;
+        width: 45px;
+        height: 45px;
+        font-size: 1.5rem;
     }
     
     .dia-item {
         flex-direction: column;
         text-align: center;
-        gap: 20px;
-        padding: 25px;
+        gap: 15px;
+        padding: 15px;
     }
     
     .dia-icon {
         min-width: auto;
-        font-size: 2.8rem;
+        font-size: 2rem;
     }
     
     .dia-header {
         justify-content: center;
         flex-direction: column;
-        text-align: center;
-    }
-    
-    .dia-nombre {
-        min-width: auto;
-    }
-    
-    .dia-notificacion {
-        align-self: center;
-    }
-    
-    .dia-actions {
-        align-self: center;
     }
     
     .back-button button {
         width: 100%;
         justify-content: center;
-    }
-    
-    .toggle-group {
-        width: 100%;
     }
 }
 
@@ -654,7 +374,7 @@ input:checked + .slider:before {
     }
     
     .toggle-group {
-        margin-top: 20px;
+        margin-top: 15px;
     }
     
     .filters {
@@ -664,172 +384,4 @@ input:checked + .slider:before {
     .filters select {
         width: 100%;
     }
-    
-    .proximo-content p {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .proximo-content p::before {
-        display: none;
-    }
-    
-    #dias-restantes {
-        font-size: 0.85rem;
-        padding: 8px 16px;
-    }
-    
-    .dia-header {
-        gap: 12px;
-    }
-    
-    .dia-fecha {
-        padding: 6px 14px;
-        font-size: 0.85rem;
-    }
-    
-    .dia-notificacion {
-        padding: 6px 12px;
-        font-size: 0.9rem;
-    }
-}
-
-/* Mejoras para dispositivos táctiles */
-@media (hover: none) and (pointer: coarse) {
-    .icon-option,
-    .proximo-item,
-    .dia-item,
-    .dia-actions .delete-btn {
-        min-height: 60px;
-        min-width: 60px;
-        touch-action: manipulation;
-    }
-    
-    .icon-option:active,
-    .proximo-item:active,
-    .dia-item:active {
-        transform: scale(0.98);
-    }
-    
-    .switch {
-        transform: scale(1.1);
-    }
-}
-
-/* Mejoras de contraste para modo oscuro */
-[data-theme="dark"] .proximo-item {
-    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
-}
-
-[data-theme="dark"] .dia-item {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-[data-theme="dark"] .icon-option {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="dark"] .icon-selector {
-    background: rgba(255, 255, 255, 0.03);
-}
-
-/* Efectos de carga */
-.proximo-item.loading,
-.dia-item.loading {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(90deg, var(--bg-color) 25%, var(--border-color) 50%, var(--bg-color) 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite linear;
-}
-
-@keyframes loading {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-/* Indicador de día cercano */
-.dia-item.proximo {
-    border-left-color: var(--success-color);
-    background: linear-gradient(135deg, var(--bg-color) 0%, rgba(56, 161, 105, 0.1) 100%);
-}
-
-.dia-item.proximo::after {
-    content: '🔔 Próximo';
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: var(--gradient-success);
-    color: white;
-    padding: 5px 12px;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    animation: pulse 2s infinite;
-}
-
-/* Mejoras de accesibilidad */
-.proximo-item:focus-within,
-.dia-item:focus-within {
-    outline: 3px solid var(--primary-color);
-    outline-offset: 2px;
-}
-
-/* Transiciones suaves para listas */
-.proximos-container,
-.dias-list-section {
-    transition: all 0.3s ease;
-}
-
-/* Efecto de nuevo elemento */
-.proximo-item.new,
-.dia-item.new {
-    animation: highlight 1s ease;
-}
-
-@keyframes highlight {
-    0% {
-        background-color: rgba(56, 161, 105, 0.3);
-        transform: scale(0.95);
-    }
-    100% {
-        background-color: transparent;
-        transform: scale(1);
-    }
-}
-
-/* Mejora para scroll en listas largas */
-.proximos-container,
-.dias-list-section {
-    max-height: 500px;
-    overflow-y: auto;
-    scroll-behavior: smooth;
-}
-
-/* Personalización del scrollbar */
-.proximos-container::-webkit-scrollbar,
-.dias-list-section::-webkit-scrollbar {
-    width: 8px;
-}
-
-.proximos-container::-webkit-scrollbar-track,
-.dias-list-section::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 4px;
-}
-
-.proximos-container::-webkit-scrollbar-thumb,
-.dias-list-section::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-}
-
-.proximos-container::-webkit-scrollbar-thumb:hover,
-.dias-list-section::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-color);
 }
