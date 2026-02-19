@@ -97,8 +97,8 @@ function setupRealtimeListenersLimites() {
             });
             
             registrosLimites.sort((a, b) => {
-                const dateA = a.timestamp || new Date(a.fecha);
-                const dateB = b.timestamp || new Date(b.fecha);
+                const dateA = a.fechaCreacion ? new Date(a.fechaCreacion) : (a.timestamp || new Date(a.fecha));
+                const dateB = b.fechaCreacion ? new Date(b.fechaCreacion) : (b.timestamp || new Date(b.fecha));
                 return dateB - dateA;
             });
             
@@ -331,6 +331,7 @@ async function guardarRegistroLimite() {
         dentroDeLimite: calculo.dentroDeLimite,
         descripcion: calculo.descripcion,
         timestamp: new Date(),
+        fechaCreacion: new Date().toISOString(),
         sincronizando: true
     };
     
@@ -611,10 +612,12 @@ function cargarRegistrosLimites() {
     let html = '';
     
     registrosOrdenados.forEach(registro => {
-        const fechaFormateada = new Date(registro.fecha).toLocaleDateString('es-ES', {
+        const fechaHora = new Date(registro.fechaCreacion || registro.fecha).toLocaleString('es-ES', {
             weekday: 'short',
             day: 'numeric',
-            month: 'short'
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
         });
         
         const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
