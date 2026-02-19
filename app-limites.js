@@ -631,11 +631,36 @@ function cargarRegistrosLimites() {
     let html = '';
     
     registrosOrdenados.forEach(registro => {
-        const fechaFormateada = new Date(registro.fecha).toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+        // Formatear fecha con hora
+        let fechaFormateada;
+        const fechaRegistro = new Date(registro.fecha);
+        const ahora = new Date();
+        const esHoy = fechaRegistro.toDateString() === ahora.toDateString();
+
+        if (esHoy && registro.timestamp) {
+            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `Hoy ${hora}`;
+        } else if (registro.timestamp) {
+            const fecha = fechaRegistro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `${fecha} ${hora}`;
+        } else {
+            fechaFormateada = fechaRegistro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+        }
         
         const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
         const statusText = registro.dentroDeLimite ? 'Dentro de límite' : 'Con exceso';

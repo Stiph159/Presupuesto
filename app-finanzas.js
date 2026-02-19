@@ -830,13 +830,47 @@ function mostrarIngresos() {
     let html = '';
     
     ultimosIngresos.forEach(ingreso => {
-        const fecha = new Date(ingreso.fecha).toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short'
-        });
+        // Formato de fecha con hora (CORREGIDO para Firebase)
+        let fechaTexto;
+        const fechaIngreso = new Date(ingreso.fecha);
+        const ahora = new Date();
+        const esHoy = fechaIngreso.toDateString() === ahora.toDateString();
+        
+        // Convertir timestamp de Firebase a fecha válida
+        let fechaTimestamp = null;
+        if (ingreso.timestamp) {
+            if (ingreso.timestamp.toDate) {
+                fechaTimestamp = ingreso.timestamp.toDate(); // Timestamp de Firebase
+            } else if (typeof ingreso.timestamp === 'string' || typeof ingreso.timestamp === 'number') {
+                fechaTimestamp = new Date(ingreso.timestamp);
+            }
+        }
+        
+        if (esHoy && fechaTimestamp) {
+            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaTexto = `Hoy ${hora}`;
+        } else if (fechaTimestamp) {
+            const fecha = fechaIngreso.toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaTexto = `${fecha} ${hora}`;
+        } else {
+            fechaTexto = fechaIngreso.toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short'
+            });
+        }
         
         let tipoTexto = {
-            'fijo': '📅 Fijo',
+            'fijo': '📆 Fijo',
             'variable': '📊 Variable',
             'extra': '✨ Extra'
         }[ingreso.tipo] || '📝';
@@ -855,7 +889,7 @@ function mostrarIngresos() {
                 <div class="item-descripcion">${ingreso.descripcion}</div>
                 <div class="item-meta">
                     <span class="item-tipo">${tipoTexto}</span>
-                    <span>${fecha}</span>
+                    <span>${fechaTexto}</span>
                 </div>
             </div>
         `;
@@ -884,15 +918,49 @@ function mostrarGastos() {
     let html = '';
     
     ultimosGastos.forEach(gasto => {
-        const fecha = new Date(gasto.fecha).toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short'
-        });
+        // 👇 CORREGIDO: Manejo correcto de timestamp de Firebase
+        let fechaTexto;
+        const fechaGasto = new Date(gasto.fecha);
+        const ahora = new Date();
+        const esHoy = fechaGasto.toDateString() === ahora.toDateString();
+        
+        // Convertir timestamp de Firebase a fecha válida
+        let fechaTimestamp = null;
+        if (gasto.timestamp) {
+            if (gasto.timestamp.toDate) {
+                fechaTimestamp = gasto.timestamp.toDate(); // Timestamp de Firebase
+            } else if (typeof gasto.timestamp === 'string' || typeof gasto.timestamp === 'number') {
+                fechaTimestamp = new Date(gasto.timestamp);
+            }
+        }
+        
+        if (esHoy && fechaTimestamp) {
+            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaTexto = `Hoy ${hora}`;
+        } else if (fechaTimestamp) {
+            const fecha = fechaGasto.toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaTexto = `${fecha} ${hora}`;
+        } else {
+            fechaTexto = fechaGasto.toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short'
+            });
+        }
         
         const categorias = {
             'comida': '🍔 Comida',
             'transporte': '🚗 Transporte',
-            'ocio': '🎮 Ocio',
+            'ocio': '🎬 Ocio',
             'salud': '🏥 Salud',
             'educacion': '📚 Educación',
             'deudas': '💳 Deudas',
@@ -915,7 +983,7 @@ function mostrarGastos() {
                 <div class="item-descripcion">${gasto.descripcion}</div>
                 <div class="item-meta">
                     <span class="item-categoria">${catTexto}</span>
-                    <span>${fecha}</span>
+                    <span>${fechaTexto}</span>
                 </div>
             </div>
         `;

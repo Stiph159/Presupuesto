@@ -673,11 +673,36 @@ function mostrarAhorros() {
     let html = '';
     
     ahorros.forEach(ahorro => {
-        const fechaFormateada = new Date(ahorro.fecha).toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+        // Formatear fecha con hora
+        let fechaFormateada;
+        const fechaAhorro = new Date(ahorro.fecha);
+        const ahora = new Date();
+        const esHoy = fechaAhorro.toDateString() === ahora.toDateString();
+
+        if (esHoy && ahorro.timestamp) {
+            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `Hoy ${hora}`;
+        } else if (ahorro.timestamp) {
+            const fecha = fechaAhorro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `${fecha} ${hora}`;
+        } else {
+            fechaFormateada = fechaAhorro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+        }
         
         const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
         let nombreOpcion = '';

@@ -721,11 +721,36 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     let html = '';
     
     gastosFiltrados.forEach(gasto => {
-        const fechaFormateada = new Date(gasto.fecha).toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+        // 👇 ESTO ES LO NUEVO - REEMPLAZA la línea anterior
+        let fechaFormateada;
+        const fechaGasto = new Date(gasto.fecha);
+        const ahora = new Date();
+        const esHoy = fechaGasto.toDateString() === ahora.toDateString();
+        
+        if (esHoy && gasto.timestamp) {
+            const hora = new Date(gasto.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `Hoy ${hora}`;
+        } else if (gasto.timestamp) {
+            const fecha = fechaGasto.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = new Date(gasto.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `${fecha} ${hora}`;
+        } else {
+            fechaFormateada = fechaGasto.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+        }
         
         const nombrePersona = gasto.persona === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
         const iconoCategoria = iconosCategorias[gasto.categoria] || '📦';
