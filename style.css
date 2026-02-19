@@ -684,3 +684,39 @@ h1 {
     color: #fff;
 }
 
+/* Fix para inputs con moneda en todas las páginas */
+.input-with-currency {
+    position: relative;
+    width: 100%;
+    display: flex;
+}
+
+.input-with-currency .currency {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.input-with-currency input {
+    width: 100% !important;
+    padding-left: 40px !important;
+    box-sizing: border-box !important;
+}
+
+.input-group {
+    flex: 1;
+    min-width: 0; /* Importante para flexbox */
+}
+
+/* Fix para el selector de fecha */
+.date-selector {
+    flex: 1;
+    min-width: 150px;
+}
+
+.date-selector input[type="date"] {
+    width: 100%;
+}
