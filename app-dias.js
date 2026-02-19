@@ -519,14 +519,12 @@ function mostrarDiasFiltrados(diasFiltrados) {
     let html = '';
     
     diasFiltrados.forEach(dia => {
-        const fechaHora = new Date(dia.fecha).toLocaleDateString('es-ES', {
+        const fechaObj = new Date(dia.fecha);
+        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric'
-        }) + ' - ' + new Date(dia.fechaCreacion || dia.fecha).toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit'
         });
         
         const esPasado = dia.fecha < hoy;

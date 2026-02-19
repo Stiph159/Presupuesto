@@ -113,8 +113,8 @@ function setupRealtimeListenersAhorro() {
             });
             
             ahorros.sort((a, b) => {
-                const dateA = a.fechaCreacion ? new Date(a.fechaCreacion) : (a.timestamp || new Date(a.fecha));
-                const dateB = b.fechaCreacion ? new Date(b.fechaCreacion) : (b.timestamp || new Date(b.fecha));
+                const dateA = a.timestamp || new Date(a.fecha);
+                const dateB = b.timestamp || new Date(b.fecha);
                 return dateB - dateA;
             });
             
@@ -296,7 +296,6 @@ async function agregarAhorro() {
         persona: personaSeleccionada,
         opcion: opcionSeleccionada,
         timestamp: new Date(),
-        fechaCreacion: new Date().toISOString(),
         sincronizando: true
     };
     
@@ -653,12 +652,10 @@ function mostrarAhorros() {
     let html = '';
     
     ahorros.forEach(ahorro => {
-        const fechaHora = new Date(ahorro.fechaCreacion || ahorro.fecha).toLocaleString('es-ES', {
+        const fechaFormateada = new Date(ahorro.fecha).toLocaleDateString('es-ES', {
             weekday: 'short',
             day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
+            month: 'short'
         });
         
         const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;

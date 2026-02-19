@@ -156,12 +156,6 @@ function setupRealtimeListeners() {
                 }
             });
             
-            ahorros.sort((a, b) => {
-                const dateA = a.fechaCreacion ? new Date(a.fechaCreacion) : (a.timestamp || new Date(a.fecha));
-                const dateB = b.fechaCreacion ? new Date(b.fechaCreacion) : (b.timestamp || new Date(b.fecha));
-                return dateB - dateA;
-            });
-
             actualizarUI();
             guardarEnLocalStorage();
         });
@@ -785,11 +779,9 @@ function mostrarIngresos() {
     let html = '';
     
     ultimosIngresos.forEach(ingreso => {
-        const fechaHora = new Date(item.fechaCreacion || item.fecha).toLocaleString('es-ES', {
+        const fecha = new Date(ingreso.fecha).toLocaleDateString('es-ES', {
             day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
+            month: 'short'
         });
         
         let tipoTexto = {

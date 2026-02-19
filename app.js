@@ -123,17 +123,10 @@ function setupRealtimeListeners() {
             });
             
             gastos.sort((a, b) => {
-            // Primero intenta con fechaCreacion (la del celular)
-            const dateA = a.fechaCreacion 
-                ? new Date(a.fechaCreacion) 
-                : (a.timestamp || new Date(a.fecha));
-            
-            const dateB = b.fechaCreacion 
-                ? new Date(b.fechaCreacion) 
-                : (b.timestamp || new Date(b.fecha));
-            
-            return dateB - dateA;
-        });
+                const dateA = a.timestamp || new Date(a.fecha);
+                const dateB = b.timestamp || new Date(b.fecha);
+                return dateB - dateA;
+            });
             
             actualizarUI();
             saveToLocalStorage();
@@ -285,7 +278,6 @@ async function agregarGasto() {
         persona: personaSeleccionada,
         categoria: categoriaSeleccionada,
         timestamp: new Date(),
-        fechaCreacion: new Date().toISOString(),
         sincronizando: true
     };
     
@@ -671,12 +663,10 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     let html = '';
     
     gastosFiltrados.forEach(gasto => {
-        const fechaHora = new Date(gasto.fechaCreacion || gasto.fecha).toLocaleString('es-ES', {
+        const fechaFormateada = new Date(gasto.fecha).toLocaleDateString('es-ES', {
             weekday: 'short',
             day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
+            month: 'short'
         });
         
         const nombrePersona = gasto.persona === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
@@ -702,7 +692,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
                         <span class="gasto-persona">${nombrePersona}</span>
                         <span class="gasto-categoria">${iconoCategoria} ${nombreCategoria}</span>
                     </div>
-                    <div class="gasto-fecha">${fechaHora}</div>
+                    <div class="gasto-fecha">${fechaFormateada}</div>
                 </div>
             </div>
         `;
