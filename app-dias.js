@@ -1,8 +1,8 @@
+// File: app-dias.js
 // ====================
-// CONFIGURACIÓN INICIAL - DÍAS ESPECIALES
+// VERSIÓN CORREGIDA - SIN RECARGAS
 // ====================
 
-// Variables globales
 let diasEspeciales = [];
 let configDias = {
     nombres: {
@@ -27,17 +27,13 @@ async function initFirebaseDias() {
             return false;
         }
         
-        // Autenticación anónima
         try {
             await firebase.auth().signInAnonymously();
         } catch (authError) {
             console.warn("No se pudo autenticar:", authError);
         }
         
-        // Cargar configuración
         await loadConfigDiasFromFirebase();
-        
-        // Configurar listeners en tiempo real
         setupRealtimeListenersDias();
         
         mostrarNotificacion("✅ Días especiales sincronizados", "success");
@@ -59,49 +55,58 @@ async function loadConfigDiasFromFirebase() {
             if (configData.nombres) {
                 configDias.nombres = configData.nombres;
             }
-            console.log("✅ Configuración cargada desde Firebase");
         }
     } catch (error) {
         console.error("❌ Error cargando configuración:", error);
     }
 }
 
+// ====================
+// LISTENER CORREGIDO (SIN RECARGAS)
+// ====================
+
 function setupRealtimeListenersDias() {
-    // Detener listener anterior si existe
     if (unsubscribeDias) unsubscribeDias();
     
     const db = firebase.firestore();
     
-    // Escuchar cambios en días especiales
     unsubscribeDias = db.collection('dias_especiales')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('fecha', 'asc')
         .onSnapshot((snapshot) => {
-            console.log("🔄 Cambios detectados en días especiales:", snapshot.docChanges().length);
+            console.log("📅 Cambios detectados en días especiales:", snapshot.docChanges().length);
             
-            // Limpiar array completamente
-            diasEspeciales = [];
-            
-            // Llenar con datos actuales de Firebase
-            snapshot.forEach(doc => {
+            snapshot.docChanges().forEach(cambio => {
                 const diaData = {
-                    id: doc.id,
-                    ...doc.data()
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
                 };
                 
-                diasEspeciales.push(diaData);
+                switch (cambio.type) {
+                    case 'added':
+                        const existe = diasEspeciales.some(d => d.id === diaData.id);
+                        if (!existe && !diaData.id.toString().startsWith('temp_')) {
+                            console.log("➕ Nuevo día remoto:", diaData.nombre);
+                            diasEspeciales.push(diaData);
+                            mostrarNotificacion(`📅 Nuevo día: ${diaData.nombre}`, 'info');
+                        }
+                        break;
+                    case 'modified':
+                        const indexMod = diasEspeciales.findIndex(d => d.id === diaData.id);
+                        if (indexMod !== -1) diasEspeciales[indexMod] = diaData;
+                        break;
+                    case 'removed':
+                        diasEspeciales = diasEspeciales.filter(d => d.id !== diaData.id);
+                        mostrarNotificacion(`📌 Un día especial fue eliminado`, 'warning');
+                        break;
+                }
             });
             
-            // Actualizar UI
             actualizarUIDias();
-            
-            // Guardar backup local
             saveDiasToLocalStorage();
             
-            console.log("✅ Días actualizados desde Firebase:", diasEspeciales.length);
-            
         }, (error) => {
-            console.error("❌ Error en listener de días:", error);
+            console.error("❌ Error en listener:", error);
         });
 }
 
@@ -109,21 +114,18 @@ async function saveDiaToFirebase(dia) {
     try {
         const db = firebase.firestore();
         const diaData = {
-            ...dia,
+            nombre: dia.nombre,
+            fecha: dia.fecha,
+            notificacion: dia.notificacion,
+            icono: dia.icono,
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // Eliminar id local si existe
-        if (diaData.id && diaData.id.toString().startsWith('local_')) {
-            delete diaData.id;
-        }
-        
         const docRef = await db.collection('dias_especiales').add(diaData);
-        console.log("✅ Día guardado en Firebase con ID:", docRef.id);
         return docRef.id;
     } catch (error) {
-        console.error("❌ Error guardando en Firebase:", error);
+        console.error("❌ Error guardando:", error);
         throw error;
     }
 }
@@ -131,9 +133,8 @@ async function saveDiaToFirebase(dia) {
 async function deleteDiaFromFirebase(id) {
     try {
         await firebase.firestore().collection('dias_especiales').doc(id).delete();
-        console.log("✅ Día eliminado de Firebase:", id);
     } catch (error) {
-        console.error("❌ Error eliminando de Firebase:", error);
+        console.error("❌ Error eliminando:", error);
         throw error;
     }
 }
@@ -141,14 +142,9 @@ async function deleteDiaFromFirebase(id) {
 async function saveConfigDiasToFirebase() {
     try {
         const db = firebase.firestore();
-        const configData = {
-            ...configDias
-        };
-        
         await db.collection('config')
             .doc('nuestra_pareja')
-            .set(configData, { merge: true });
-        console.log("✅ Configuración guardada en Firebase");
+            .set({ nombres: configDias.nombres }, { merge: true });
     } catch (error) {
         console.error("❌ Error guardando configuración:", error);
         throw error;
@@ -156,7 +152,7 @@ async function saveConfigDiasToFirebase() {
 }
 
 // ====================
-// LOCALSTORAGE (BACKUP)
+// LOCALSTORAGE
 // ====================
 
 function saveDiasToLocalStorage() {
@@ -164,7 +160,7 @@ function saveDiasToLocalStorage() {
         localStorage.setItem('dias_especiales', JSON.stringify(diasEspeciales));
         localStorage.setItem('dias_config', JSON.stringify(configDias));
     } catch (error) {
-        console.error("Error guardando en localStorage:", error);
+        console.error("Error guardando:", error);
     }
 }
 
@@ -173,15 +169,10 @@ function loadDiasFromLocalStorage() {
         const savedDias = localStorage.getItem('dias_especiales');
         const savedConfig = localStorage.getItem('dias_config');
         
-        if (savedDias) {
-            diasEspeciales = JSON.parse(savedDias);
-        }
-        
-        if (savedConfig) {
-            configDias = JSON.parse(savedConfig);
-        }
+        if (savedDias) diasEspeciales = JSON.parse(savedDias);
+        if (savedConfig) configDias = JSON.parse(savedConfig);
     } catch (error) {
-        console.error("Error cargando de localStorage:", error);
+        console.error("Error cargando:", error);
     }
 }
 
@@ -190,40 +181,31 @@ function loadDiasFromLocalStorage() {
 // ====================
 
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log("📅 Iniciando aplicación de días especiales...");
+    console.log("📅 Iniciando app de días especiales...");
     
-    // Primero cargar desde localStorage (más rápido)
     loadDiasFromLocalStorage();
-    
-    // Inicializar app básica
     inicializarAppDias();
     actualizarUIDias();
     
-    // Luego conectar con Firebase
     setTimeout(async () => {
         await initFirebaseDias();
     }, 1000);
 });
 
 function inicializarAppDias() {
-    // Configurar tema
     const temaGuardado = localStorage.getItem('tema') || 'light';
     document.documentElement.setAttribute('data-theme', temaGuardado);
     actualizarIconoTema(temaGuardado);
     
-    // Configurar eventos
     configurarEventosDias();
     
-    // Configurar fecha por defecto (mañana)
     const manana = new Date();
     manana.setDate(manana.getDate() + 1);
     document.getElementById('fecha-dia').value = manana.toISOString().split('T')[0];
-    
-    console.log("✅ App días especiales inicializada");
 }
 
 // ====================
-// FUNCIONES PRINCIPALES
+// FUNCIÓN AGREGAR DÍA CORREGIDA (CON ID TEMPORAL)
 // ====================
 
 async function agregarDia() {
@@ -231,67 +213,83 @@ async function agregarDia() {
     const fecha = document.getElementById('fecha-dia').value;
     const notificacion = document.getElementById('notificacion-dia').checked;
     
-    // Validaciones
     if (!nombre || !fecha) {
-        mostrarNotificacion('Por favor completa todos los campos', 'error');
+        mostrarNotificacion('Completa todos los campos', 'error');
         return;
     }
     
-    // Crear objeto de día
+    // 1. Crear ID TEMPORAL
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoDia = {
-        id: 'local_' + Date.now(), // ID temporal
+        id: tempId,
         nombre: nombre,
         fecha: fecha,
         notificacion: notificacion,
         icono: iconoSeleccionado,
-        timestamp: new Date()
+        timestamp: new Date(),
+        sincronizando: true
     };
     
-    // Limpiar formulario
+    // 2. MOSTRAR INMEDIATAMENTE
+    diasEspeciales.push(nuevoDia);
+    actualizarUIDias();
+    
+    // 3. Limpiar formulario
     document.getElementById('nombre-dia').value = '';
     document.getElementById('nombre-dia').focus();
     
-    // Mostrar confirmación
     mostrarNotificacion(`⏳ Guardando "${nombre}"...`, 'info');
     
-    // Guardar en Firebase (en segundo plano)
-    setTimeout(async () => {
-        try {
-            const firebaseId = await saveDiaToFirebase(nuevoDia);
-            nuevoDia.id = firebaseId;
-            mostrarNotificacion(`✅ "${nombre}" agregado`, 'success');
-        } catch (error) {
-            console.error("Error guardando en Firebase:", error);
-            mostrarNotificacion(`✅ "${nombre}" agregado (local)`, 'warning');
+    // 4. Guardar en Firebase
+    try {
+        const firebaseId = await saveDiaToFirebase(nuevoDia);
+        
+        const index = diasEspeciales.findIndex(d => d.id === tempId);
+        if (index !== -1) {
+            diasEspeciales[index].id = firebaseId;
+            diasEspeciales[index].sincronizando = false;
         }
-        saveDiasToLocalStorage();
-    }, 500);
+        
+        mostrarNotificacion(`✅ "${nombre}" agregado`, 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = diasEspeciales.findIndex(d => d.id === tempId);
+        if (index !== -1) {
+            diasEspeciales[index].error = true;
+        }
+        mostrarNotificacion(`⚠️ "${nombre}" agregado (local)`, 'warning');
+    }
+    
+    saveDiasToLocalStorage();
 }
 
 async function eliminarDia(id) {
-    if (!confirm('¿Estás seguro de eliminar este día especial?')) return;
+    if (!confirm('¿Eliminar este día especial?')) return;
     
-    // Mostrar notificación inmediatamente
-    mostrarNotificacion('⏳ Eliminando día...', 'info');
+    mostrarNotificacion('⏳ Eliminando...', 'info');
     
-    // Intentar eliminar de Firebase
+    const diaEliminado = diasEspeciales.find(d => d.id === id);
+    diasEspeciales = diasEspeciales.filter(d => d.id !== id);
+    actualizarUIDias();
+    
     try {
-        if (id && !id.toString().startsWith('local_')) {
+        if (id && !id.toString().startsWith('temp_')) {
             await deleteDiaFromFirebase(id);
+            mostrarNotificacion('✅ Día eliminado', 'success');
         } else {
-            // Si es un ID local, eliminar del array local
-            const index = diasEspeciales.findIndex(d => d.id === id);
-            if (index !== -1) {
-                diasEspeciales.splice(index, 1);
-                actualizarUIDias();
-                saveDiasToLocalStorage();
-                mostrarNotificacion('Día eliminado (local)', 'success');
-            }
+            mostrarNotificacion('✅ Día eliminado (local)', 'success');
         }
     } catch (error) {
-        console.error("Error eliminando día:", error);
-        mostrarNotificacion('Error al eliminar el día', 'error');
+        console.error("Error eliminando:", error);
+        if (diaEliminado) {
+            diasEspeciales.push(diaEliminado);
+            actualizarUIDias();
+        }
+        mostrarNotificacion('Error al eliminar', 'error');
     }
+    
+    saveDiasToLocalStorage();
 }
 
 async function guardarNombres() {
@@ -301,20 +299,17 @@ async function guardarNombres() {
     configDias.nombres.persona1 = nombre1;
     configDias.nombres.persona2 = nombre2;
     
-    // Actualizar UI
     actualizarNombresEnUIDias();
     ocultarModal('names-modal');
     
-    // Guardar en Firebase
     try {
         await saveConfigDiasToFirebase();
         mostrarNotificacion('Nombres actualizados', 'success');
     } catch (error) {
-        console.error("Error guardando nombres en Firebase:", error);
+        console.error("Error guardando nombres:", error);
         mostrarNotificacion('Nombres actualizados (local)', 'warning');
     }
     
-    // Guardar localmente
     saveDiasToLocalStorage();
 }
 
@@ -323,55 +318,68 @@ async function guardarNombres() {
 // ====================
 
 function configurarEventosDias() {
-    console.log("🔗 Configurando eventos de días especiales...");
+    const themeBtn = document.getElementById('theme-btn');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTema);
     
-    // Toggle tema
-    document.getElementById('theme-btn').addEventListener('click', toggleTema);
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => window.location.href = 'index.html');
+    }
     
-    // Botón volver
-    document.getElementById('back-btn').addEventListener('click', function() {
-        window.location.href = 'index.html';
-    });
-    
-    // Selector de iconos
     document.querySelectorAll('.icon-option').forEach(icono => {
         icono.addEventListener('click', function() {
             document.querySelectorAll('.icon-option').forEach(o => o.classList.remove('active'));
             this.classList.add('active');
             iconoSeleccionado = this.dataset.icon;
-            console.log("✅ Icono seleccionado:", iconoSeleccionado);
         });
     });
     
-    // Botón agregar día
-    document.getElementById('add-dia-btn').addEventListener('click', agregarDia);
+    const addBtn = document.getElementById('add-dia-btn');
+    if (addBtn) addBtn.addEventListener('click', agregarDia);
     
-    // Enter en nombre también agrega
-    document.getElementById('nombre-dia').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') agregarDia();
-    });
+    const nombreInput = document.getElementById('nombre-dia');
+    if (nombreInput) {
+        nombreInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') agregarDia();
+        });
+    }
     
-    // Botón editar nombres
-    document.getElementById('edit-names').addEventListener('click', mostrarModalNombres);
-    document.getElementById('save-names').addEventListener('click', guardarNombres);
-    document.getElementById('cancel-names').addEventListener('click', ocultarModalNombres);
+    const editNamesBtn = document.getElementById('edit-names');
+    if (editNamesBtn) {
+        editNamesBtn.addEventListener('click', mostrarModalNombres);
+    }
     
-    // Búsqueda
-    document.getElementById('search-toggle-dias').addEventListener('click', toggleBusquedaDias);
-    document.getElementById('search-clear-dias').addEventListener('click', limpiarBusquedaDias);
-    document.getElementById('search-input-dias').addEventListener('input', filtrarDias);
+    const saveNamesBtn = document.getElementById('save-names');
+    if (saveNamesBtn) saveNamesBtn.addEventListener('click', guardarNombres);
     
-    // Filtros
-    document.getElementById('filter-notificacion').addEventListener('change', filtrarDias);
-    document.getElementById('filter-mes').addEventListener('change', filtrarDias);
-    document.getElementById('filter-ano').addEventListener('change', filtrarDias);
-    document.getElementById('clear-filters-dias').addEventListener('click', limpiarFiltrosDias);
+    const cancelNamesBtn = document.getElementById('cancel-names');
+    if (cancelNamesBtn) {
+        cancelNamesBtn.addEventListener('click', () => ocultarModal('names-modal'));
+    }
     
-    // Cerrar modal con Escape
+    const searchToggle = document.getElementById('search-toggle-dias');
+    if (searchToggle) searchToggle.addEventListener('click', toggleBusquedaDias);
+    
+    const searchClear = document.getElementById('search-clear-dias');
+    if (searchClear) searchClear.addEventListener('click', limpiarBusquedaDias);
+    
+    const searchInput = document.getElementById('search-input-dias');
+    if (searchInput) searchInput.addEventListener('input', filtrarDias);
+    
+    const filterNotif = document.getElementById('filter-notificacion');
+    if (filterNotif) filterNotif.addEventListener('change', filtrarDias);
+    
+    const filterMes = document.getElementById('filter-mes');
+    if (filterMes) filterMes.addEventListener('change', filtrarDias);
+    
+    const filterAno = document.getElementById('filter-ano');
+    if (filterAno) filterAno.addEventListener('change', filtrarDias);
+    
+    const clearFilters = document.getElementById('clear-filters-dias');
+    if (clearFilters) clearFilters.addEventListener('click', limpiarFiltrosDias);
+    
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            ocultarModalNombres();
-        }
+        if (e.key === 'Escape') ocultarModal('names-modal');
     });
 }
 
@@ -385,15 +393,14 @@ function actualizarUIDias() {
 }
 
 function actualizarNombresEnUIDias() {
-    // Si tienes elementos que muestran nombres, actualízalos aquí
-    console.log("Nombres actualizados:", configDias.nombres);
+    // No hay elementos específicos para nombres en esta página
 }
 
 function actualizarProximosDias() {
     const hoy = new Date().toISOString().split('T')[0];
     const proximosDias = diasEspeciales
         .filter(dia => dia.fecha >= hoy)
-        .slice(0, 3); // Mostrar solo los 3 próximos
+        .slice(0, 3);
     
     const container = document.getElementById('proximos-container');
     const diasRestantes = document.getElementById('dias-restantes');
@@ -424,13 +431,9 @@ function actualizarProximosDias() {
         const diasFaltantes = Math.ceil((fechaObj - hoyObj) / (1000 * 60 * 60 * 24));
         
         let mensaje = '';
-        if (diasFaltantes === 0) {
-            mensaje = '¡Es hoy!';
-        } else if (diasFaltantes === 1) {
-            mensaje = 'Mañana';
-        } else {
-            mensaje = `En ${diasFaltantes} días`;
-        }
+        if (diasFaltantes === 0) mensaje = '¡Es hoy!';
+        else if (diasFaltantes === 1) mensaje = 'Mañana';
+        else mensaje = `En ${diasFaltantes} días`;
         
         const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
             weekday: 'short',
@@ -460,7 +463,6 @@ function filtrarDias() {
     
     let diasFiltrados = [...diasEspeciales];
     
-    // Aplicar filtros
     if (searchTerm) {
         diasFiltrados = diasFiltrados.filter(dia => 
             dia.nombre.toLowerCase().includes(searchTerm)
@@ -489,10 +491,7 @@ function filtrarDias() {
         });
     }
     
-    // Ordenar por fecha
     diasFiltrados.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-    
-    // Mostrar resultados
     mostrarDiasFiltrados(diasFiltrados);
 }
 
@@ -500,14 +499,14 @@ function mostrarDiasFiltrados(diasFiltrados) {
     const container = document.getElementById('dias-container');
     const emptyState = document.getElementById('empty-state-dias');
     
-    if (!container || !emptyState) return;
+    if (!container) return;
     
     if (diasFiltrados.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="far fa-search"></i>
                 <h4>No se encontraron días</h4>
-                <p>Intenta con otros filtros o términos de búsqueda.</p>
+                <p>Intenta con otros filtros.</p>
             </div>
         `;
         emptyState.style.display = 'none';
@@ -530,12 +529,16 @@ function mostrarDiasFiltrados(diasFiltrados) {
         
         const esPasado = dia.fecha < hoy;
         
+        const sincronizandoClass = dia.sincronizando ? 'sincronizando' : '';
+        const sincronizandoIcon = dia.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
+        const errorIcon = dia.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        
         html += `
-            <div class="dia-item ${esPasado ? 'pasado' : ''}">
+            <div class="dia-item ${esPasado ? 'pasado' : ''} ${sincronizandoClass}">
                 <div class="dia-icon">${dia.icono || '📅'}</div>
                 <div class="dia-content">
                     <div class="dia-header">
-                        <div class="dia-nombre">${dia.nombre}</div>
+                        <div class="dia-nombre">${dia.nombre} ${sincronizandoIcon} ${errorIcon}</div>
                         <div class="dia-fecha">${fechaFormateada}</div>
                     </div>
                     <div class="dia-notificacion ${dia.notificacion ? 'on' : 'off'}">
@@ -572,17 +575,13 @@ function toggleTema() {
 
 function actualizarIconoTema(tema) {
     const icono = document.querySelector('#theme-btn i');
-    if (tema === 'dark') {
-        icono.className = 'fas fa-sun';
-    } else {
-        icono.className = 'fas fa-moon';
-    }
+    if (!icono) return;
+    icono.className = tema === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
 function toggleBusquedaDias() {
     const searchBox = document.getElementById('search-box-dias');
     searchBox.style.display = searchBox.style.display === 'none' ? 'block' : 'none';
-    
     if (searchBox.style.display === 'block') {
         document.getElementById('search-input-dias').focus();
     }
@@ -610,8 +609,9 @@ function mostrarModalNombres() {
     document.getElementById('names-modal').classList.add('active');
 }
 
-function ocultarModalNombres() {
-    document.getElementById('names-modal').classList.remove('active');
+function ocultarModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.remove('active');
 }
 
 function mostrarNotificacion(mensaje, tipo = 'info') {
@@ -622,25 +622,15 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     notificacion.className = 'notification show';
     
     switch(tipo) {
-        case 'success':
-            notificacion.style.background = 'var(--success-color)';
-            break;
-        case 'error':
-            notificacion.style.background = 'var(--accent-color)';
-            break;
-        case 'warning':
-            notificacion.style.background = 'var(--warning-color)';
-            break;
-        default:
-            notificacion.style.background = 'var(--primary-color)';
+        case 'success': notificacion.style.background = 'var(--success-color)'; break;
+        case 'error': notificacion.style.background = 'var(--accent-color)'; break;
+        case 'warning': notificacion.style.background = 'var(--warning-color)'; break;
+        default: notificacion.style.background = 'var(--primary-color)';
     }
     
-    setTimeout(() => {
-        notificacion.classList.remove('show');
-    }, 3000);
+    setTimeout(() => notificacion.classList.remove('show'), 3000);
 }
 
-// Hacer funciones disponibles globalmente
 window.eliminarDia = eliminarDia;
 
-console.log("✅ app-dias.js cargado correctamente");
+console.log("✅ app-dias.js cargado correctamente (versión sin recargas)");

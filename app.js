@@ -1,8 +1,9 @@
+// File: app.js
 // ====================
-// CONFIGURACIÓN INICIAL
+// CONFIGURACIÓN INICIAL - VERSIÓN CORREGIDA (SIN RECARGAS)
 // ====================
 
-// Variables globales - SOLO UNA VEZ
+// Variables globales
 let gastos = [];
 let config = {
     presupuesto: 1500,
@@ -23,19 +24,16 @@ let unsubscribeConfig = null;
 // FUNCIONES FIREBASE
 // ====================
 
-// Inicializar Firebase y cargar datos
 async function initFirebase() {
     try {
-        console.log("🔵 Inicializando Firebase...");
+        console.log("🔥 Inicializando Firebase...");
         
-        // Esperar a que Firebase se cargue
         if (typeof firebase === 'undefined') {
             console.error("Firebase no está cargado");
             mostrarNotificacion("⚠️ Firebase no disponible", "warning");
             return false;
         }
         
-        // Verificar autenticación
         try {
             await firebase.auth().signInAnonymously();
             console.log("✅ Autenticado anónimamente");
@@ -43,10 +41,7 @@ async function initFirebase() {
             console.warn("No se pudo autenticar:", authError);
         }
         
-        // Cargar configuración
         await loadConfigFromFirebase();
-        
-        // Cargar gastos y escuchar cambios
         setupRealtimeListeners();
         
         mostrarNotificacion("✅ Conectado a la nube", "success");
@@ -58,7 +53,6 @@ async function initFirebase() {
     }
 }
 
-// Cargar configuración desde Firebase
 async function loadConfigFromFirebase() {
     try {
         const db = firebase.firestore();
@@ -66,128 +60,81 @@ async function loadConfigFromFirebase() {
         
         if (configDoc.exists) {
             config = configDoc.data();
-            console.log("✅ Configuración cargada desde Firebase:", config);
+            console.log("✅ Configuración cargada:", config);
         } else {
-            // Crear configuración inicial
             await db.collection('config').doc('nuestra_pareja').set(config);
-            console.log("✅ Configuración inicial creada en Firebase");
         }
     } catch (error) {
         console.error("❌ Error cargando configuración:", error);
     }
 }
 
-// Configurar escuchas en tiempo real
-// CONFIGURACIÓN DE LISTENERS - VERSIÓN MEJORADA
+// ====================
+// LISTENER CORREGIDO (SIN RECARGAS)
 // ====================
 
 function setupRealtimeListeners() {
-    // Detener escuchas anteriores si existen
     if (unsubscribeGastos) unsubscribeGastos();
     if (unsubscribeConfig) unsubscribeConfig();
     
     const db = firebase.firestore();
     
-    // Escuchar cambios en gastos
     unsubscribeGastos = db.collection('gastos')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("🔄 Cambios detectados en gastos:", snapshot.docChanges().length);
+            console.log("🔔 Cambios detectados en gastos:", snapshot.docChanges().length);
             
-            // 🔥 DETECTAR SI HUBO CAMBIOS DESDE OTRO DISPOSITIVO
-            let huboCambiosRemotos = false;
-            const cambios = snapshot.docChanges();
-            
-            cambios.forEach(cambio => {
-                console.log(`  ${cambio.type}: ${cambio.doc.id}`);
-                
-                // Si el documento fue ELIMINADO o MODIFICADO, es muy probable que sea remoto
-                if (cambio.type === 'removed' || cambio.type === 'modified') {
-                    huboCambiosRemotos = true;
-                    console.log("  🔥 Posible cambio remoto detectado");
-                }
-                
-                // Si fue agregado, verificar si es local o remoto
-                if (cambio.type === 'added') {
-                    const docData = cambio.doc.data();
-                    const docId = cambio.doc.id;
-                    
-                    // Verificar si este documento ya existe localmente
-                    const existeLocal = gastos.some(g => g.id === docId);
-                    
-                    // Si NO existe localmente y tiene timestamp reciente (< 2 segundos), podría ser remoto
-                    if (!existeLocal) {
-                        const timestamp = docData.timestamp;
-                        if (timestamp) {
-                            const fechaDoc = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-                            const ahora = new Date();
-                            const diferencia = ahora - fechaDoc;
-                            
-                            // Si el documento es más viejo que 2 segundos, probablemente vino de otro dispositivo
-                            if (diferencia > 2000) {
-                                huboCambiosRemotos = true;
-                                console.log("  🔥 Documento remoto detectado (timestamp antiguo)");
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // 🔥 LIMPIAR CACHE LOCAL SI HUBO CAMBIOS REMOTOS
-            if (huboCambiosRemotos) {
-                console.log("🧹 Limpiando caché local por cambios remotos...");
-                
-                // Vaciar array local COMPLETAMENTE
-                gastos = [];
-                
-                // Opcional: limpiar localStorage
-                localStorage.removeItem('nuestros_gastos');
-                
-                // Recargar página después de 1 segundo para forzar sincronización
-                setTimeout(() => {
-                    console.log("🔄 Recargando para sincronizar...");
-                    location.reload();
-                }, 1000);
-            }
-            
-            // RECARGAR TODOS LOS DATOS DESDE FIREBASE (siempre)
-            gastos = []; // Vaciar primero
-            
-            snapshot.forEach(doc => {
-                const gastoData = {
-                    id: doc.id,
-                    ...doc.data()
+            // PROCESAR CADA CAMBIO INDIVIDUALMENTE
+            snapshot.docChanges().forEach(cambio => {
+                const docData = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
                 };
                 
-                // Convertir timestamps de Firebase a Date
-                if (gastoData.timestamp && gastoData.timestamp.toDate) {
-                    gastoData.timestamp = gastoData.timestamp.toDate();
+                if (docData.timestamp && docData.timestamp.toDate) {
+                    docData.timestamp = docData.timestamp.toDate();
                 }
                 
-                gastos.push(gastoData);
+                switch (cambio.type) {
+                    case 'added':
+                        const existe = gastos.some(g => g.id === docData.id);
+                        if (!existe && !docData.id.toString().startsWith('temp_')) {
+                            console.log("➕ Nuevo gasto remoto:", docData.descripcion);
+                            gastos.push(docData);
+                            mostrarNotificacion(`🔔 Nuevo gasto de S/${docData.monto.toFixed(2)}`, 'info');
+                        }
+                        break;
+                        
+                    case 'modified':
+                        console.log("✏️ Gasto modificado:", docData.id);
+                        const indexMod = gastos.findIndex(g => g.id === docData.id);
+                        if (indexMod !== -1) {
+                            gastos[indexMod] = docData;
+                        }
+                        break;
+                        
+                    case 'removed':
+                        console.log("❌ Gasto eliminado:", docData.id);
+                        gastos = gastos.filter(g => g.id !== docData.id);
+                        mostrarNotificacion(`📌 Un gasto fue eliminado`, 'warning');
+                        break;
+                }
             });
             
-            // Ordenar por fecha
             gastos.sort((a, b) => {
                 const dateA = a.timestamp || new Date(a.fecha);
                 const dateB = b.timestamp || new Date(b.fecha);
                 return dateB - dateA;
             });
             
-            // Actualizar UI
             actualizarUI();
-            
-            // Guardar en localStorage (SOLO datos de Firebase)
             saveToLocalStorage();
             
-            console.log(`✅ Gastos actualizados: ${gastos.length} items`);
-            
         }, (error) => {
-            console.error("❌ Error en listener de gastos:", error);
+            console.error("❌ Error en listener:", error);
         });
     
-    // Escuchar cambios en configuración (mantener igual)
     unsubscribeConfig = db.collection('config')
         .doc('nuestra_pareja')
         .onSnapshot((doc) => {
@@ -195,63 +142,50 @@ function setupRealtimeListeners() {
                 config = doc.data();
                 actualizarUI();
                 saveToLocalStorage();
-                console.log("🔄 Configuración actualizada desde la nube");
             }
         }, (error) => {
             console.error("❌ Error en listener de configuración:", error);
         });
 }
 
-// Guardar gasto en Firebase
 async function saveGastoToFirebase(gasto) {
     try {
         const db = firebase.firestore();
         const gastoData = {
-            ...gasto,
+            fecha: gasto.fecha,
+            monto: gasto.monto,
+            descripcion: gasto.descripcion,
+            persona: gasto.persona,
+            categoria: gasto.categoria,
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        // Eliminar id local si existe
-        if (gastoData.id && gastoData.id.toString().startsWith('local_')) {
-            delete gastoData.id;
-        }
         
         const docRef = await db.collection('gastos').add(gastoData);
         console.log("✅ Gasto guardado en Firebase con ID:", docRef.id);
         return docRef.id;
     } catch (error) {
-        console.error("❌ Error guardando en Firebase:", error);
+        console.error("❌ Error guardando:", error);
         throw error;
     }
 }
 
-// Eliminar gasto de Firebase
 async function deleteGastoFromFirebase(id) {
     try {
         await firebase.firestore().collection('gastos').doc(id).delete();
-        console.log("✅ Gasto eliminado de Firebase:", id);
+        console.log("✅ Gasto eliminado:", id);
     } catch (error) {
-        console.error("❌ Error eliminando de Firebase:", error);
+        console.error("❌ Error eliminando:", error);
         throw error;
     }
 }
 
-// Guardar configuración en Firebase
 async function saveConfigToFirebase() {
     try {
-        // Asegurar que los nombres también se guarden
-        const configData = {
-            ...config,
-            ahorroConfig: window.configAhorro || null, // Referencia a la config de ahorros
-            // Los nombres ya están en config.nombres
-        };
-        
         await firebase.firestore()
             .collection('config')
             .doc('nuestra_pareja')
-            .set(configData, { merge: true });
-        console.log("✅ Configuración guardada en Firebase");
+            .set(config, { merge: true });
     } catch (error) {
         console.error("❌ Error guardando configuración:", error);
         throw error;
@@ -259,7 +193,7 @@ async function saveConfigToFirebase() {
 }
 
 // ====================
-// FUNCIONES LOCALSTORAGE (BACKUP)
+// LOCALSTORAGE
 // ====================
 
 function saveToLocalStorage() {
@@ -276,13 +210,8 @@ function loadFromLocalStorage() {
         const savedGastos = localStorage.getItem('nuestros_gastos');
         const savedConfig = localStorage.getItem('gastos_config');
         
-        if (savedGastos) {
-            gastos = JSON.parse(savedGastos);
-        }
-        
-        if (savedConfig) {
-            config = JSON.parse(savedConfig);
-        }
+        if (savedGastos) gastos = JSON.parse(savedGastos);
+        if (savedConfig) config = JSON.parse(savedConfig);
     } catch (error) {
         console.error("Error cargando de localStorage:", error);
     }
@@ -295,43 +224,31 @@ function loadFromLocalStorage() {
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("🚀 Iniciando aplicación...");
     
-    // Primero cargar desde localStorage (más rápido)
     loadFromLocalStorage();
-    
-    // Inicializar app básica
     inicializarApp();
     actualizarUI();
     
-    // Luego conectar con Firebase
     setTimeout(async () => {
         await initFirebase();
     }, 1000);
 });
 
 function inicializarApp() {
-    // Configurar tema
     const temaGuardado = localStorage.getItem('tema') || 'light';
     document.documentElement.setAttribute('data-theme', temaGuardado);
     actualizarIconoTema(temaGuardado);
     
-    // Configurar eventos
     configurarEventos();
-    
-    // Configurar nombres
     actualizarNombresEnUI();
     
-    // Configurar fecha por defecto
     const hoy = new Date().toISOString().split('T')[0];
     document.getElementById('fecha-gasto').value = hoy;
     
-    // Inicializar gráfico
     inicializarGrafico();
-    
-    console.log("✅ App inicializada");
 }
 
 // ====================
-// FUNCIONES PRINCIPALES
+// FUNCIÓN AGREGAR GASTO CORREGIDA (CON ID TEMPORAL)
 // ====================
 
 async function agregarGasto() {
@@ -339,94 +256,101 @@ async function agregarGasto() {
     const descripcion = document.getElementById('descripcion').value.trim();
     const fecha = document.getElementById('fecha-gasto').value;
     
-    // Validaciones
     if (!monto || monto <= 0) {
-        mostrarNotificacion('Por favor ingresa un monto válido', 'error');
+        mostrarNotificacion('Ingresa un monto válido', 'error');
         document.getElementById('monto').focus();
         return;
     }
     
     if (!descripcion) {
-        mostrarNotificacion('Por favor ingresa una descripción', 'error');
+        mostrarNotificacion('Ingresa una descripción', 'error');
         document.getElementById('descripcion').focus();
         return;
     }
     
-    // Crear objeto de gasto
+    // 1. Crear ID TEMPORAL
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoGasto = {
-        id: 'local_' + Date.now(), // ID temporal
+        id: tempId,
         fecha: fecha,
         monto: monto,
         descripcion: descripcion,
         persona: personaSeleccionada,
         categoria: categoriaSeleccionada,
-        timestamp: new Date()
+        timestamp: new Date(),
+        sincronizando: true
     };
     
-    // Agregar al array local
-    // gastos.unshift(nuevoGasto);  // ← COMENTADA: NO guardar localmente
+    // 2. MOSTRAR INMEDIATAMENTE
+    gastos.unshift(nuevoGasto);
+    actualizarUI();
     
-    // Limpiar formulario
+    // 3. Limpiar formulario
     document.getElementById('monto').value = '';
     document.getElementById('descripcion').value = '';
     document.getElementById('monto').focus();
     
-    // Actualizar UI inmediatamente
-    // actualizarUI();  // ← COMENTADA: NO actualizar UI localmente
-    
-    // Mostrar confirmación
     const nombrePersona = personaSeleccionada === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-    mostrarNotificacion(`⏳ Guardando gasto de S/${monto.toFixed(2)}...`, 'info');
     
-    // Guardar en Firebase (en segundo plano)
-    setTimeout(async () => {
-        try {
-            const firebaseId = await saveGastoToFirebase(nuevoGasto);
-            // Actualizar el ID local con el de Firebase
-            nuevoGasto.id = firebaseId;
-            mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)}`, 'success');
-        } catch (error) {
-            console.error("Error guardando en Firebase, usando solo local:", error);
-            mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)} (guardado local)`, 'warning');
+    // 4. Guardar en Firebase
+    try {
+        const firebaseId = await saveGastoToFirebase(nuevoGasto);
+        
+        // 5. ACTUALIZAR el gasto existente con el ID real
+        const index = gastos.findIndex(g => g.id === tempId);
+        if (index !== -1) {
+            gastos[index].id = firebaseId;
+            gastos[index].sincronizando = false;
+            // No necesitas actualizar UI, el gasto ya está visible
         }
-        saveToLocalStorage();
-    }, 500);
+        
+        mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)}`, 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = gastos.findIndex(g => g.id === tempId);
+        if (index !== -1) {
+            gastos[index].error = true;
+        }
+        mostrarNotificacion(`⚠️ ${nombrePersona} gastó S/${monto.toFixed(2)} (sin conexión)`, 'warning');
+    }
+    
+    saveToLocalStorage();
 }
 
 async function eliminarGasto(id) {
     if (!confirm('¿Estás seguro de eliminar este gasto?')) return;
     
-    // Mostrar notificación inmediatamente
-    mostrarNotificacion('⏳ Eliminando gasto...', 'info');
+    mostrarNotificacion('⏳ Eliminando...', 'info');
     
-    // NO eliminar localmente - dejar que Firebase lo haga
-    // const index = gastos.findIndex(g => g.id === id);
-    // if (index === -1) return;
-    // gastos.splice(index, 1);  // ← COMENTADA
+    // Guardar copia por si algo sale mal
+    const gastoEliminado = gastos.find(g => g.id === id);
+    gastos = gastos.filter(g => g.id !== id);
+    actualizarUI();
     
-    // NO actualizar UI localmente - Firebase lo hará
-    // actualizarUI();  // ← COMENTADA
-    
-    // Intentar eliminar de Firebase
     try {
-        if (id && !id.toString().startsWith('local_')) {
+        if (id && !id.toString().startsWith('temp_')) {
             await deleteGastoFromFirebase(id);
-            // La notificación de éxito vendrá del listener de Firebase
+            mostrarNotificacion('✅ Gasto eliminado', 'success');
         } else {
-            // Si es un ID local, eliminar del array local
-            const index = gastos.findIndex(g => g.id === id);
-            if (index !== -1) {
-                gastos.splice(index, 1);
-                actualizarUI();
-                saveToLocalStorage();
-                mostrarNotificacion('Gasto eliminado (local)', 'success');
-            }
+            mostrarNotificacion('✅ Gasto eliminado (local)', 'success');
         }
     } catch (error) {
-        console.error("Error eliminando gasto:", error);
-        mostrarNotificacion('Error al eliminar el gasto', 'error');
+        console.error("Error eliminando:", error);
+        // Restaurar si falla
+        if (gastoEliminado) {
+            gastos.push(gastoEliminado);
+            actualizarUI();
+        }
+        mostrarNotificacion('Error al eliminar', 'error');
     }
+    
+    saveToLocalStorage();
 }
+
+// ====================
+// RESTO DE FUNCIONES (SIN CAMBIOS)
+// ====================
 
 async function guardarNombres() {
     const nombre1 = document.getElementById('nombre-persona1').value.trim() || 'Yo';
@@ -435,21 +359,18 @@ async function guardarNombres() {
     config.nombres.persona1 = nombre1;
     config.nombres.persona2 = nombre2;
     
-    // Actualizar UI
     actualizarNombresEnUI();
     actualizarUI();
     ocultarModalNombres();
     
-    // Guardar en Firebase
     try {
         await saveConfigToFirebase();
         mostrarNotificacion('Nombres actualizados', 'success');
     } catch (error) {
-        console.error("Error guardando nombres en Firebase:", error);
+        console.error("Error guardando nombres:", error);
         mostrarNotificacion('Nombres actualizados (local)', 'warning');
     }
     
-    // Guardar localmente
     saveToLocalStorage();
 }
 
@@ -461,33 +382,24 @@ async function guardarPresupuesto() {
         config.presupuesto = presupuesto;
         config.resetSemanal = resetSemanal;
         
-        // Actualizar UI
         actualizarUI();
         ocultarModalPresupuesto();
         
-        // Guardar en Firebase
         try {
             await saveConfigToFirebase();
             mostrarNotificacion(`Presupuesto: S/${presupuesto.toFixed(2)}`, 'success');
         } catch (error) {
-            console.error("Error guardando presupuesto en Firebase:", error);
+            console.error("Error guardando presupuesto:", error);
             mostrarNotificacion('Presupuesto actualizado (local)', 'warning');
         }
         
-        // Guardar localmente
         saveToLocalStorage();
     }
 }
 
-// ====================
-// CONFIGURACIÓN DE EVENTOS
-// ====================
-
 function configurarEventos() {
-    // Toggle tema
     document.getElementById('theme-btn').addEventListener('click', toggleTema);
     
-    // Selector de persona
     document.querySelectorAll('.person-option').forEach(opcion => {
         opcion.addEventListener('click', function() {
             document.querySelectorAll('.person-option').forEach(o => o.classList.remove('active'));
@@ -496,7 +408,6 @@ function configurarEventos() {
         });
     });
     
-    // Categorías rápidas
     document.querySelectorAll('.category-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -504,26 +415,23 @@ function configurarEventos() {
             categoriaSeleccionada = this.dataset.category;
             
             const sugerencias = {
-                comida: 'Supermercado, restaurante, delivery...',
-                transporte: 'Uber, gasolina, metro, bus...',
-                entretenimiento: 'Cine, concierto, parque...',
-                compras: 'Ropa, electrónica, regalos...',
+                comida: 'Supermercado, restaurante...',
+                transporte: 'Uber, gasolina...',
+                entretenimiento: 'Cine, concierto...',
+                compras: 'Ropa, regalos...',
                 otros: 'Otros gastos...'
             };
             
-            document.getElementById('descripcion').placeholder = sugerencias[categoriaSeleccionada];
+            document.getElementById('descripcion').placeholder = sugerencias[categoriaSeleccionada] || 'Descripción...';
         });
     });
     
-    // Botón agregar gasto
     document.getElementById('add-btn').addEventListener('click', agregarGasto);
     
-    // Enter en descripción también agrega
     document.getElementById('descripcion').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') agregarGasto();
     });
     
-    // Botones de acción
     document.querySelectorAll('.action-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const accion = this.dataset.action;
@@ -531,7 +439,6 @@ function configurarEventos() {
         });
     });
     
-    // Botones de gráficos
     document.querySelectorAll('.chart-option').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.chart-option').forEach(b => b.classList.remove('active'));
@@ -540,31 +447,24 @@ function configurarEventos() {
         });
     });
     
-    // Botón editar nombres
     document.getElementById('edit-names').addEventListener('click', mostrarModalNombres);
     document.getElementById('save-names').addEventListener('click', guardarNombres);
     document.getElementById('cancel-names').addEventListener('click', ocultarModalNombres);
     
-    // Botón editar presupuesto
     document.getElementById('edit-budget').addEventListener('click', mostrarModalPresupuesto);
     document.getElementById('save-budget').addEventListener('click', guardarPresupuesto);
     document.getElementById('cancel-budget').addEventListener('click', ocultarModalPresupuesto);
     
-    // Exportar datos
     document.getElementById('export-btn').addEventListener('click', exportarDatos);
-    
-    // Búsqueda
     document.getElementById('search-toggle').addEventListener('click', toggleBusqueda);
     document.getElementById('search-clear').addEventListener('click', limpiarBusqueda);
     document.getElementById('search-input').addEventListener('input', filtrarGastos);
     
-    // Filtros
     document.getElementById('filter-category').addEventListener('change', filtrarGastos);
     document.getElementById('filter-person').addEventListener('change', filtrarGastos);
     document.getElementById('filter-date').addEventListener('change', filtrarGastos);
     document.getElementById('clear-filters').addEventListener('click', limpiarFiltros);
     
-    // Cerrar modales
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             ocultarModalNombres();
@@ -573,9 +473,40 @@ function configurarEventos() {
     });
 }
 
-// ====================
-// INTERFAZ DE USUARIO
-// ====================
+function ejecutarAccion(accion) {
+    switch(accion) {
+        case 'ver-mis-gastos':
+            document.getElementById('filter-person').value = 'persona1';
+            filtrarGastos();
+            break;
+        case 'ver-mis-finanzas':
+            window.location.href = 'finanzas-personales.html?persona=yo';
+            break;
+        case 'ver-sus-finanzas':
+            window.location.href = 'finanzas-personales.html?persona=ella';
+            break;
+        case 'ver-limites':
+            window.location.href = 'limites.html';
+            break;
+        case 'ver-sus-gastos':
+            document.getElementById('filter-person').value = 'persona2';
+            filtrarGastos();
+            break;
+        case 'ver-semana':
+            document.getElementById('filter-date').value = 'week';
+            filtrarGastos();
+            break;
+        case 'ver-todos':
+            limpiarFiltros();
+            break;
+        case 'ver-ahorros':
+            window.location.href = 'ahorro.html';
+            break;
+        case 'ver-dias-especiales':
+            window.location.href = 'dias-especiales.html';
+            break;
+    }
+}
 
 function actualizarUI() {
     actualizarResumen();
@@ -587,8 +518,10 @@ function actualizarUI() {
 }
 
 function actualizarNombresEnUI() {
-    document.getElementById('name-persona1').textContent = config.nombres.persona1;
-    document.getElementById('name-persona2').textContent = config.nombres.persona2;
+    const el1 = document.getElementById('name-persona1');
+    const el2 = document.getElementById('name-persona2');
+    if (el1) el1.textContent = config.nombres.persona1;
+    if (el2) el2.textContent = config.nombres.persona2;
 }
 
 function actualizarResumen() {
@@ -604,22 +537,16 @@ function actualizarResumen() {
     document.getElementById('summary-hoy').textContent = `S/${totalHoy.toFixed(2)}`;
     document.getElementById('summary-semana').textContent = `S/${totalSemana.toFixed(2)}`;
     
-    // Calcular diferencia
     const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
     const gastosPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
     const diferencia = Math.abs(gastosPersona1 - gastosPersona2);
     
-    document.getElementById('summary-diferencia').textContent = `S/${diferencia.toFixed(2)}`;
-    
-    // Color según diferencia
     const diferenciaElement = document.getElementById('summary-diferencia');
-    if (diferencia === 0) {
-        diferenciaElement.style.color = 'var(--success-color)';
-    } else if (diferencia > 500) {
-        diferenciaElement.style.color = 'var(--accent-color)';
-    } else {
-        diferenciaElement.style.color = 'var(--warning-color)';
-    }
+    diferenciaElement.textContent = `S/${diferencia.toFixed(2)}`;
+    
+    if (diferencia === 0) diferenciaElement.style.color = 'var(--success-color)';
+    else if (diferencia > 500) diferenciaElement.style.color = 'var(--accent-color)';
+    else diferenciaElement.style.color = 'var(--warning-color)';
 }
 
 function actualizarPresupuesto() {
@@ -634,27 +561,17 @@ function actualizarPresupuesto() {
     document.getElementById('budget-remaining').textContent = Math.max(presupuesto - totalSemana, 0).toFixed(2);
     document.getElementById('budget-progress').style.width = `${porcentaje}%`;
     
-    // Color de la barra
     const progressBar = document.getElementById('budget-progress');
-    if (porcentaje < 70) {
-        progressBar.style.background = 'var(--gradient-success)';
-    } else if (porcentaje < 90) {
-        progressBar.style.background = 'var(--gradient-warning)';
-    } else {
-        progressBar.style.background = 'var(--gradient-primary)';
-    }
+    if (porcentaje < 70) progressBar.style.background = 'var(--gradient-success)';
+    else if (porcentaje < 90) progressBar.style.background = 'var(--gradient-warning)';
+    else progressBar.style.background = 'var(--gradient-primary)';
     
-    // Gastos por persona
     const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
     const gastosPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
     
     document.getElementById('budget-persona1').textContent = `S/${gastosPersona1.toFixed(2)}`;
     document.getElementById('budget-persona2').textContent = `S/${gastosPersona2.toFixed(2)}`;
 }
-
-// ====================
-// FILTRADO Y BÚSQUEDA
-// ====================
 
 function filtrarGastos() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -664,20 +581,14 @@ function filtrarGastos() {
     
     let gastosFiltrados = [...gastos];
     
-    // Aplicar filtros
     if (searchTerm) {
         gastosFiltrados = gastosFiltrados.filter(g => 
             g.descripcion.toLowerCase().includes(searchTerm)
         );
     }
     
-    if (categoria) {
-        gastosFiltrados = gastosFiltrados.filter(g => g.categoria === categoria);
-    }
-    
-    if (persona) {
-        gastosFiltrados = gastosFiltrados.filter(g => g.persona === persona);
-    }
+    if (categoria) gastosFiltrados = gastosFiltrados.filter(g => g.categoria === categoria);
+    if (persona) gastosFiltrados = gastosFiltrados.filter(g => g.persona === persona);
     
     if (rangoFecha && rangoFecha !== 'all') {
         const hoy = new Date();
@@ -693,22 +604,18 @@ function filtrarGastos() {
             case 'month':
                 fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
                 break;
+            default:
+                fechaInicio = null;
         }
         
         if (fechaInicio) {
-            gastosFiltrados = gastosFiltrados.filter(g => 
-                new Date(g.fecha) >= fechaInicio
-            );
+            gastosFiltrados = gastosFiltrados.filter(g => new Date(g.fecha) >= fechaInicio);
         }
     }
     
-    // Ordenar por fecha
     gastosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    
-    // Mostrar resultados
     mostrarGastosFiltrados(gastosFiltrados);
     
-    // Actualizar totales
     const totalFiltrado = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
     const totalGeneral = gastos.reduce((sum, g) => sum + g.monto, 0);
     
@@ -726,7 +633,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
             <div class="empty-state">
                 <i class="far fa-search"></i>
                 <h4>No se encontraron gastos</h4>
-                <p>Intenta con otros filtros o términos de búsqueda.</p>
+                <p>Intenta con otros filtros.</p>
             </div>
         `;
         emptyState.style.display = 'none';
@@ -738,11 +645,11 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     totales.style.display = 'block';
     
     const iconosCategorias = {
-        comida: '🍕',
+        comida: '🍔',
         transporte: '🚗',
         entretenimiento: '🎬',
         compras: '🛍️',
-        otros: '📝'
+        otros: '📦'
     };
     
     const nombresCategorias = {
@@ -763,14 +670,18 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         });
         
         const nombrePersona = gasto.persona === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-        const iconoCategoria = iconosCategorias[gasto.categoria] || '📝';
-        const nombreCategoria = nombresCategorias[gasto.categoria];
+        const iconoCategoria = iconosCategorias[gasto.categoria] || '📦';
+        const nombreCategoria = nombresCategorias[gasto.categoria] || 'Otros';
         const idSeguro = gasto.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
+        const sincronizandoClass = gasto.sincronizando ? 'sincronizando' : '';
+        const sincronizandoIcon = gasto.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
+        const errorIcon = gasto.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        
         html += `
-            <div class="gasto-item ${gasto.persona}">
+            <div class="gasto-item ${gasto.persona} ${sincronizandoClass}" data-id="${gasto.id}">
                 <div class="gasto-header">
-                    <div class="gasto-monto">S/${gasto.monto.toFixed(2)}</div>
+                    <div class="gasto-monto">S/${gasto.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
                     <button class="delete-btn" onclick="eliminarGasto('${idSeguro}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -796,14 +707,9 @@ function limpiarFiltros() {
     document.getElementById('filter-person').value = '';
     document.getElementById('filter-date').value = 'all';
     document.getElementById('search-box').style.display = 'none';
-    
     filtrarGastos();
     mostrarNotificacion('Filtros limpiados', 'info');
 }
-
-// ====================
-// GRÁFICOS
-// ====================
 
 function inicializarGrafico() {
     const ctx = document.getElementById('gastos-chart').getContext('2d');
@@ -814,9 +720,7 @@ function inicializarGrafico() {
             labels: [],
             datasets: [{
                 data: [],
-                backgroundColor: [
-                    '#667eea', '#764ba2', '#f56565', '#ed8936', '#38a169'
-                ],
+                backgroundColor: ['#667eea', '#764ba2', '#f56565', '#ed8936', '#38a169'],
                 borderWidth: 2,
                 borderColor: 'var(--card-bg)'
             }]
@@ -827,10 +731,7 @@ function inicializarGrafico() {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        color: 'var(--text-color)',
-                        padding: 20
-                    }
+                    labels: { color: 'var(--text-color)', padding: 20 }
                 },
                 tooltip: {
                     callbacks: {
@@ -857,29 +758,17 @@ function actualizarGrafico(tipo) {
         case 'categorias':
             const categorias = ['comida', 'transporte', 'entretenimiento', 'compras', 'otros'];
             labels = ['Comida', 'Transporte', 'Entretenimiento', 'Compras', 'Otros'];
-            
             categorias.forEach(cat => {
-                const total = gastosSemana
-                    .filter(g => g.categoria === cat)
-                    .reduce((sum, g) => sum + g.monto, 0);
+                const total = gastosSemana.filter(g => g.categoria === cat).reduce((sum, g) => sum + g.monto, 0);
                 datos.push(total);
             });
             break;
-            
         case 'personas':
             labels = [config.nombres.persona1, config.nombres.persona2];
-            
-            const totalPersona1 = gastosSemana
-                .filter(g => g.persona === 'persona1')
-                .reduce((sum, g) => sum + g.monto, 0);
-            
-            const totalPersona2 = gastosSemana
-                .filter(g => g.persona === 'persona2')
-                .reduce((sum, g) => sum + g.monto, 0);
-            
+            const totalPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
+            const totalPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
             datos.push(totalPersona1, totalPersona2);
             break;
-            
         case 'semana':
             const ultimos7Dias = Array.from({length: 7}, (_, i) => {
                 const fecha = new Date();
@@ -893,9 +782,7 @@ function actualizarGrafico(tipo) {
             });
             
             ultimos7Dias.forEach(fecha => {
-                const total = gastos
-                    .filter(g => g.fecha === fecha)
-                    .reduce((sum, g) => sum + g.monto, 0);
+                const total = gastos.filter(g => g.fecha === fecha).reduce((sum, g) => sum + g.monto, 0);
                 datos.push(total);
             });
             break;
@@ -906,85 +793,9 @@ function actualizarGrafico(tipo) {
     chartInstance.update();
 }
 
-// ====================
-// ACCIONES
-// ====================
-
-function ejecutarAccion(accion) {
-    switch(accion) {
-        case 'ver-mis-gastos':
-            document.getElementById('filter-person').value = 'persona1';
-            filtrarGastos();
-            break;
-        
-        case 'ver-mis-finanzas':
-            window.location.href = 'finanzas-personales.html?persona=yo';
-            break;
-            
-        case 'ver-sus-finanzas':
-            window.location.href = 'finanzas-personales.html?persona=ella';
-            break;
-            
-        case 'ver-limites':
-            window.location.href = 'limites.html';
-            break;
-            
-        case 'ver-sus-gastos':
-            document.getElementById('filter-person').value = 'persona2';
-            filtrarGastos();
-            break;
-            
-        case 'ver-semana':
-            document.getElementById('filter-date').value = 'week';
-            filtrarGastos();
-            break;
-            
-        case 'ver-todos':
-            limpiarFiltros();
-            break;
-            
-        case 'ver-ahorros':
-            window.location.href = 'ahorro.html';
-            break;
-            
-        case 'ver-dias-especiales':
-            window.location.href = 'dias-especiales.html';
-            break;
-    }
-}
-
-// ====================
-// MODALES
-// ====================
-
-function mostrarModalNombres() {
-    document.getElementById('nombre-persona1').value = config.nombres.persona1;
-    document.getElementById('nombre-persona2').value = config.nombres.persona2;
-    document.getElementById('names-modal').classList.add('active');
-}
-
-function ocultarModalNombres() {
-    document.getElementById('names-modal').classList.remove('active');
-}
-
-function mostrarModalPresupuesto() {
-    document.getElementById('presupuesto-semanal').value = config.presupuesto;
-    document.getElementById('reset-semanal').checked = config.resetSemanal;
-    document.getElementById('budget-modal').classList.add('active');
-}
-
-function ocultarModalPresupuesto() {
-    document.getElementById('budget-modal').classList.remove('active');
-}
-
-// ====================
-// EXPORTACIÓN
-// ====================
-
 function exportarDatos() {
     const dataStr = JSON.stringify(gastos, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `gastos_${new Date().toISOString().split('T')[0]}.json`;
     
     const linkElement = document.createElement('a');
@@ -994,10 +805,6 @@ function exportarDatos() {
     
     mostrarNotificacion('Datos exportados', 'success');
 }
-
-// ====================
-// UTILIDADES
-// ====================
 
 function toggleTema() {
     const temaActual = document.documentElement.getAttribute('data-theme');
@@ -1029,10 +836,7 @@ function obtenerInicioSemana() {
 function toggleBusqueda() {
     const searchBox = document.getElementById('search-box');
     searchBox.style.display = searchBox.style.display === 'none' ? 'block' : 'none';
-    
-    if (searchBox.style.display === 'block') {
-        document.getElementById('search-input').focus();
-    }
+    if (searchBox.style.display === 'block') document.getElementById('search-input').focus();
 }
 
 function limpiarBusqueda() {
@@ -1042,27 +846,19 @@ function limpiarBusqueda() {
 
 function mostrarNotificacion(mensaje, tipo = 'info') {
     const notificacion = document.getElementById('notification');
+    if (!notificacion) return;
     
     notificacion.textContent = mensaje;
     notificacion.className = 'notification show';
     
     switch(tipo) {
-        case 'success':
-            notificacion.style.background = 'var(--success-color)';
-            break;
-        case 'error':
-            notificacion.style.background = 'var(--accent-color)';
-            break;
-        case 'warning':
-            notificacion.style.background = 'var(--warning-color)';
-            break;
-        default:
-            notificacion.style.background = 'var(--primary-color)';
+        case 'success': notificacion.style.background = 'var(--success-color)'; break;
+        case 'error': notificacion.style.background = 'var(--accent-color)'; break;
+        case 'warning': notificacion.style.background = 'var(--warning-color)'; break;
+        default: notificacion.style.background = 'var(--primary-color)';
     }
     
-    setTimeout(() => {
-        notificacion.classList.remove('show');
-    }, 3000);
+    setTimeout(() => notificacion.classList.remove('show'), 3000);
 }
 
 function actualizarQuickSummary() {
@@ -1072,24 +868,31 @@ function actualizarQuickSummary() {
     const gastosHoy = gastos.filter(g => g.fecha === hoy);
     const gastosSemana = gastos.filter(g => new Date(g.fecha) >= inicioSemana);
     
-    const totalHoy = gastosHoy.reduce((sum, g) => sum + g.monto, 0);
-    const totalSemana = gastosSemana.reduce((sum, g) => sum + g.monto, 0);
-    
-    document.getElementById('summary-hoy').textContent = `S/${totalHoy.toFixed(2)}`;
-    document.getElementById('summary-semana').textContent = `S/${totalSemana.toFixed(2)}`;
-    
-    // Calcular diferencia
-    const gastosPersona1 = gastosSemana.filter(g => g.persona === 'persona1')
-        .reduce((sum, g) => sum + g.monto, 0);
-    const gastosPersona2 = gastosSemana.filter(g => g.persona === 'persona2')
-        .reduce((sum, g) => sum + g.monto, 0);
-    
-    const diferencia = Math.abs(gastosPersona1 - gastosPersona2);
-    document.getElementById('summary-diferencia').textContent = `S/${diferencia.toFixed(2)}`;
+    document.getElementById('summary-hoy').textContent = `S/${gastosHoy.reduce((sum, g) => sum + g.monto, 0).toFixed(2)}`;
+    document.getElementById('summary-semana').textContent = `S/${gastosSemana.reduce((sum, g) => sum + g.monto, 0).toFixed(2)}`;
 }
 
-// ====================
-// INICIALIZAR AL CARGAR
-// ====================
+function mostrarModalNombres() {
+    document.getElementById('nombre-persona1').value = config.nombres.persona1;
+    document.getElementById('nombre-persona2').value = config.nombres.persona2;
+    document.getElementById('names-modal').classList.add('active');
+}
 
-console.log("🔄 App.js cargado correctamente");
+function ocultarModalNombres() {
+    document.getElementById('names-modal').classList.remove('active');
+}
+
+function mostrarModalPresupuesto() {
+    document.getElementById('presupuesto-semanal').value = config.presupuesto;
+    document.getElementById('reset-semanal').checked = config.resetSemanal;
+    document.getElementById('budget-modal').classList.add('active');
+}
+
+function ocultarModalPresupuesto() {
+    document.getElementById('budget-modal').classList.remove('active');
+}
+
+// Hacer funciones globales
+window.eliminarGasto = eliminarGasto;
+
+console.log("✅ app.js cargado correctamente (versión sin recargas)");

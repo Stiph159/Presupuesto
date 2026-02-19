@@ -1,5 +1,7 @@
-// app-finanzas.js - Lógica para finanzas personales
-// ==================================================
+// File: app-finanzas.js
+// ====================
+// VERSIÓN CORREGIDA - SIN RECARGAS
+// ====================
 
 // Variables globales
 let personaActual = 'yo'; // 'yo' o 'ella'
@@ -63,9 +65,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 function inicializarUI() {
     // Configurar fechas por defecto
     const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fecha-ingreso').value = hoy;
-    document.getElementById('fecha-gasto-personal').value = hoy;
-    document.getElementById('fecha-pago').value = hoy;
+    const fechaIngreso = document.getElementById('fecha-ingreso');
+    const fechaGasto = document.getElementById('fecha-gasto-personal');
+    const fechaPago = document.getElementById('fecha-pago');
+    
+    if (fechaIngreso) fechaIngreso.value = hoy;
+    if (fechaGasto) fechaGasto.value = hoy;
+    if (fechaPago) fechaPago.value = hoy;
     
     // Actualizar título según persona
     actualizarTituloPersona();
@@ -73,17 +79,17 @@ function inicializarUI() {
 
 function actualizarTituloPersona() {
     const titulo = document.getElementById('page-title');
-    const tabYo = document.getElementById('tab-yo');
-    const tabElla = document.getElementById('tab-ella');
+    const tabYo = document.querySelector('.person-tab[data-person="yo"]');
+    const tabElla = document.querySelector('.person-tab[data-person="ella"]');
     
     if (personaActual === 'yo') {
-        titulo.textContent = 'Mis Finanzas';
-        document.querySelector('.person-tab[data-person="yo"]').classList.add('active');
-        document.querySelector('.person-tab[data-person="ella"]').classList.remove('active');
+        if (titulo) titulo.textContent = 'Mis Finanzas';
+        if (tabYo) tabYo.classList.add('active');
+        if (tabElla) tabElla.classList.remove('active');
     } else {
-        titulo.textContent = 'Sus Finanzas';
-        document.querySelector('.person-tab[data-person="yo"]').classList.remove('active');
-        document.querySelector('.person-tab[data-person="ella"]').classList.add('active');
+        if (titulo) titulo.textContent = 'Sus Finanzas';
+        if (tabYo) tabYo.classList.remove('active');
+        if (tabElla) tabElla.classList.add('active');
     }
 }
 
@@ -108,6 +114,10 @@ async function initFirebaseFinanzas() {
     }
 }
 
+// ==================================================
+// LISTENERS CORREGIDOS (SIN RECARGAS)
+// ==================================================
+
 function setupRealtimeListeners() {
     const db = firebase.firestore();
     
@@ -118,14 +128,32 @@ function setupRealtimeListeners() {
         .where('persona', '==', personaActual)
         .orderBy('fecha', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("📥 Cambios en ingresos");
+            console.log("📥 Cambios en ingresos:", snapshot.docChanges().length);
             
-            // Limpiar array
-            ingresos = [];
-            
-            snapshot.forEach(doc => {
-                const data = { id: doc.id, ...doc.data() };
-                ingresos.push(data);
+            snapshot.docChanges().forEach(cambio => {
+                const data = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
+                };
+                
+                switch (cambio.type) {
+                    case 'added':
+                        const existe = ingresos.some(i => i.id === data.id);
+                        if (!existe && !data.id.toString().startsWith('temp_')) {
+                            console.log("➕ Nuevo ingreso remoto");
+                            ingresos.push(data);
+                            mostrarNotificacion(`💰 Nuevo ingreso de S/${data.monto.toFixed(2)}`, 'info');
+                        }
+                        break;
+                    case 'modified':
+                        const indexMod = ingresos.findIndex(i => i.id === data.id);
+                        if (indexMod !== -1) ingresos[indexMod] = data;
+                        break;
+                    case 'removed':
+                        ingresos = ingresos.filter(i => i.id !== data.id);
+                        mostrarNotificacion(`📌 Un ingreso fue eliminado`, 'warning');
+                        break;
+                }
             });
             
             actualizarUI();
@@ -139,13 +167,32 @@ function setupRealtimeListeners() {
         .where('persona', '==', personaActual)
         .orderBy('fecha', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("📤 Cambios en gastos personales");
+            console.log("📤 Cambios en gastos personales:", snapshot.docChanges().length);
             
-            gastosPersonales = [];
-            
-            snapshot.forEach(doc => {
-                const data = { id: doc.id, ...doc.data() };
-                gastosPersonales.push(data);
+            snapshot.docChanges().forEach(cambio => {
+                const data = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
+                };
+                
+                switch (cambio.type) {
+                    case 'added':
+                        const existe = gastosPersonales.some(g => g.id === data.id);
+                        if (!existe && !data.id.toString().startsWith('temp_')) {
+                            console.log("➕ Nuevo gasto remoto");
+                            gastosPersonales.push(data);
+                            mostrarNotificacion(`💸 Nuevo gasto de S/${data.monto.toFixed(2)}`, 'info');
+                        }
+                        break;
+                    case 'modified':
+                        const indexMod = gastosPersonales.findIndex(g => g.id === data.id);
+                        if (indexMod !== -1) gastosPersonales[indexMod] = data;
+                        break;
+                    case 'removed':
+                        gastosPersonales = gastosPersonales.filter(g => g.id !== data.id);
+                        mostrarNotificacion(`📌 Un gasto fue eliminado`, 'warning');
+                        break;
+                }
             });
             
             actualizarUI();
@@ -159,13 +206,32 @@ function setupRealtimeListeners() {
         .where('persona', '==', personaActual)
         .orderBy('fechaRegistro', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("💳 Cambios en deudas");
+            console.log("💳 Cambios en deudas:", snapshot.docChanges().length);
             
-            deudas = [];
-            
-            snapshot.forEach(doc => {
-                const data = { id: doc.id, ...doc.data() };
-                deudas.push(data);
+            snapshot.docChanges().forEach(cambio => {
+                const data = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
+                };
+                
+                switch (cambio.type) {
+                    case 'added':
+                        const existe = deudas.some(d => d.id === data.id);
+                        if (!existe && !data.id.toString().startsWith('temp_')) {
+                            console.log("➕ Nueva deuda remota");
+                            deudas.push(data);
+                            mostrarNotificacion(`📝 Nueva deuda registrada`, 'info');
+                        }
+                        break;
+                    case 'modified':
+                        const indexMod = deudas.findIndex(d => d.id === data.id);
+                        if (indexMod !== -1) deudas[indexMod] = data;
+                        break;
+                    case 'removed':
+                        deudas = deudas.filter(d => d.id !== data.id);
+                        mostrarNotificacion(`📌 Una deuda fue eliminada`, 'warning');
+                        break;
+                }
             });
             
             actualizarUI();
@@ -177,14 +243,14 @@ async function guardarIngresoEnFirebase(ingreso) {
     try {
         const db = firebase.firestore();
         const ingresoData = {
-            ...ingreso,
+            persona: ingreso.persona,
+            monto: ingreso.monto,
+            descripcion: ingreso.descripcion,
+            fecha: ingreso.fecha,
+            tipo: ingreso.tipo,
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        if (ingresoData.id && ingresoData.id.toString().startsWith('local_')) {
-            delete ingresoData.id;
-        }
         
         const docRef = await db.collection('finanzas_ingresos').add(ingresoData);
         return docRef.id;
@@ -198,14 +264,14 @@ async function guardarGastoEnFirebase(gasto) {
     try {
         const db = firebase.firestore();
         const gastoData = {
-            ...gasto,
+            persona: gasto.persona,
+            monto: gasto.monto,
+            descripcion: gasto.descripcion,
+            fecha: gasto.fecha,
+            categoria: gasto.categoria,
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        if (gastoData.id && gastoData.id.toString().startsWith('local_')) {
-            delete gastoData.id;
-        }
         
         const docRef = await db.collection('finanzas_gastos').add(gastoData);
         return docRef.id;
@@ -219,14 +285,17 @@ async function guardarDeudaEnFirebase(deuda) {
     try {
         const db = firebase.firestore();
         const deudaData = {
-            ...deuda,
+            persona: deuda.persona,
+            descripcion: deuda.descripcion,
+            montoTotal: deuda.montoTotal,
+            montoRestante: deuda.montoRestante,
+            acreedor: deuda.acreedor,
+            fechaVencimiento: deuda.fechaVencimiento,
+            estado: deuda.estado,
+            pagos: deuda.pagos || [],
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
-        if (deudaData.id && deudaData.id.toString().startsWith('local_')) {
-            delete deudaData.id;
-        }
         
         const docRef = await db.collection('finanzas_deudas').add(deudaData);
         return docRef.id;
@@ -289,7 +358,7 @@ function cargarDeLocalStorage() {
 }
 
 // ==================================================
-// FUNCIONES PRINCIPALES
+// FUNCIONES PRINCIPALES CORREGIDAS (CON ID TEMPORAL)
 // ==================================================
 
 async function agregarIngreso() {
@@ -308,32 +377,52 @@ async function agregarIngreso() {
         return;
     }
     
+    // 1. Crear ID TEMPORAL
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoIngreso = {
-        id: 'local_' + Date.now(),
+        id: tempId,
         persona: personaActual,
         monto: monto,
         descripcion: descripcion,
         fecha: fecha,
         tipo: tipo,
-        fechaRegistro: new Date().toISOString()
+        fechaRegistro: new Date().toISOString(),
+        sincronizando: true
     };
     
-    // Limpiar formulario
+    // 2. MOSTRAR INMEDIATAMENTE
+    ingresos.unshift(nuevoIngreso);
+    actualizarUI();
+    
+    // 3. Limpiar formulario
     document.getElementById('monto-ingreso').value = '';
     document.getElementById('descripcion-ingreso').value = '';
     document.getElementById('form-ingreso').style.display = 'none';
     
     mostrarNotificacion('⏳ Guardando ingreso...', 'info');
     
-    setTimeout(async () => {
-        try {
-            await guardarIngresoEnFirebase(nuevoIngreso);
-            mostrarNotificacion(`✅ Ingreso de S/${monto.toFixed(2)} guardado`, 'success');
-        } catch (error) {
-            console.error("Error:", error);
-            mostrarNotificacion('✅ Ingreso guardado (local)', 'warning');
+    // 4. Guardar en Firebase
+    try {
+        const firebaseId = await guardarIngresoEnFirebase(nuevoIngreso);
+        
+        const index = ingresos.findIndex(i => i.id === tempId);
+        if (index !== -1) {
+            ingresos[index].id = firebaseId;
+            ingresos[index].sincronizando = false;
         }
-    }, 500);
+        
+        mostrarNotificacion(`✅ Ingreso de S/${monto.toFixed(2)} guardado`, 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = ingresos.findIndex(i => i.id === tempId);
+        if (index !== -1) {
+            ingresos[index].error = true;
+        }
+        mostrarNotificacion(`⚠️ Ingreso de S/${monto.toFixed(2)} (sin conexión)`, 'warning');
+    }
+    
+    guardarEnLocalStorage();
 }
 
 async function agregarGastoPersonal() {
@@ -352,32 +441,52 @@ async function agregarGastoPersonal() {
         return;
     }
     
+    // 1. Crear ID TEMPORAL
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoGasto = {
-        id: 'local_' + Date.now(),
+        id: tempId,
         persona: personaActual,
         monto: monto,
         descripcion: descripcion,
         fecha: fecha,
         categoria: categoria,
-        fechaRegistro: new Date().toISOString()
+        fechaRegistro: new Date().toISOString(),
+        sincronizando: true
     };
     
-    // Limpiar formulario
+    // 2. MOSTRAR INMEDIATAMENTE
+    gastosPersonales.unshift(nuevoGasto);
+    actualizarUI();
+    
+    // 3. Limpiar formulario
     document.getElementById('monto-gasto').value = '';
     document.getElementById('descripcion-gasto').value = '';
     document.getElementById('form-gasto').style.display = 'none';
     
     mostrarNotificacion('⏳ Guardando gasto...', 'info');
     
-    setTimeout(async () => {
-        try {
-            await guardarGastoEnFirebase(nuevoGasto);
-            mostrarNotificacion(`✅ Gasto de S/${monto.toFixed(2)} guardado`, 'success');
-        } catch (error) {
-            console.error("Error:", error);
-            mostrarNotificacion('✅ Gasto guardado (local)', 'warning');
+    // 4. Guardar en Firebase
+    try {
+        const firebaseId = await guardarGastoEnFirebase(nuevoGasto);
+        
+        const index = gastosPersonales.findIndex(g => g.id === tempId);
+        if (index !== -1) {
+            gastosPersonales[index].id = firebaseId;
+            gastosPersonales[index].sincronizando = false;
         }
-    }, 500);
+        
+        mostrarNotificacion(`✅ Gasto de S/${monto.toFixed(2)} guardado`, 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = gastosPersonales.findIndex(g => g.id === tempId);
+        if (index !== -1) {
+            gastosPersonales[index].error = true;
+        }
+        mostrarNotificacion(`⚠️ Gasto de S/${monto.toFixed(2)} (sin conexión)`, 'warning');
+    }
+    
+    guardarEnLocalStorage();
 }
 
 async function agregarDeuda() {
@@ -392,20 +501,27 @@ async function agregarDeuda() {
         return;
     }
     
+    // 1. Crear ID TEMPORAL
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevaDeuda = {
-        id: 'local_' + Date.now(),
+        id: tempId,
         persona: personaActual,
         descripcion: descripcion,
         montoTotal: monto,
         montoRestante: estado === 'pagada' ? 0 : monto,
         acreedor: acreedor,
         fechaVencimiento: fechaVencimiento || null,
-        estado: estado, // 'pendiente' o 'pagada'
-        pagos: [], // Historial de pagos
-        fechaRegistro: new Date().toISOString()
+        estado: estado,
+        pagos: [],
+        fechaRegistro: new Date().toISOString(),
+        sincronizando: true
     };
     
-    // Limpiar formulario
+    // 2. MOSTRAR INMEDIATAMENTE
+    deudas.unshift(nuevaDeuda);
+    actualizarUI();
+    
+    // 3. Limpiar formulario
     document.getElementById('descripcion-deuda').value = '';
     document.getElementById('monto-deuda').value = '';
     document.getElementById('acreedor-deuda').value = '';
@@ -415,15 +531,28 @@ async function agregarDeuda() {
     
     mostrarNotificacion('⏳ Guardando deuda...', 'info');
     
-    setTimeout(async () => {
-        try {
-            await guardarDeudaEnFirebase(nuevaDeuda);
-            mostrarNotificacion('✅ Deuda registrada', 'success');
-        } catch (error) {
-            console.error("Error:", error);
-            mostrarNotificacion('✅ Deuda guardada (local)', 'warning');
+    // 4. Guardar en Firebase
+    try {
+        const firebaseId = await guardarDeudaEnFirebase(nuevaDeuda);
+        
+        const index = deudas.findIndex(d => d.id === tempId);
+        if (index !== -1) {
+            deudas[index].id = firebaseId;
+            deudas[index].sincronizando = false;
         }
-    }, 500);
+        
+        mostrarNotificacion('✅ Deuda registrada', 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = deudas.findIndex(d => d.id === tempId);
+        if (index !== -1) {
+            deudas[index].error = true;
+        }
+        mostrarNotificacion('⚠️ Deuda guardada (local)', 'warning');
+    }
+    
+    guardarEnLocalStorage();
 }
 
 function mostrarModalPago(deudaId) {
@@ -463,8 +592,11 @@ async function procesarPago() {
         tipo: pagoCompleto ? 'completo' : 'parcial'
     };
     
-    // Actualizar deuda
-    const deudaActualizada = { ...deudaSeleccionada };
+    // Actualizar deuda (localmente)
+    const indexDeuda = deudas.findIndex(d => d.id === deudaSeleccionada.id);
+    if (indexDeuda === -1) return;
+    
+    const deudaActualizada = { ...deudas[indexDeuda] };
     deudaActualizada.montoRestante -= montoPago;
     deudaActualizada.pagos = deudaActualizada.pagos || [];
     deudaActualizada.pagos.push(nuevoPago);
@@ -474,40 +606,63 @@ async function procesarPago() {
         deudaActualizada.montoRestante = 0;
     }
     
-    // Cerrar modal
-    document.getElementById('pago-modal').classList.remove('active');
+    // Actualizar array local
+    deudas[indexDeuda] = deudaActualizada;
     
-    mostrarNotificacion('⏳ Procesando pago...', 'info');
-    
-    // También crear un gasto automático por el pago
+    // Crear gasto por pago
+    const tempIdGasto = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const gastoPorPago = {
-        id: 'local_' + Date.now() + '_pago',
+        id: tempIdGasto,
         persona: personaActual,
         monto: montoPago,
         descripcion: `Pago de deuda: ${deudaSeleccionada.descripcion}`,
         fecha: fechaPago,
         categoria: 'deudas',
-        fechaRegistro: new Date().toISOString()
+        fechaRegistro: new Date().toISOString(),
+        sincronizando: true
     };
     
-    setTimeout(async () => {
-        try {
-            // Actualizar deuda
-            await actualizarDeudaEnFirebase(deudaSeleccionada.id, {
-                montoRestante: deudaActualizada.montoRestante,
-                estado: deudaActualizada.estado,
-                pagos: deudaActualizada.pagos
-            });
-            
-            // Guardar gasto
-            await guardarGastoEnFirebase(gastoPorPago);
-            
-            mostrarNotificacion('✅ Pago registrado', 'success');
-        } catch (error) {
-            console.error("Error:", error);
-            mostrarNotificacion('✅ Pago registrado (local)', 'warning');
+    // Mostrar gasto inmediatamente
+    gastosPersonales.unshift(gastoPorPago);
+    
+    // Cerrar modal y actualizar UI
+    document.getElementById('pago-modal').classList.remove('active');
+    actualizarUI();
+    
+    mostrarNotificacion('⏳ Procesando pago...', 'info');
+    
+    // Guardar en Firebase
+    try {
+        // Actualizar deuda
+        await actualizarDeudaEnFirebase(deudaSeleccionada.id, {
+            montoRestante: deudaActualizada.montoRestante,
+            estado: deudaActualizada.estado,
+            pagos: deudaActualizada.pagos
+        });
+        
+        // Guardar gasto
+        const firebaseIdGasto = await guardarGastoEnFirebase(gastoPorPago);
+        
+        // Actualizar ID del gasto
+        const indexGasto = gastosPersonales.findIndex(g => g.id === tempIdGasto);
+        if (indexGasto !== -1) {
+            gastosPersonales[indexGasto].id = firebaseIdGasto;
+            gastosPersonales[indexGasto].sincronizando = false;
         }
-    }, 500);
+        
+        mostrarNotificacion('✅ Pago registrado', 'success');
+        
+    } catch (error) {
+        console.error("Error:", error);
+        const indexGasto = gastosPersonales.findIndex(g => g.id === tempIdGasto);
+        if (indexGasto !== -1) {
+            gastosPersonales[indexGasto].error = true;
+        }
+        mostrarNotificacion('⚠️ Pago registrado (local)', 'warning');
+    }
+    
+    deudaSeleccionada = null;
+    guardarEnLocalStorage();
 }
 
 async function eliminarItem(coleccion, id, tipo) {
@@ -515,26 +670,48 @@ async function eliminarItem(coleccion, id, tipo) {
     
     mostrarNotificacion('⏳ Eliminando...', 'info');
     
+    // Guardar copia por si algo sale mal
+    let itemEliminado = null;
+    let arrayOriginal = [];
+    
+    if (coleccion === 'finanzas_ingresos') {
+        itemEliminado = ingresos.find(i => i.id === id);
+        arrayOriginal = [...ingresos];
+        ingresos = ingresos.filter(i => i.id !== id);
+    } else if (coleccion === 'finanzas_gastos') {
+        itemEliminado = gastosPersonales.find(g => g.id === id);
+        arrayOriginal = [...gastosPersonales];
+        gastosPersonales = gastosPersonales.filter(g => g.id !== id);
+    } else if (coleccion === 'finanzas_deudas') {
+        itemEliminado = deudas.find(d => d.id === id);
+        arrayOriginal = [...deudas];
+        deudas = deudas.filter(d => d.id !== id);
+    }
+    
+    actualizarUI();
+    
     try {
-        if (!id.toString().startsWith('local_')) {
+        if (!id.toString().startsWith('temp_')) {
             await eliminarDeFirebase(coleccion, id);
-        } else {
-            // Actualizar array local correspondiente
-            if (coleccion === 'finanzas_ingresos') {
-                ingresos = ingresos.filter(i => i.id !== id);
-            } else if (coleccion === 'finanzas_gastos') {
-                gastosPersonales = gastosPersonales.filter(g => g.id !== id);
-            } else if (coleccion === 'finanzas_deudas') {
-                deudas = deudas.filter(d => d.id !== id);
-            }
-            actualizarUI();
-            guardarEnLocalStorage();
             mostrarNotificacion('✅ Eliminado', 'success');
+        } else {
+            mostrarNotificacion('✅ Eliminado (local)', 'success');
         }
     } catch (error) {
         console.error("Error eliminando:", error);
+        // Restaurar si falla
+        if (coleccion === 'finanzas_ingresos') {
+            ingresos = arrayOriginal;
+        } else if (coleccion === 'finanzas_gastos') {
+            gastosPersonales = arrayOriginal;
+        } else if (coleccion === 'finanzas_deudas') {
+            deudas = arrayOriginal;
+        }
+        actualizarUI();
         mostrarNotificacion('Error al eliminar', 'error');
     }
+    
+    guardarEnLocalStorage();
 }
 
 // ==================================================
@@ -555,7 +732,7 @@ function actualizarResumen() {
     const ingresosMes = ingresos.filter(i => new Date(i.fecha) >= inicioMes);
     const totalIngresos = ingresosMes.reduce((sum, i) => sum + i.monto, 0);
     
-    // Gastos del mes (incluyendo pagos de deudas)
+    // Gastos del mes
     const gastosMes = gastosPersonales.filter(g => new Date(g.fecha) >= inicioMes);
     const totalGastos = gastosMes.reduce((sum, g) => sum + g.monto, 0);
     
@@ -568,22 +745,23 @@ function actualizarResumen() {
     const disponible = totalIngresos - totalGastos;
     
     // Actualizar DOM
-    document.getElementById('resumen-ingresos').textContent = `S/${totalIngresos.toFixed(2)}`;
-    document.getElementById('resumen-gastos').textContent = `S/${totalGastos.toFixed(2)}`;
-    document.getElementById('resumen-disponible').textContent = `S/${disponible.toFixed(2)}`;
-    document.getElementById('resumen-deuda').textContent = `S/${deudaTotal.toFixed(2)}`;
+    const elIngresos = document.getElementById('resumen-ingresos');
+    const elGastos = document.getElementById('resumen-gastos');
+    const elDisponible = document.getElementById('resumen-disponible');
+    const elDeuda = document.getElementById('resumen-deuda');
     
-    // Colorear disponible
-    const disponibleElement = document.getElementById('resumen-disponible');
-    if (disponible < 0) {
-        disponibleElement.style.color = 'var(--accent-color)';
-    } else {
-        disponibleElement.style.color = 'var(--success-color)';
+    if (elIngresos) elIngresos.textContent = `S/${totalIngresos.toFixed(2)}`;
+    if (elGastos) elGastos.textContent = `S/${totalGastos.toFixed(2)}`;
+    if (elDisponible) {
+        elDisponible.textContent = `S/${disponible.toFixed(2)}`;
+        elDisponible.style.color = disponible < 0 ? 'var(--accent-color)' : 'var(--success-color)';
     }
+    if (elDeuda) elDeuda.textContent = `S/${deudaTotal.toFixed(2)}`;
 }
 
 function mostrarIngresos() {
     const container = document.getElementById('lista-ingresos');
+    if (!container) return;
     
     if (ingresos.length === 0) {
         container.innerHTML = `
@@ -596,7 +774,6 @@ function mostrarIngresos() {
         return;
     }
     
-    // Mostrar últimos 5 ingresos
     const ultimosIngresos = ingresos.slice(0, 5);
     
     let html = '';
@@ -613,10 +790,13 @@ function mostrarIngresos() {
             'extra': '✨ Extra'
         }[ingreso.tipo] || '📝';
         
+        const sincronizandoIcon = ingreso.sincronizando ? '<i class="fas fa-sync fa-spin" style="margin-left: 8px;"></i>' : '';
+        const errorIcon = ingreso.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color); margin-left: 8px;"></i>' : '';
+        
         html += `
             <div class="ingreso-item">
                 <div class="item-header">
-                    <div class="item-monto">S/${ingreso.monto.toFixed(2)}</div>
+                    <div class="item-monto">S/${ingreso.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
                     <button class="delete-btn" onclick="eliminarItem('finanzas_ingresos', '${ingreso.id}', 'ingreso')">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -635,6 +815,7 @@ function mostrarIngresos() {
 
 function mostrarGastos() {
     const container = document.getElementById('lista-gastos');
+    if (!container) return;
     
     if (gastosPersonales.length === 0) {
         container.innerHTML = `
@@ -647,7 +828,6 @@ function mostrarGastos() {
         return;
     }
     
-    // Mostrar últimos 5 gastos
     const ultimosGastos = gastosPersonales.slice(0, 5);
     
     let html = '';
@@ -670,10 +850,13 @@ function mostrarGastos() {
         
         const catTexto = categorias[gasto.categoria] || '📦 Otros';
         
+        const sincronizandoIcon = gasto.sincronizando ? '<i class="fas fa-sync fa-spin" style="margin-left: 8px;"></i>' : '';
+        const errorIcon = gasto.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color); margin-left: 8px;"></i>' : '';
+        
         html += `
             <div class="gasto-item-personal">
                 <div class="item-header">
-                    <div class="item-monto">S/${gasto.monto.toFixed(2)}</div>
+                    <div class="item-monto">S/${gasto.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
                     <button class="delete-btn" onclick="eliminarItem('finanzas_gastos', '${gasto.id}', 'gasto')">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -700,6 +883,7 @@ function mostrarDeudas() {
 
 function mostrarDeudasPendientes(deudasPendientes) {
     const container = document.getElementById('lista-deudas-pendientes');
+    if (!container) return;
     
     if (deudasPendientes.length === 0) {
         container.innerHTML = `
@@ -723,10 +907,13 @@ function mostrarDeudasPendientes(deudasPendientes) {
         
         const porcentajePagado = ((deuda.montoTotal - deuda.montoRestante) / deuda.montoTotal * 100).toFixed(0);
         
+        const sincronizandoIcon = deuda.sincronizando ? '<i class="fas fa-sync fa-spin" style="margin-left: 8px;"></i>' : '';
+        const errorIcon = deuda.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color); margin-left: 8px;"></i>' : '';
+        
         html += `
             <div class="deuda-item pendiente">
                 <div class="item-header">
-                    <div class="item-monto">S/${deuda.montoRestante.toFixed(2)} <span style="font-size: 0.8rem; color: var(--text-secondary);">de S/${deuda.montoTotal.toFixed(2)}</span></div>
+                    <div class="item-monto">S/${deuda.montoRestante.toFixed(2)} <span style="font-size: 0.8rem; color: var(--text-secondary);">de S/${deuda.montoTotal.toFixed(2)}</span> ${sincronizandoIcon} ${errorIcon}</div>
                     <div class="item-actions">
                         <button class="pagar-btn" onclick="mostrarModalPago('${deuda.id}')">
                             <i class="fas fa-hand-holding-usd"></i> Pagar
@@ -756,6 +943,7 @@ function mostrarDeudasPendientes(deudasPendientes) {
 
 function mostrarDeudasPagadas(deudasPagadas) {
     const container = document.getElementById('lista-deudas-pagadas');
+    if (!container) return;
     
     if (deudasPagadas.length === 0) {
         container.innerHTML = `
@@ -770,10 +958,13 @@ function mostrarDeudasPagadas(deudasPagadas) {
     let html = '';
     
     deudasPagadas.forEach(deuda => {
+        const sincronizandoIcon = deuda.sincronizando ? '<i class="fas fa-sync fa-spin" style="margin-left: 8px;"></i>' : '';
+        const errorIcon = deuda.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color); margin-left: 8px;"></i>' : '';
+        
         html += `
             <div class="deuda-item pagada">
                 <div class="item-header">
-                    <div class="item-monto">S/${deuda.montoTotal.toFixed(2)}</div>
+                    <div class="item-monto">S/${deuda.montoTotal.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
                     <button class="delete-btn" onclick="eliminarItem('finanzas_deudas', '${deuda.id}', 'deuda')">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -798,12 +989,16 @@ function configurarEventos() {
     console.log("🔧 Configurando eventos...");
     
     // Tema
-    document.getElementById('theme-btn').addEventListener('click', toggleTema);
+    const themeBtn = document.getElementById('theme-btn');
+    if (themeBtn) themeBtn.addEventListener('click', toggleTema);
     
     // Volver
-    document.getElementById('back-btn').addEventListener('click', () => {
-        window.location.href = 'index.html';
-    });
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    }
     
     // Pestañas de persona
     document.querySelectorAll('.person-tab').forEach(tab => {
@@ -816,31 +1011,51 @@ function configurarEventos() {
     });
     
     // Mostrar/ocultar formularios
-    document.getElementById('show-ingreso-form').addEventListener('click', () => {
-        document.getElementById('form-ingreso').style.display = 'block';
-    });
+    const showIngreso = document.getElementById('show-ingreso-form');
+    if (showIngreso) {
+        showIngreso.addEventListener('click', () => {
+            document.getElementById('form-ingreso').style.display = 'block';
+        });
+    }
     
-    document.getElementById('show-gasto-form').addEventListener('click', () => {
-        document.getElementById('form-gasto').style.display = 'block';
-    });
+    const showGasto = document.getElementById('show-gasto-form');
+    if (showGasto) {
+        showGasto.addEventListener('click', () => {
+            document.getElementById('form-gasto').style.display = 'block';
+        });
+    }
     
-    document.getElementById('show-deuda-form').addEventListener('click', () => {
-        document.getElementById('form-deuda').style.display = 'block';
-    });
+    const showDeuda = document.getElementById('show-deuda-form');
+    if (showDeuda) {
+        showDeuda.addEventListener('click', () => {
+            document.getElementById('form-deuda').style.display = 'block';
+        });
+    }
     
     // Guardar
-    document.getElementById('guardar-ingreso').addEventListener('click', agregarIngreso);
-    document.getElementById('guardar-gasto').addEventListener('click', agregarGastoPersonal);
-    document.getElementById('guardar-deuda').addEventListener('click', agregarDeuda);
+    const guardarIngreso = document.getElementById('guardar-ingreso');
+    if (guardarIngreso) guardarIngreso.addEventListener('click', agregarIngreso);
+    
+    const guardarGasto = document.getElementById('guardar-gasto');
+    if (guardarGasto) guardarGasto.addEventListener('click', agregarGastoPersonal);
+    
+    const guardarDeuda = document.getElementById('guardar-deuda');
+    if (guardarDeuda) guardarDeuda.addEventListener('click', agregarDeuda);
     
     // Enter en campos
-    document.getElementById('descripcion-ingreso').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') agregarIngreso();
-    });
+    const descIngreso = document.getElementById('descripcion-ingreso');
+    if (descIngreso) {
+        descIngreso.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') agregarIngreso();
+        });
+    }
     
-    document.getElementById('descripcion-gasto').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') agregarGastoPersonal();
-    });
+    const descGasto = document.getElementById('descripcion-gasto');
+    if (descGasto) {
+        descGasto.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') agregarGastoPersonal();
+        });
+    }
     
     // Pestañas de deudas
     document.querySelectorAll('.deuda-tab').forEach(tab => {
@@ -850,46 +1065,66 @@ function configurarEventos() {
             document.querySelectorAll('.deuda-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
             
-            if (tabTipo === 'pendientes') {
-                document.getElementById('lista-deudas-pendientes').style.display = 'block';
-                document.getElementById('lista-deudas-pagadas').style.display = 'none';
-            } else {
-                document.getElementById('lista-deudas-pendientes').style.display = 'none';
-                document.getElementById('lista-deudas-pagadas').style.display = 'block';
+            const pendientes = document.getElementById('lista-deudas-pendientes');
+            const pagadas = document.getElementById('lista-deudas-pagadas');
+            
+            if (pendientes && pagadas) {
+                if (tabTipo === 'pendientes') {
+                    pendientes.style.display = 'block';
+                    pagadas.style.display = 'none';
+                } else {
+                    pendientes.style.display = 'none';
+                    pagadas.style.display = 'block';
+                }
             }
         });
     });
     
     // Modal de pago
-    document.getElementById('pago-completo').addEventListener('change', function() {
-        if (this.checked && deudaSeleccionada) {
-            document.getElementById('monto-pago').value = deudaSeleccionada.montoRestante.toFixed(2);
-        }
-    });
+    const pagoCompleto = document.getElementById('pago-completo');
+    if (pagoCompleto) {
+        pagoCompleto.addEventListener('change', function() {
+            if (this.checked && deudaSeleccionada) {
+                document.getElementById('monto-pago').value = deudaSeleccionada.montoRestante.toFixed(2);
+            }
+        });
+    }
     
-    document.getElementById('cancel-pago').addEventListener('click', () => {
-        document.getElementById('pago-modal').classList.remove('active');
-        deudaSeleccionada = null;
-    });
+    const cancelPago = document.getElementById('cancel-pago');
+    if (cancelPago) {
+        cancelPago.addEventListener('click', () => {
+            document.getElementById('pago-modal').classList.remove('active');
+            deudaSeleccionada = null;
+        });
+    }
     
-    document.getElementById('confirmar-pago').addEventListener('click', procesarPago);
+    const confirmarPago = document.getElementById('confirmar-pago');
+    if (confirmarPago) confirmarPago.addEventListener('click', procesarPago);
     
     // Editar nombre
-    document.getElementById('edit-names').addEventListener('click', () => {
-        document.getElementById('nombre-personal').value = configFinanzas.nombres[personaActual];
-        document.getElementById('names-modal').classList.add('active');
-    });
+    const editNames = document.getElementById('edit-names');
+    if (editNames) {
+        editNames.addEventListener('click', () => {
+            document.getElementById('nombre-personal').value = configFinanzas.nombres[personaActual];
+            document.getElementById('names-modal').classList.add('active');
+        });
+    }
     
-    document.getElementById('save-names').addEventListener('click', guardarNombre);
-    document.getElementById('cancel-names').addEventListener('click', () => {
-        document.getElementById('names-modal').classList.remove('active');
-    });
+    const saveNames = document.getElementById('save-names');
+    if (saveNames) saveNames.addEventListener('click', guardarNombre);
+    
+    const cancelNames = document.getElementById('cancel-names');
+    if (cancelNames) {
+        cancelNames.addEventListener('click', () => {
+            document.getElementById('names-modal').classList.remove('active');
+        });
+    }
     
     // Cerrar modales con Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            document.getElementById('pago-modal').classList.remove('active');
-            document.getElementById('names-modal').classList.remove('active');
+            document.getElementById('pago-modal')?.classList.remove('active');
+            document.getElementById('names-modal')?.classList.remove('active');
         }
     });
 }
@@ -901,9 +1136,11 @@ async function guardarNombre() {
         configFinanzas.nombres[personaActual] = nuevoNombre;
         
         if (personaActual === 'yo') {
-            document.getElementById('tab-yo').textContent = nuevoNombre;
+            const tabYo = document.getElementById('tab-yo');
+            if (tabYo) tabYo.textContent = nuevoNombre;
         } else {
-            document.getElementById('tab-ella').textContent = nuevoNombre;
+            const tabElla = document.getElementById('tab-ella');
+            if (tabElla) tabElla.textContent = nuevoNombre;
         }
         
         document.getElementById('names-modal').classList.remove('active');
@@ -929,15 +1166,13 @@ function toggleTema() {
 
 function actualizarIconoTema(tema) {
     const icono = document.querySelector('#theme-btn i');
-    if (tema === 'dark') {
-        icono.className = 'fas fa-sun';
-    } else {
-        icono.className = 'fas fa-moon';
-    }
+    if (!icono) return;
+    icono.className = tema === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
 function mostrarNotificacion(mensaje, tipo = 'info') {
     const notificacion = document.getElementById('notification');
+    if (!notificacion) return;
     
     notificacion.textContent = mensaje;
     notificacion.className = 'notification show';
@@ -965,4 +1200,4 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
 window.eliminarItem = eliminarItem;
 window.mostrarModalPago = mostrarModalPago;
 
-console.log("💰 app-finanzas.js cargado correctamente");
+console.log("💰 app-finanzas.js cargado correctamente (versión sin recargas)");
