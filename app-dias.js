@@ -84,11 +84,30 @@ function setupRealtimeListenersDias() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = diasEspeciales.some(d => d.id === diaData.id);
-                        if (!existe && !diaData.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo día remoto:", diaData.nombre);
-                            diasEspeciales.push(diaData);
-                            mostrarNotificacion(`📅 Nuevo día: ${diaData.nombre}`, 'info');
+                        // Buscar si tenemos un temporal que coincida
+                        const temporalIndex = diasEspeciales.findIndex(d => 
+                            d.id.toString().startsWith('temp_') && 
+                            d.nombre === diaData.nombre && 
+                            d.fecha === diaData.fecha
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRO día
+                            console.log("🔄 Reemplazando nuestro día temporal");
+                            diasEspeciales[temporalIndex] = {
+                                ...diaData,
+                                sincronizando: false,
+                                id: diaData.id
+                            };
+                        } 
+                        else if (!diasEspeciales.some(d => d.id === diaData.id)) {
+                            // ✅ Es día de OTRO dispositivo
+                            console.log("➕ Nuevo día de otro dispositivo:", diaData.nombre);
+                            diasEspeciales.push({
+                                ...diaData,
+                                sincronizando: false
+                            });
+                            mostrarNotificacion(`📆 Nuevo día: ${diaData.nombre}`, 'info');
                         }
                         break;
                     case 'modified':

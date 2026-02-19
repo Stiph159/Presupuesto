@@ -94,10 +94,31 @@ function setupRealtimeListenersAhorro() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = ahorros.some(a => a.id === ahorroData.id);
-                        if (!existe && !ahorroData.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo ahorro remoto");
-                            ahorros.push(ahorroData);
+                        // Buscar si tenemos un temporal que coincida
+                        const temporalIndex = ahorros.findIndex(a => 
+                            a.id.toString().startsWith('temp_') && 
+                            Math.abs(a.monto - ahorroData.monto) < 0.01 &&
+                            a.fecha === ahorroData.fecha && 
+                            a.descripcion === ahorroData.descripcion &&
+                            a.persona === ahorroData.persona
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRO ahorro
+                            console.log("🔄 Reemplazando nuestro ahorro temporal");
+                            ahorros[temporalIndex] = {
+                                ...ahorroData,
+                                sincronizando: false,
+                                id: ahorroData.id
+                            };
+                        } 
+                        else if (!ahorros.some(a => a.id === ahorroData.id)) {
+                            // ✅ Es ahorro de OTRO dispositivo
+                            console.log("➕ Nuevo ahorro de otro dispositivo");
+                            ahorros.push({
+                                ...ahorroData,
+                                sincronizando: false
+                            });
                             mostrarNotificacion(`💰 Nuevo ahorro de S/${ahorroData.monto.toFixed(2)}`, 'info');
                         }
                         break;

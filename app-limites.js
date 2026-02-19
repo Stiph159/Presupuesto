@@ -78,10 +78,30 @@ function setupRealtimeListenersLimites() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = registrosLimites.some(r => r.id === limiteData.id);
-                        if (!existe && !limiteData.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo registro remoto");
-                            registrosLimites.push(limiteData);
+                        // Buscar si tenemos un temporal que coincida
+                        const temporalIndex = registrosLimites.findIndex(r => 
+                            r.id.toString().startsWith('temp_') && 
+                            r.fecha === limiteData.fecha && 
+                            Math.abs(r.gastoReal - limiteData.gastoReal) < 0.01 &&
+                            Math.abs(r.exceso - limiteData.exceso) < 0.01
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRO registro
+                            console.log("🔄 Reemplazando nuestro registro temporal");
+                            registrosLimites[temporalIndex] = {
+                                ...limiteData,
+                                sincronizando: false,
+                                id: limiteData.id
+                            };
+                        } 
+                        else if (!registrosLimites.some(r => r.id === limiteData.id)) {
+                            // ✅ Es registro de OTRO dispositivo
+                            console.log("➕ Nuevo registro de otro dispositivo");
+                            registrosLimites.push({
+                                ...limiteData,
+                                sincronizando: false
+                            });
                             mostrarNotificacion(`📊 Nuevo registro de límite`, 'info');
                         }
                         break;

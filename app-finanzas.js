@@ -138,20 +138,32 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = ingresos.some(i => i.id === data.id);
-                        if (!existe && !data.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo ingreso remoto");
-                            ingresos.push(data);
+                        // Buscar temporal que coincida
+                        const temporalIndex = ingresos.findIndex(i => 
+                            i.id.toString().startsWith('temp_') && 
+                            Math.abs(i.monto - data.monto) < 0.01 &&
+                            i.descripcion === data.descripcion && 
+                            i.fecha === data.fecha
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRO ingreso
+                            console.log("🔄 Reemplazando nuestro ingreso temporal");
+                            ingresos[temporalIndex] = {
+                                ...data,
+                                sincronizando: false,
+                                id: data.id
+                            };
+                        } 
+                        else if (!ingresos.some(i => i.id === data.id)) {
+                            // ✅ Es ingreso de OTRO dispositivo
+                            console.log("➕ Nuevo ingreso de otro dispositivo");
+                            ingresos.push({
+                                ...data,
+                                sincronizando: false
+                            });
                             mostrarNotificacion(`💰 Nuevo ingreso de S/${data.monto.toFixed(2)}`, 'info');
                         }
-                        break;
-                    case 'modified':
-                        const indexMod = ingresos.findIndex(i => i.id === data.id);
-                        if (indexMod !== -1) ingresos[indexMod] = data;
-                        break;
-                    case 'removed':
-                        ingresos = ingresos.filter(i => i.id !== data.id);
-                        mostrarNotificacion(`📌 Un ingreso fue eliminado`, 'warning');
                         break;
                 }
             });
@@ -177,10 +189,30 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = gastosPersonales.some(g => g.id === data.id);
-                        if (!existe && !data.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo gasto remoto");
-                            gastosPersonales.push(data);
+                        // Buscar temporal que coincida
+                        const temporalIndex = gastosPersonales.findIndex(g => 
+                            g.id.toString().startsWith('temp_') && 
+                            Math.abs(g.monto - data.monto) < 0.01 &&
+                            g.descripcion === data.descripcion && 
+                            g.fecha === data.fecha
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRO gasto
+                            console.log("🔄 Reemplazando nuestro gasto temporal");
+                            gastosPersonales[temporalIndex] = {
+                                ...data,
+                                sincronizando: false,
+                                id: data.id
+                            };
+                        } 
+                        else if (!gastosPersonales.some(g => g.id === data.id)) {
+                            // ✅ Es gasto de OTRO dispositivo
+                            console.log("➕ Nuevo gasto de otro dispositivo");
+                            gastosPersonales.push({
+                                ...data,
+                                sincronizando: false
+                            });
                             mostrarNotificacion(`💸 Nuevo gasto de S/${data.monto.toFixed(2)}`, 'info');
                         }
                         break;
@@ -216,10 +248,29 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = deudas.some(d => d.id === data.id);
-                        if (!existe && !data.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nueva deuda remota");
-                            deudas.push(data);
+                        // Buscar temporal que coincida
+                        const temporalIndex = deudas.findIndex(d => 
+                            d.id.toString().startsWith('temp_') && 
+                            d.descripcion === data.descripcion && 
+                            Math.abs(d.montoTotal - data.montoTotal) < 0.01
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ Es NUESTRA deuda
+                            console.log("🔄 Reemplazando nuestra deuda temporal");
+                            deudas[temporalIndex] = {
+                                ...data,
+                                sincronizando: false,
+                                id: data.id
+                            };
+                        } 
+                        else if (!deudas.some(d => d.id === data.id)) {
+                            // ✅ Es deuda de OTRO dispositivo
+                            console.log("➕ Nueva deuda de otro dispositivo");
+                            deudas.push({
+                                ...data,
+                                sincronizando: false
+                            });
                             mostrarNotificacion(`📝 Nueva deuda registrada`, 'info');
                         }
                         break;

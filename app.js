@@ -1,7 +1,5 @@
-// File: app.js
-// ====================
-// CONFIGURACIÓN INICIAL - VERSIÓN CORREGIDA (SIN RECARGAS)
-// ====================
+// File: app.js - VERSIÓN FINAL CORREGIDA (SIN DUPLICADOS)
+// ========================================================
 
 // Variables globales
 let gastos = [];
@@ -20,13 +18,16 @@ let chartInstance = null;
 let unsubscribeGastos = null;
 let unsubscribeConfig = null;
 
+// Flag para evitar procesar nuestros propios cambios
+let ignoreNextSnapshot = false;
+
 // ====================
 // FUNCIONES FIREBASE
 // ====================
 
 async function initFirebase() {
     try {
-        console.log("🔥 Inicializando Firebase...");
+        console.log("🔑 Inicializando Firebase...");
         
         if (typeof firebase === 'undefined') {
             console.error("Firebase no está cargado");
@@ -70,7 +71,7 @@ async function loadConfigFromFirebase() {
 }
 
 // ====================
-// LISTENER CORREGIDO (SIN RECARGAS)
+// LISTENER CORREGIDO - SIN DUPLICADOS
 // ====================
 
 function setupRealtimeListeners() {
@@ -83,9 +84,34 @@ function setupRealtimeListeners() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("🔔 Cambios detectados en gastos:", snapshot.docChanges().length);
+            // Si estamos ignorando cambios (porque acabamos de guardar), salir
+            if (ignoreNextSnapshot) {
+                console.log("⏸️ Ignorando snapshot por operación propia");
+                ignoreNextSnapshot = false;
+                return;
+            }
             
-            // PROCESAR CADA CAMBIO INDIVIDUALMENTE
+            console.log("🔄 Cambios detectados en gastos:", snapshot.docChanges().length);
+            
+            // Mapa de IDs reales de Firebase que existen en el snapshot
+            const firebaseIds = new Set();
+            snapshot.docs.forEach(doc => firebaseIds.add(doc.id));
+            
+            // ELIMINAR gastos que ya no están en Firebase (IDs reales)
+            gastos = gastos.filter(gasto => {
+                // Si es un ID temporal, lo dejamos (aún no está en Firebase)
+                if (gasto.id.toString().startsWith('temp_')) return true;
+                
+                // Si es un ID real pero ya no está en Firebase, lo eliminamos
+                if (!firebaseIds.has(gasto.id)) {
+                    console.log("🗑️ Eliminando gasto remoto que ya no existe:", gasto.id);
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // PROCESAR CADA CAMBIO DE FIREBASE
             snapshot.docChanges().forEach(cambio => {
                 const docData = {
                     id: cambio.doc.id,
@@ -98,11 +124,32 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        const existe = gastos.some(g => g.id === docData.id);
-                        if (!existe && !docData.id.toString().startsWith('temp_')) {
-                            console.log("➕ Nuevo gasto remoto:", docData.descripcion);
-                            gastos.push(docData);
-                            mostrarNotificacion(`🔔 Nuevo gasto de S/${docData.monto.toFixed(2)}`, 'info');
+                        // Buscar si tenemos un temporal que coincida con este gasto
+                        const temporalIndex = gastos.findIndex(g => 
+                            g.id.toString().startsWith('temp_') && 
+                            Math.abs(g.monto - docData.monto) < 0.01 && // Comparación segura de montos
+                            g.fecha === docData.fecha && 
+                            g.descripcion === docData.descripcion &&
+                            g.persona === docData.persona
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // ✅ CASO 1: Es NUESTRO gasto (reemplazar temporal con real)
+                            console.log("🔄 Reemplazando nuestro gasto temporal con versión real");
+                            gastos[temporalIndex] = {
+                                ...docData,
+                                sincronizando: false,
+                                id: docData.id // Aseguramos el ID real
+                            };
+                        } 
+                        else if (!gastos.some(g => g.id === docData.id)) {
+                            // ✅ CASO 2: Es gasto NUEVO de OTRO dispositivo
+                            console.log("➕ Nuevo gasto de otro dispositivo:", docData.descripcion);
+                            gastos.push({
+                                ...docData,
+                                sincronizando: false
+                            });
+                            mostrarNotificacion(`💰 Nuevo gasto de S/${docData.monto.toFixed(2)}`, 'info');
                         }
                         break;
                         
@@ -110,7 +157,11 @@ function setupRealtimeListeners() {
                         console.log("✏️ Gasto modificado:", docData.id);
                         const indexMod = gastos.findIndex(g => g.id === docData.id);
                         if (indexMod !== -1) {
-                            gastos[indexMod] = docData;
+                            gastos[indexMod] = {
+                                ...docData,
+                                sincronizando: false,
+                                error: false
+                            };
                         }
                         break;
                         
@@ -122,6 +173,7 @@ function setupRealtimeListeners() {
                 }
             });
             
+            // Ordenar
             gastos.sort((a, b) => {
                 const dateA = a.timestamp || new Date(a.fecha);
                 const dateB = b.timestamp || new Date(b.fecha);
@@ -161,39 +213,43 @@ async function saveGastoToFirebase(gasto) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
+        // Activar flag para ignorar el próximo snapshot
+        ignoreNextSnapshot = true;
+        
         const docRef = await db.collection('gastos').add(gastoData);
         console.log("✅ Gasto guardado en Firebase con ID:", docRef.id);
+        
+        // Desactivar flag después de un tiempo (por si acaso)
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
+        
         return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando:", error);
+        ignoreNextSnapshot = false;
         throw error;
     }
 }
 
 async function deleteGastoFromFirebase(id) {
     try {
+        ignoreNextSnapshot = true;
         await firebase.firestore().collection('gastos').doc(id).delete();
         console.log("✅ Gasto eliminado:", id);
+        
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
     } catch (error) {
         console.error("❌ Error eliminando:", error);
-        throw error;
-    }
-}
-
-async function saveConfigToFirebase() {
-    try {
-        await firebase.firestore()
-            .collection('config')
-            .doc('nuestra_pareja')
-            .set(config, { merge: true });
-    } catch (error) {
-        console.error("❌ Error guardando configuración:", error);
+        ignoreNextSnapshot = false;
         throw error;
     }
 }
 
 // ====================
-// LOCALSTORAGE
+// LOCALSTORAGE (solo backup)
 // ====================
 
 function saveToLocalStorage() {
@@ -248,7 +304,7 @@ function inicializarApp() {
 }
 
 // ====================
-// FUNCIÓN AGREGAR GASTO CORREGIDA (CON ID TEMPORAL)
+// FUNCIÓN AGREGAR GASTO CORREGIDA
 // ====================
 
 async function agregarGasto() {
@@ -268,7 +324,7 @@ async function agregarGasto() {
         return;
     }
     
-    // 1. Crear ID TEMPORAL
+    // Crear ID TEMPORAL
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoGasto = {
         id: tempId,
@@ -281,27 +337,31 @@ async function agregarGasto() {
         sincronizando: true
     };
     
-    // 2. MOSTRAR INMEDIATAMENTE
+    // MOSTRAR INMEDIATAMENTE
     gastos.unshift(nuevoGasto);
     actualizarUI();
     
-    // 3. Limpiar formulario
+    // Limpiar formulario
     document.getElementById('monto').value = '';
     document.getElementById('descripcion').value = '';
     document.getElementById('monto').focus();
     
     const nombrePersona = personaSeleccionada === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
     
-    // 4. Guardar en Firebase
+    // Guardar en Firebase
     try {
         const firebaseId = await saveGastoToFirebase(nuevoGasto);
         
-        // 5. ACTUALIZAR el gasto existente con el ID real
+        // ACTUALIZAR el gasto temporal con el ID real
         const index = gastos.findIndex(g => g.id === tempId);
         if (index !== -1) {
             gastos[index].id = firebaseId;
             gastos[index].sincronizando = false;
-            // No necesitas actualizar UI, el gasto ya está visible
+            // Forzar actualización visual
+            const elemento = document.querySelector(`[data-id="${tempId}"]`);
+            if (elemento) {
+                elemento.setAttribute('data-id', firebaseId);
+            }
         }
         
         mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)}`, 'success');
@@ -323,7 +383,6 @@ async function eliminarGasto(id) {
     
     mostrarNotificacion('⏳ Eliminando...', 'info');
     
-    // Guardar copia por si algo sale mal
     const gastoEliminado = gastos.find(g => g.id === id);
     gastos = gastos.filter(g => g.id !== id);
     actualizarUI();
@@ -337,7 +396,6 @@ async function eliminarGasto(id) {
         }
     } catch (error) {
         console.error("Error eliminando:", error);
-        // Restaurar si falla
         if (gastoEliminado) {
             gastos.push(gastoEliminado);
             actualizarUI();
@@ -349,7 +407,7 @@ async function eliminarGasto(id) {
 }
 
 // ====================
-// RESTO DE FUNCIONES (SIN CAMBIOS)
+// RESTO DE FUNCIONES (sin cambios)
 // ====================
 
 async function guardarNombres() {
@@ -648,7 +706,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         comida: '🍔',
         transporte: '🚗',
         entretenimiento: '🎬',
-        compras: '🛍️',
+        compras: '🛒',
         otros: '📦'
     };
     
@@ -895,4 +953,4 @@ function ocultarModalPresupuesto() {
 // Hacer funciones globales
 window.eliminarGasto = eliminarGasto;
 
-console.log("✅ app.js cargado correctamente (versión sin recargas)");
+console.log("✅ app.js cargado correctamente (versión sin duplicados)");
