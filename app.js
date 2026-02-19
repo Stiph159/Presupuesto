@@ -723,7 +723,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     gastosFiltrados.forEach(gasto => {
         // 👇 ESTO ES LO NUEVO - REEMPLAZA la línea anterior
         let fechaFormateada;
-        const fechaGasto = new Date(gasto.fecha);
+        const fechaGasto = new Date(gasto.fecha + 'T00:00:00');
         const ahora = new Date();
         const esHoy = fechaGasto.toDateString() === ahora.toDateString();
         

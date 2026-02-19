@@ -675,7 +675,7 @@ function mostrarAhorros() {
     ahorros.forEach(ahorro => {
         // Formatear fecha con hora
         let fechaFormateada;
-        const fechaAhorro = new Date(ahorro.fecha);
+        const fechaAhorro = new Date(ahorro.fecha + 'T00:00:00');
         const ahora = new Date();
         const esHoy = fechaAhorro.toDateString() === ahora.toDateString();
 

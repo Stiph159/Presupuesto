@@ -538,23 +538,15 @@ function mostrarDiasFiltrados(diasFiltrados) {
     let html = '';
     
     diasFiltrados.forEach(dia => {
-        const fechaObj = new Date(dia.fecha);
-        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
-        
+        // 👇 ESTA ES LA LÍNEA QUE DEBES CAMBIAR
+        const fechaObj = new Date(dia.fecha + 'T00:00:00'); // ANTES: new Date(dia.fecha)
         const esPasado = dia.fecha < hoy;
         
-        const sincronizandoClass = dia.sincronizando ? 'sincronizando' : '';
-        const sincronizandoIcon = dia.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
-        const errorIcon = dia.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        // ... resto del código ...
         
         html += `
             <div class="dia-item ${esPasado ? 'pasado' : ''} ${sincronizandoClass}">
-                <div class="dia-icon">${dia.icono || '📅'}</div>
+                <div class="dia-icon">${dia.icono || '📆'}</div>
                 <div class="dia-content">
                     <div class="dia-header">
                         <div class="dia-nombre">${dia.nombre} ${sincronizandoIcon} ${errorIcon}</div>

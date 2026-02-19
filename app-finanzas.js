@@ -300,7 +300,7 @@ async function guardarIngresoEnFirebase(ingreso) {
             fecha: ingreso.fecha,
             tipo: ingreso.tipo,
             sharedId: 'nuestra_pareja',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            fechaRegistro: firebase.firestore.FieldValue.serverTimestamp() // 👈 CAMBIADO
         };
         
         const docRef = await db.collection('finanzas_ingresos').add(ingresoData);
@@ -321,7 +321,7 @@ async function guardarGastoEnFirebase(gasto) {
             fecha: gasto.fecha,
             categoria: gasto.categoria,
             sharedId: 'nuestra_pareja',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            fechaRegistro: firebase.firestore.FieldValue.serverTimestamp() // 👈 CAMBIADO
         };
         
         const docRef = await db.collection('finanzas_gastos').add(gastoData);
@@ -345,7 +345,7 @@ async function guardarDeudaEnFirebase(deuda) {
             estado: deuda.estado,
             pagos: deuda.pagos || [],
             sharedId: 'nuestra_pareja',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            fechaRegistro: firebase.firestore.FieldValue.serverTimestamp() // 👈 CAMBIADO
         };
         
         const docRef = await db.collection('finanzas_deudas').add(deudaData);
@@ -830,34 +830,34 @@ function mostrarIngresos() {
     let html = '';
     
     ultimosIngresos.forEach(ingreso => {
-        // Formato de fecha con hora (CORREGIDO para Firebase)
+        // 👇 CORREGIDO: Usar fechaRegistro en lugar de timestamp
         let fechaTexto;
-        const fechaIngreso = new Date(ingreso.fecha);
+        const fechaIngreso = new Date(ingreso.fecha + 'T00:00:00');
         const ahora = new Date();
         const esHoy = fechaIngreso.toDateString() === ahora.toDateString();
         
-        // Convertir timestamp de Firebase a fecha válida
-        let fechaTimestamp = null;
-        if (ingreso.timestamp) {
-            if (ingreso.timestamp.toDate) {
-                fechaTimestamp = ingreso.timestamp.toDate(); // Timestamp de Firebase
-            } else if (typeof ingreso.timestamp === 'string' || typeof ingreso.timestamp === 'number') {
-                fechaTimestamp = new Date(ingreso.timestamp);
+        // Obtener la hora de fechaRegistro
+        let fechaHora = null;
+        if (ingreso.fechaRegistro) {
+            if (ingreso.fechaRegistro.toDate) {
+                fechaHora = ingreso.fechaRegistro.toDate();
+            } else {
+                fechaHora = new Date(ingreso.fechaRegistro);
             }
         }
         
-        if (esHoy && fechaTimestamp) {
-            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+        if (esHoy && fechaHora) {
+            const hora = fechaHora.toLocaleTimeString('es-ES', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
             fechaTexto = `Hoy ${hora}`;
-        } else if (fechaTimestamp) {
+        } else if (fechaHora) {
             const fecha = fechaIngreso.toLocaleDateString('es-ES', {
                 day: 'numeric',
                 month: 'short'
             });
-            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+            const hora = fechaHora.toLocaleTimeString('es-ES', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
@@ -918,34 +918,34 @@ function mostrarGastos() {
     let html = '';
     
     ultimosGastos.forEach(gasto => {
-        // 👇 CORREGIDO: Manejo correcto de timestamp de Firebase
+        // 👇 CORREGIDO: Usar fechaRegistro en lugar de timestamp
         let fechaTexto;
-        const fechaGasto = new Date(gasto.fecha);
+        const fechaGasto = new Date(gasto.fecha + 'T00:00:00');
         const ahora = new Date();
         const esHoy = fechaGasto.toDateString() === ahora.toDateString();
         
-        // Convertir timestamp de Firebase a fecha válida
-        let fechaTimestamp = null;
-        if (gasto.timestamp) {
-            if (gasto.timestamp.toDate) {
-                fechaTimestamp = gasto.timestamp.toDate(); // Timestamp de Firebase
-            } else if (typeof gasto.timestamp === 'string' || typeof gasto.timestamp === 'number') {
-                fechaTimestamp = new Date(gasto.timestamp);
+        // Obtener la hora de fechaRegistro
+        let fechaHora = null;
+        if (gasto.fechaRegistro) {
+            if (gasto.fechaRegistro.toDate) {
+                fechaHora = gasto.fechaRegistro.toDate();
+            } else {
+                fechaHora = new Date(gasto.fechaRegistro);
             }
         }
         
-        if (esHoy && fechaTimestamp) {
-            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+        if (esHoy && fechaHora) {
+            const hora = fechaHora.toLocaleTimeString('es-ES', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
             fechaTexto = `Hoy ${hora}`;
-        } else if (fechaTimestamp) {
+        } else if (fechaHora) {
             const fecha = fechaGasto.toLocaleDateString('es-ES', {
                 day: 'numeric',
                 month: 'short'
             });
-            const hora = fechaTimestamp.toLocaleTimeString('es-ES', {
+            const hora = fechaHora.toLocaleTimeString('es-ES', {
                 hour: '2-digit',
                 minute: '2-digit'
             });

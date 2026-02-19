@@ -633,7 +633,7 @@ function cargarRegistrosLimites() {
     registrosOrdenados.forEach(registro => {
         // Formatear fecha con hora
         let fechaFormateada;
-        const fechaRegistro = new Date(registro.fecha);
+        const fechaRegistro = new Date(registro.fecha + 'T00:00:00');
         const ahora = new Date();
         const esHoy = fechaRegistro.toDateString() === ahora.toDateString();
 
