@@ -538,11 +538,22 @@ function mostrarDiasFiltrados(diasFiltrados) {
     let html = '';
     
     diasFiltrados.forEach(dia => {
-        // 👇 ESTA ES LA LÍNEA QUE DEBES CAMBIAR
-        const fechaObj = new Date(dia.fecha + 'T00:00:00'); // ANTES: new Date(dia.fecha)
+        // ✅ CORREGIDO: Crear fecha correctamente
+        const fechaObj = new Date(dia.fecha + 'T00:00:00');
         const esPasado = dia.fecha < hoy;
         
-        // ... resto del código ...
+        // ✅ CORREGIDO: Variables que faltaban
+        const sincronizandoClass = dia.sincronizando ? 'sincronizando' : '';
+        const sincronizandoIcon = dia.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
+        const errorIcon = dia.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        
+        // Formatear fecha para mostrar
+        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
         
         html += `
             <div class="dia-item ${esPasado ? 'pasado' : ''} ${sincronizandoClass}">
