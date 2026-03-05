@@ -1,4 +1,5 @@
-// VERSIÓN CORREGIDA - SIN RECARGAS
+// File: app-ahorro.js - VERSIÓN CON FILTROS NUEVOS
+// ====================
 
 let ahorros = [];
 let configAhorro = {
@@ -22,8 +23,9 @@ let chartAhorroInstance = null;
 let unsubscribeAhorros = null;
 let unsubscribeConfigAhorro = null;
 
+// ====================
 // FUNCIONES FIREBASE
-
+// ====================
 
 async function initFirebaseAhorro() {
     try {
@@ -56,10 +58,6 @@ async function loadConfigAhorroFromFirebase() {
     }
 }
 
-
-// LISTENER CORREGIDO (SIN RECARGAS)
-
-
 function setupRealtimeListenersAhorro() {
     if (unsubscribeAhorros) unsubscribeAhorros();
     if (unsubscribeConfigAhorro) unsubscribeConfigAhorro();
@@ -84,7 +82,6 @@ function setupRealtimeListenersAhorro() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        // Buscar si tenemos un temporal que coincida
                         const temporalIndex = ahorros.findIndex(a => 
                             a.id.toString().startsWith('temp_') && 
                             Math.abs(a.monto - ahorroData.monto) < 0.01 &&
@@ -94,7 +91,6 @@ function setupRealtimeListenersAhorro() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // ✅ Es NUESTRO ahorro
                             console.log("🔄 Reemplazando nuestro ahorro temporal");
                             ahorros[temporalIndex] = {
                                 ...ahorroData,
@@ -103,7 +99,6 @@ function setupRealtimeListenersAhorro() {
                             };
                         } 
                         else if (!ahorros.some(a => a.id === ahorroData.id)) {
-                            // ✅ Es ahorro de OTRO dispositivo
                             console.log("➕ Nuevo ahorro de otro dispositivo");
                             ahorros.push({
                                 ...ahorroData,
@@ -181,23 +176,6 @@ async function deleteAhorroFromFirebase(id) {
     }
 }
 
-async function saveConfigAhorroToFirebase() {
-    try {
-        const db = firebase.firestore();
-        const configDocRef = db.collection('config').doc('nuestra_pareja');
-        const configDoc = await configDocRef.get();
-        let configData = configDoc.exists ? configDoc.data() : {};
-        
-        configData.ahorroConfig = configAhorro;
-        configData.nombres = configAhorro.nombres;
-        
-        await configDocRef.set(configData, { merge: true });
-    } catch (error) {
-        console.error("❌ Error guardando configuración:", error);
-        throw error;
-    }
-}
-
 // ====================
 // LOCALSTORAGE
 // ====================
@@ -245,6 +223,7 @@ function inicializarAhorroApp() {
     actualizarIconoTema(temaGuardado);
     
     configurarEventosAhorro();
+    configurarFiltrosAhorro(); // <-- NUEVO
     actualizarNombresEnUIAhorro();
     
     const hoy = new Date().toISOString().split('T')[0];
@@ -263,10 +242,323 @@ function inicializarAhorroApp() {
 function actualizarNombresEnUIAhorro() {
     document.getElementById('name-persona1').textContent = configAhorro.nombres.persona1;
     document.getElementById('name-persona2').textContent = configAhorro.nombres.persona2;
+    
+    // Actualizar filtros
+    const filtroPersona1 = document.getElementById('filtro-persona1-ahorro');
+    const filtroPersona2 = document.getElementById('filtro-persona2-ahorro');
+    if (filtroPersona1) filtroPersona1.textContent = configAhorro.nombres.persona1;
+    if (filtroPersona2) filtroPersona2.textContent = configAhorro.nombres.persona2;
 }
 
 // ====================
-// FUNCIÓN AGREGAR AHORRO CORREGIDA (CON ID TEMPORAL)
+// NUEVAS FUNCIONES DE FILTROS
+// ====================
+
+function configurarFiltrosAhorro() {
+    const busquedaInput = document.getElementById('busqueda-ahorro');
+    const filtroOpcion = document.getElementById('filtro-opcion-ahorro');
+    const filtroPersona = document.getElementById('filtro-persona-ahorro');
+    const filtroFecha = document.getElementById('filtro-fecha-ahorro');
+    const rangoFechas = document.getElementById('rango-fechas-ahorro');
+    const fechaDesde = document.getElementById('fecha-desde-ahorro');
+    const fechaHasta = document.getElementById('fecha-hasta-ahorro');
+    const btnAplicarFecha = document.getElementById('aplicar-fecha-ahorro');
+    const btnLimpiar = document.getElementById('limpiar-filtros-ahorro');
+    const btnLimpiarTodo = document.getElementById('limpiar-todo-historial-ahorro');
+    const btnExportar = document.getElementById('export-ahorro-btn');
+    
+    if (!busquedaInput) {
+        console.warn("No se encontraron los filtros de ahorro");
+        return;
+    }
+    
+    // Búsqueda en tiempo real
+    busquedaInput.addEventListener('input', aplicarFiltrosAhorro);
+    
+    // Filtros por select
+    filtroOpcion.addEventListener('change', aplicarFiltrosAhorro);
+    filtroPersona.addEventListener('change', aplicarFiltrosAhorro);
+    filtroFecha.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            rangoFechas.style.display = 'block';
+        } else {
+            rangoFechas.style.display = 'none';
+            aplicarFiltrosAhorro();
+        }
+    });
+    
+    // Aplicar fechas personalizadas
+    btnAplicarFecha.addEventListener('click', aplicarFiltrosAhorro);
+    
+    // Botón limpiar filtros
+    btnLimpiar.addEventListener('click', function() {
+        busquedaInput.value = '';
+        filtroOpcion.value = '';
+        filtroPersona.value = '';
+        filtroFecha.value = 'all';
+        rangoFechas.style.display = 'none';
+        fechaDesde.value = '';
+        fechaHasta.value = '';
+        aplicarFiltrosAhorro();
+        mostrarNotificacion('Filtros limpiados', 'info');
+    });
+    
+    // Botón limpiar todo
+    btnLimpiarTodo.addEventListener('click', mostrarModalLimpiarTodoAhorro);
+    
+    // Botón exportar
+    if (btnExportar) {
+        btnExportar.addEventListener('click', exportarAhorros);
+    }
+    
+    // Eventos del modal
+    const cancelarBtn = document.getElementById('cancelar-limpiar-todo-ahorro');
+    const confirmarBtn = document.getElementById('confirmar-limpiar-todo-ahorro');
+    
+    if (cancelarBtn) {
+        cancelarBtn.addEventListener('click', function() {
+            document.getElementById('modal-limpiar-todo-ahorro').classList.remove('active');
+        });
+    }
+    
+    if (confirmarBtn) {
+        confirmarBtn.addEventListener('click', limpiarTodoHistorialAhorro);
+    }
+}
+
+function aplicarFiltrosAhorro() {
+    const busqueda = document.getElementById('busqueda-ahorro')?.value.toLowerCase() || '';
+    const opcion = document.getElementById('filtro-opcion-ahorro')?.value || '';
+    const persona = document.getElementById('filtro-persona-ahorro')?.value || '';
+    const filtroFecha = document.getElementById('filtro-fecha-ahorro')?.value || 'all';
+    const fechaDesde = document.getElementById('fecha-desde-ahorro')?.value || '';
+    const fechaHasta = document.getElementById('fecha-hasta-ahorro')?.value || '';
+    
+    let ahorrosFiltrados = [...ahorros];
+    
+    // Filtro por búsqueda
+    if (busqueda) {
+        ahorrosFiltrados = ahorrosFiltrados.filter(a => 
+            a.descripcion.toLowerCase().includes(busqueda)
+        );
+    }
+    
+    // Filtro por opción
+    if (opcion) {
+        ahorrosFiltrados = ahorrosFiltrados.filter(a => a.opcion === opcion);
+    }
+    
+    // Filtro por persona
+    if (persona) {
+        ahorrosFiltrados = ahorrosFiltrados.filter(a => a.persona === persona);
+    }
+    
+    // Filtro por fecha
+    if (filtroFecha !== 'all') {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        switch(filtroFecha) {
+            case 'today':
+                const hoyStr = hoy.toISOString().split('T')[0];
+                ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === hoyStr);
+                break;
+            case 'week':
+                const inicioSemana = obtenerInicioSemana();
+                ahorrosFiltrados = ahorrosFiltrados.filter(a => new Date(a.fecha) >= new Date(inicioSemana));
+                break;
+            case 'month':
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                ahorrosFiltrados = ahorrosFiltrados.filter(a => new Date(a.fecha) >= inicioMes);
+                break;
+            case 'custom':
+                if (fechaDesde && fechaHasta) {
+                    const desde = new Date(fechaDesde);
+                    const hasta = new Date(fechaHasta);
+                    hasta.setHours(23, 59, 59, 999);
+                    ahorrosFiltrados = ahorrosFiltrados.filter(a => {
+                        const fechaA = new Date(a.fecha);
+                        return fechaA >= desde && fechaA <= hasta;
+                    });
+                }
+                break;
+        }
+    }
+    
+    // Ordenar
+    ahorrosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    // Actualizar estadísticas
+    const mostrandoEl = document.getElementById('filtro-mostrando-ahorro');
+    const totalEl = document.getElementById('filtro-total-ahorro');
+    const totalMontoEl = document.getElementById('filtro-total-monto-ahorro');
+    
+    if (mostrandoEl) mostrandoEl.textContent = ahorrosFiltrados.length;
+    if (totalEl) totalEl.textContent = ahorros.length;
+    
+    const totalMonto = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
+    if (totalMontoEl) totalMontoEl.textContent = `S/${totalMonto.toFixed(2)}`;
+    
+    // Mostrar resultados
+    mostrarAhorrosFiltrados(ahorrosFiltrados);
+    
+    // Actualizar totales originales
+    const totalFiltrado = document.getElementById('total-filtrado-ahorro');
+    const totalGeneral = document.getElementById('total-general-ahorro');
+    
+    if (totalFiltrado) totalFiltrado.textContent = `S/${totalMonto.toFixed(2)}`;
+    if (totalGeneral) totalGeneral.textContent = `S/${ahorros.reduce((sum, a) => sum + a.monto, 0).toFixed(2)}`;
+}
+
+function mostrarAhorrosFiltrados(ahorrosFiltrados) {
+    const container = document.getElementById('ahorros-container');
+    const emptyState = document.getElementById('empty-state-ahorro');
+    const totales = document.getElementById('totales-ahorro');
+    
+    if (!container) return;
+    
+    if (ahorrosFiltrados.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="display: block;">
+                <i class="far fa-search"></i>
+                <h4>No se encontraron ahorros</h4>
+                <p>Intenta con otros filtros.</p>
+            </div>
+        `;
+        if (emptyState) emptyState.style.display = 'none';
+        if (totales) totales.style.display = 'none';
+        return;
+    }
+    
+    if (emptyState) emptyState.style.display = 'none';
+    if (totales) totales.style.display = 'block';
+    
+    let html = '';
+    
+    ahorrosFiltrados.forEach(ahorro => {
+        let fechaFormateada;
+        const fechaAhorro = new Date(ahorro.fecha + 'T00:00:00');
+        const ahora = new Date();
+        const esHoy = fechaAhorro.toDateString() === ahora.toDateString();
+
+        if (esHoy && ahorro.timestamp) {
+            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `Hoy ${hora}`;
+        } else if (ahorro.timestamp) {
+            const fecha = fechaAhorro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `${fecha} ${hora}`;
+        } else {
+            fechaFormateada = fechaAhorro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+        }
+        
+        const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+        let nombreOpcion = '';
+        let claseBadge = '';
+        
+        switch(ahorro.opcion) {
+            case '1':
+                nombreOpcion = 'Opción 1';
+                claseBadge = 'badge-opcion1';
+                break;
+            case '2':
+                nombreOpcion = 'Opción 2';
+                claseBadge = 'badge-opcion2';
+                break;
+            case '3':
+                nombreOpcion = 'Opción 3';
+                claseBadge = 'badge-opcion3';
+                break;
+        }
+        
+        const sincronizandoClass = ahorro.sincronizando ? 'sincronizando' : '';
+        const sincronizandoIcon = ahorro.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
+        const errorIcon = ahorro.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        
+        html += `
+            <div class="ahorro-item ${ahorro.persona} ${sincronizandoClass}">
+                <div class="gasto-header">
+                    <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
+                    <button class="delete-btn" onclick="eliminarAhorro('${ahorro.id}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="gasto-descripcion">${ahorro.descripcion}</div>
+                <div class="gasto-meta">
+                    <div class="gasto-info">
+                        <span class="gasto-persona">${nombrePersona}</span>
+                        <span class="ahorro-opcion ${claseBadge}">${nombreOpcion}</span>
+                    </div>
+                    <div class="gasto-fecha">${fechaFormateada}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function mostrarModalLimpiarTodoAhorro() {
+    const totalRegistros = document.getElementById('total-registros-eliminar-ahorro');
+    const totalMonto = document.getElementById('monto-total-eliminar-ahorro');
+    
+    if (totalRegistros) totalRegistros.textContent = ahorros.length;
+    
+    const sumaTotal = ahorros.reduce((sum, a) => sum + a.monto, 0);
+    if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)}`;
+    
+    document.getElementById('modal-limpiar-todo-ahorro').classList.add('active');
+}
+
+async function limpiarTodoHistorialAhorro() {
+    mostrarNotificacion('Eliminando todo el historial...', 'info');
+    
+    const idsFirebase = ahorros.filter(a => !a.id.toString().startsWith('temp_')).map(a => a.id);
+    for (const id of idsFirebase) {
+        try {
+            await deleteAhorroFromFirebase(id);
+        } catch (error) {
+            console.error("Error eliminando:", id);
+        }
+    }
+    
+    ahorros = [];
+    actualizarUIAhorro();
+    saveAhorrosToLocalStorage();
+    
+    document.getElementById('modal-limpiar-todo-ahorro').classList.remove('active');
+    mostrarNotificacion('Todo el historial eliminado', 'success');
+}
+
+function exportarAhorros() {
+    const dataStr = JSON.stringify(ahorros, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `ahorros_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    mostrarNotificacion('Datos exportados', 'success');
+}
+
+// ====================
+// FUNCIONES PRINCIPALES
 // ====================
 
 async function agregarAhorro() {
@@ -296,7 +588,6 @@ async function agregarAhorro() {
             break;
     }
     
-    // 1. Crear ID TEMPORAL
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoAhorro = {
         id: tempId,
@@ -309,11 +600,9 @@ async function agregarAhorro() {
         sincronizando: true
     };
     
-    // 2. MOSTRAR INMEDIATAMENTE
     ahorros.unshift(nuevoAhorro);
     actualizarUIAhorro();
     
-    // 3. Limpiar formulario
     document.getElementById('descripcion-ahorro').value = '';
     document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
     document.getElementById('opcion-seleccionada-info').style.display = 'none';
@@ -322,7 +611,6 @@ async function agregarAhorro() {
     
     const nombrePersona = personaSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
     
-    // 4. Guardar en Firebase
     try {
         const firebaseId = await saveAhorroToFirebase(nuevoAhorro);
         
@@ -349,7 +637,7 @@ async function agregarAhorro() {
 async function eliminarAhorro(id) {
     if (!confirm('¿Estás seguro de eliminar este ahorro?')) return;
     
-    mostrarNotificacion('⏳ Eliminando...', 'info');
+    mostrarNotificacion('⌛ Eliminando...', 'info');
     
     const ahorroEliminado = ahorros.find(a => a.id === id);
     ahorros = ahorros.filter(a => a.id !== id);
@@ -375,7 +663,7 @@ async function eliminarAhorro(id) {
 }
 
 // ====================
-// RESTO DE FUNCIONES
+// FUNCIONES DE CONFIGURACIÓN
 // ====================
 
 async function guardarNombres() {
@@ -453,6 +741,27 @@ async function guardarMontos() {
         saveAhorrosToLocalStorage();
     }
 }
+
+async function saveConfigAhorroToFirebase() {
+    try {
+        const db = firebase.firestore();
+        const configDocRef = db.collection('config').doc('nuestra_pareja');
+        const configDoc = await configDocRef.get();
+        let configData = configDoc.exists ? configDoc.data() : {};
+        
+        configData.ahorroConfig = configAhorro;
+        configData.nombres = configAhorro.nombres;
+        
+        await configDocRef.set(configData, { merge: true });
+    } catch (error) {
+        console.error("❌ Error guardando configuración:", error);
+        throw error;
+    }
+}
+
+// ====================
+// CONFIGURACIÓN DE EVENTOS
+// ====================
 
 function configurarEventosAhorro() {
     const themeBtn = document.getElementById('theme-btn');
@@ -562,6 +871,14 @@ function configurarEventosAhorro() {
     if (cancelMontosBtn) {
         cancelMontosBtn.addEventListener('click', () => ocultarModal('montos-modal'));
     }
+    
+    document.querySelectorAll('.chart-option').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.chart-option').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            actualizarGraficoAhorro(this.dataset.chart);
+        });
+    });
 }
 
 function habilitarBotonAgregar() {
@@ -574,9 +891,8 @@ function habilitarBotonAgregar() {
 function actualizarUIAhorro() {
     actualizarResumenAhorro();
     actualizarMetas();
+    aplicarFiltrosAhorro(); // Usar los nuevos filtros
     actualizarGraficoAhorro('opciones');
-    mostrarAhorros();
-    actualizarQuickSummaryAhorro();
 }
 
 function actualizarResumenAhorro() {
@@ -627,112 +943,7 @@ function actualizarMetas() {
         
         progressMensual.style.width = `${porcentajeMensual}%`;
         progressAnual.style.width = `${porcentajeAnual}%`;
-        
-        if (porcentajeMensual >= 100) progressMensual.style.background = 'linear-gradient(135deg, #38a169 0%, #68d391 100%)';
-        else if (porcentajeMensual >= 70) progressMensual.style.background = 'linear-gradient(135deg, #ed8936 0%, #fbd38d 100%)';
-        else progressMensual.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        
-        if (porcentajeAnual >= 100) progressAnual.style.background = 'linear-gradient(135deg, #38a169 0%, #68d391 100%)';
-        else if (porcentajeAnual >= 70) progressAnual.style.background = 'linear-gradient(135deg, #ed8936 0%, #fbd38d 100%)';
-        else progressAnual.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     }
-}
-
-function mostrarAhorros() {
-    const container = document.getElementById('ahorros-container');
-    const emptyState = document.getElementById('empty-state-ahorro');
-    const totales = document.getElementById('totales-ahorro');
-    
-    if (!container) return;
-    
-    if (ahorros.length === 0) {
-        container.innerHTML = '';
-        emptyState.style.display = 'block';
-        totales.style.display = 'none';
-        return;
-    }
-    
-    emptyState.style.display = 'none';
-    totales.style.display = 'block';
-    
-    let html = '';
-    
-    ahorros.forEach(ahorro => {
-        // Formatear fecha con hora
-        let fechaFormateada;
-        const fechaAhorro = new Date(ahorro.fecha + 'T00:00:00');
-        const ahora = new Date();
-        const esHoy = fechaAhorro.toDateString() === ahora.toDateString();
-
-        if (esHoy && ahorro.timestamp) {
-            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `Hoy ${hora}`;
-        } else if (ahorro.timestamp) {
-            const fecha = fechaAhorro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-            const hora = new Date(ahorro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `${fecha} ${hora}`;
-        } else {
-            fechaFormateada = fechaAhorro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-        }
-        
-        const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
-        let nombreOpcion = '';
-        let claseBadge = '';
-        
-        switch(ahorro.opcion) {
-            case '1':
-                nombreOpcion = 'Opción 1';
-                claseBadge = 'badge-opcion1';
-                break;
-            case '2':
-                nombreOpcion = 'Opción 2';
-                claseBadge = 'badge-opcion2';
-                break;
-            case '3':
-                nombreOpcion = 'Opción 3';
-                claseBadge = 'badge-opcion3';
-                break;
-        }
-        
-        const sincronizandoClass = ahorro.sincronizando ? 'sincronizando' : '';
-        const sincronizandoIcon = ahorro.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
-        const errorIcon = ahorro.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
-        
-        html += `
-            <div class="ahorro-item ${ahorro.persona} ${sincronizandoClass}">
-                <div class="gasto-header">
-                    <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
-                    <button class="delete-btn" onclick="eliminarAhorro('${ahorro.id}')" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-                <div class="gasto-descripcion">${ahorro.descripcion}</div>
-                <div class="gasto-meta">
-                    <div class="gasto-info">
-                        <span class="gasto-persona">${nombrePersona}</span>
-                        <span class="ahorro-opcion ${claseBadge}">${nombreOpcion}</span>
-                    </div>
-                    <div class="gasto-fecha">${fechaFormateada}</div>
-                </div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
 }
 
 function inicializarGraficoAhorro() {
@@ -777,7 +988,12 @@ function actualizarGraficoAhorro(tipo) {
     chartAhorroInstance.update();
 }
 
-function actualizarQuickSummaryAhorro() {}
+function obtenerInicioSemana() {
+    const hoy = new Date();
+    const dia = hoy.getDay();
+    const diff = hoy.getDate() - dia + (dia === 0 ? -6 : 1);
+    return new Date(hoy.setDate(diff)).setHours(0, 0, 0, 0);
+}
 
 function toggleTema() {
     const temaActual = document.documentElement.getAttribute('data-theme');
@@ -823,6 +1039,7 @@ function ocultarModal(modalId) {
     if (modal) modal.classList.remove('active');
 }
 
+// Hacer funciones globales
 window.eliminarAhorro = eliminarAhorro;
 
-console.log("✅ app-ahorro.js cargado correctamente (versión sin recargas)");
+console.log("✅ app-ahorro.js cargado correctamente (versión con filtros nuevos)");

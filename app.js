@@ -1,4 +1,4 @@
-// File: app.js - VERSIÓN FINAL CORREGIDA (SIN DUPLICADOS)
+// File: app.js - VERSIÓN CON FILTROS NUEVOS FUNCIONALES
 // ========================================================
 
 // Variables globales
@@ -17,8 +17,6 @@ let categoriaSeleccionada = 'otros';
 let chartInstance = null;
 let unsubscribeGastos = null;
 let unsubscribeConfig = null;
-
-// Flag para evitar procesar nuestros propios cambios
 let ignoreNextSnapshot = false;
 
 // ====================
@@ -70,10 +68,6 @@ async function loadConfigFromFirebase() {
     }
 }
 
-// ====================
-// LISTENER CORREGIDO - SIN DUPLICADOS
-// ====================
-
 function setupRealtimeListeners() {
     if (unsubscribeGastos) unsubscribeGastos();
     if (unsubscribeConfig) unsubscribeConfig();
@@ -84,34 +78,26 @@ function setupRealtimeListeners() {
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            // Si estamos ignorando cambios (porque acabamos de guardar), salir
             if (ignoreNextSnapshot) {
                 console.log("⏸️ Ignorando snapshot por operación propia");
                 ignoreNextSnapshot = false;
                 return;
             }
             
-            console.log("🔄 Cambios detectados en gastos:", snapshot.docChanges().length);
+            console.log("🔔 Cambios detectados en gastos:", snapshot.docChanges().length);
             
-            // Mapa de IDs reales de Firebase que existen en el snapshot
             const firebaseIds = new Set();
             snapshot.docs.forEach(doc => firebaseIds.add(doc.id));
             
-            // ELIMINAR gastos que ya no están en Firebase (IDs reales)
             gastos = gastos.filter(gasto => {
-                // Si es un ID temporal, lo dejamos (aún no está en Firebase)
                 if (gasto.id.toString().startsWith('temp_')) return true;
-                
-                // Si es un ID real pero ya no está en Firebase, lo eliminamos
                 if (!firebaseIds.has(gasto.id)) {
                     console.log("🗑️ Eliminando gasto remoto que ya no existe:", gasto.id);
                     return false;
                 }
-                
                 return true;
             });
             
-            // PROCESAR CADA CAMBIO DE FIREBASE
             snapshot.docChanges().forEach(cambio => {
                 const docData = {
                     id: cambio.doc.id,
@@ -124,26 +110,23 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        // Buscar si tenemos un temporal que coincida con este gasto
                         const temporalIndex = gastos.findIndex(g => 
                             g.id.toString().startsWith('temp_') && 
-                            Math.abs(g.monto - docData.monto) < 0.01 && // Comparación segura de montos
+                            Math.abs(g.monto - docData.monto) < 0.01 &&
                             g.fecha === docData.fecha && 
                             g.descripcion === docData.descripcion &&
                             g.persona === docData.persona
                         );
                         
                         if (temporalIndex !== -1) {
-                            // ✅ CASO 1: Es NUESTRO gasto (reemplazar temporal con real)
                             console.log("🔄 Reemplazando nuestro gasto temporal con versión real");
                             gastos[temporalIndex] = {
                                 ...docData,
                                 sincronizando: false,
-                                id: docData.id // Aseguramos el ID real
+                                id: docData.id
                             };
                         } 
                         else if (!gastos.some(g => g.id === docData.id)) {
-                            // ✅ CASO 2: Es gasto NUEVO de OTRO dispositivo
                             console.log("➕ Nuevo gasto de otro dispositivo:", docData.descripcion);
                             gastos.push({
                                 ...docData,
@@ -173,7 +156,6 @@ function setupRealtimeListeners() {
                 }
             });
             
-            // Ordenar
             gastos.sort((a, b) => {
                 const dateA = a.timestamp || new Date(a.fecha);
                 const dateB = b.timestamp || new Date(b.fecha);
@@ -213,13 +195,11 @@ async function saveGastoToFirebase(gasto) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // Activar flag para ignorar el próximo snapshot
         ignoreNextSnapshot = true;
         
         const docRef = await db.collection('gastos').add(gastoData);
         console.log("✅ Gasto guardado en Firebase con ID:", docRef.id);
         
-        // Desactivar flag después de un tiempo (por si acaso)
         setTimeout(() => {
             ignoreNextSnapshot = false;
         }, 2000);
@@ -249,7 +229,7 @@ async function deleteGastoFromFirebase(id) {
 }
 
 // ====================
-// LOCALSTORAGE (solo backup)
+// LOCALSTORAGE
 // ====================
 
 function saveToLocalStorage() {
@@ -295,6 +275,7 @@ function inicializarApp() {
     actualizarIconoTema(temaGuardado);
     
     configurarEventos();
+    configurarFiltrosNuevos(); // <-- NUEVO
     actualizarNombresEnUI();
     
     const hoy = new Date().toISOString().split('T')[0];
@@ -304,7 +285,195 @@ function inicializarApp() {
 }
 
 // ====================
-// FUNCIÓN AGREGAR GASTO CORREGIDA
+// NUEVAS FUNCIONES DE FILTROS
+// ====================
+
+function configurarFiltrosNuevos() {
+    // Verificar que los elementos existen
+    const busquedaInput = document.getElementById('busqueda-tiempo-real');
+    const filtroCategoria = document.getElementById('filtro-categoria');
+    const filtroPersona = document.getElementById('filtro-persona');
+    const filtroFecha = document.getElementById('filtro-fecha');
+    const rangoFechas = document.getElementById('rango-fechas-personalizado');
+    const fechaDesde = document.getElementById('fecha-desde');
+    const fechaHasta = document.getElementById('fecha-hasta');
+    const btnAplicarFecha = document.getElementById('aplicar-fecha');
+    const btnLimpiar = document.getElementById('limpiar-filtros');
+    const btnLimpiarTodo = document.getElementById('limpiar-todo-historial');
+    
+    if (!busquedaInput) {
+        console.warn("No se encontraron los filtros nuevos");
+        return;
+    }
+    
+    // Búsqueda en tiempo real
+    busquedaInput.addEventListener('input', aplicarFiltrosNuevos);
+    
+    // Filtros por select
+    filtroCategoria.addEventListener('change', aplicarFiltrosNuevos);
+    filtroPersona.addEventListener('change', aplicarFiltrosNuevos);
+    
+    // Mostrar/ocultar rango de fechas
+    filtroFecha.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            rangoFechas.style.display = 'block';
+        } else {
+            rangoFechas.style.display = 'none';
+            aplicarFiltrosNuevos();
+        }
+    });
+    
+    // Aplicar fechas personalizadas
+    btnAplicarFecha.addEventListener('click', aplicarFiltrosNuevos);
+    
+    // Botón limpiar filtros
+    btnLimpiar.addEventListener('click', function() {
+        busquedaInput.value = '';
+        filtroCategoria.value = '';
+        filtroPersona.value = '';
+        filtroFecha.value = 'all';
+        rangoFechas.style.display = 'none';
+        fechaDesde.value = '';
+        fechaHasta.value = '';
+        aplicarFiltrosNuevos();
+        mostrarNotificacion('Filtros limpiados', 'info');
+    });
+    
+    // Botón limpiar todo
+    btnLimpiarTodo.addEventListener('click', mostrarModalLimpiarTodo);
+    
+    // Eventos del modal
+    const cancelarBtn = document.getElementById('cancelar-limpiar-todo');
+    const confirmarBtn = document.getElementById('confirmar-limpiar-todo');
+    
+    if (cancelarBtn) {
+        cancelarBtn.addEventListener('click', function() {
+            document.getElementById('modal-limpiar-todo').classList.remove('active');
+        });
+    }
+    
+    if (confirmarBtn) {
+        confirmarBtn.addEventListener('click', limpiarTodoHistorial);
+    }
+}
+
+function aplicarFiltrosNuevos() {
+    const busqueda = document.getElementById('busqueda-tiempo-real')?.value.toLowerCase() || '';
+    const categoria = document.getElementById('filtro-categoria')?.value || '';
+    const persona = document.getElementById('filtro-persona')?.value || '';
+    const filtroFecha = document.getElementById('filtro-fecha')?.value || 'all';
+    const fechaDesde = document.getElementById('fecha-desde')?.value || '';
+    const fechaHasta = document.getElementById('fecha-hasta')?.value || '';
+    
+    let gastosFiltrados = [...gastos];
+    
+    // Filtro por búsqueda
+    if (busqueda) {
+        gastosFiltrados = gastosFiltrados.filter(g => 
+            g.descripcion.toLowerCase().includes(busqueda)
+        );
+    }
+    
+    // Filtro por categoría
+    if (categoria) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.categoria === categoria);
+    }
+    
+    // Filtro por persona
+    if (persona) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.persona === persona);
+    }
+    
+    // Filtro por fecha
+    if (filtroFecha !== 'all') {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        switch(filtroFecha) {
+            case 'today':
+                const hoyStr = hoy.toISOString().split('T')[0];
+                gastosFiltrados = gastosFiltrados.filter(g => g.fecha === hoyStr);
+                break;
+            case 'week':
+                const inicioSemana = obtenerInicioSemana();
+                gastosFiltrados = gastosFiltrados.filter(g => new Date(g.fecha) >= new Date(inicioSemana));
+                break;
+            case 'month':
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                gastosFiltrados = gastosFiltrados.filter(g => new Date(g.fecha) >= inicioMes);
+                break;
+            case 'custom':
+                if (fechaDesde && fechaHasta) {
+                    const desde = new Date(fechaDesde);
+                    const hasta = new Date(fechaHasta);
+                    hasta.setHours(23, 59, 59, 999);
+                    gastosFiltrados = gastosFiltrados.filter(g => {
+                        const fechaG = new Date(g.fecha);
+                        return fechaG >= desde && fechaG <= hasta;
+                    });
+                }
+                break;
+        }
+    }
+    
+    // Ordenar
+    gastosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    // Actualizar estadísticas
+    const mostrandoEl = document.getElementById('filtro-mostrando');
+    const totalEl = document.getElementById('filtro-total');
+    const totalMontoEl = document.getElementById('filtro-total-monto');
+    
+    if (mostrandoEl) mostrandoEl.textContent = gastosFiltrados.length;
+    if (totalEl) totalEl.textContent = gastos.length;
+    
+    const totalMonto = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
+    if (totalMontoEl) totalMontoEl.textContent = `S/${totalMonto.toFixed(2)}`;
+    
+    // Mostrar resultados usando la función existente
+    mostrarGastosFiltrados(gastosFiltrados);
+    
+    // Actualizar totales antiguos también
+    const totalFiltrado = document.getElementById('total-filtrado');
+    const totalGeneral = document.getElementById('total-general');
+    if (totalFiltrado) totalFiltrado.textContent = `S/${totalMonto.toFixed(2)}`;
+    if (totalGeneral) totalGeneral.textContent = `S/${gastos.reduce((sum, g) => sum + g.monto, 0).toFixed(2)}`;
+}
+
+function mostrarModalLimpiarTodo() {
+    const totalRegistros = document.getElementById('total-registros-eliminar');
+    const totalMonto = document.getElementById('monto-total-eliminar');
+    
+    if (totalRegistros) totalRegistros.textContent = gastos.length;
+    
+    const sumaTotal = gastos.reduce((sum, g) => sum + g.monto, 0);
+    if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)}`;
+    
+    document.getElementById('modal-limpiar-todo').classList.add('active');
+}
+
+async function limpiarTodoHistorial() {
+    mostrarNotificacion('Eliminando todo el historial...', 'info');
+    
+    const idsFirebase = gastos.filter(g => !g.id.toString().startsWith('temp_')).map(g => g.id);
+    for (const id of idsFirebase) {
+        try {
+            await deleteGastoFromFirebase(id);
+        } catch (error) {
+            console.error("Error eliminando:", id);
+        }
+    }
+    
+    gastos = [];
+    actualizarUI();
+    saveToLocalStorage();
+    
+    document.getElementById('modal-limpiar-todo').classList.remove('active');
+    mostrarNotificacion('Todo el historial eliminado', 'success');
+}
+
+// ====================
+// FUNCIÓN AGREGAR GASTO
 // ====================
 
 async function agregarGasto() {
@@ -324,7 +493,6 @@ async function agregarGasto() {
         return;
     }
     
-    // Crear ID TEMPORAL
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoGasto = {
         id: tempId,
@@ -337,31 +505,22 @@ async function agregarGasto() {
         sincronizando: true
     };
     
-    // MOSTRAR INMEDIATAMENTE
     gastos.unshift(nuevoGasto);
     actualizarUI();
     
-    // Limpiar formulario
     document.getElementById('monto').value = '';
     document.getElementById('descripcion').value = '';
     document.getElementById('monto').focus();
     
     const nombrePersona = personaSeleccionada === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
     
-    // Guardar en Firebase
     try {
         const firebaseId = await saveGastoToFirebase(nuevoGasto);
         
-        // ACTUALIZAR el gasto temporal con el ID real
         const index = gastos.findIndex(g => g.id === tempId);
         if (index !== -1) {
             gastos[index].id = firebaseId;
             gastos[index].sincronizando = false;
-            // Forzar actualización visual
-            const elemento = document.querySelector(`[data-id="${tempId}"]`);
-            if (elemento) {
-                elemento.setAttribute('data-id', firebaseId);
-            }
         }
         
         mostrarNotificacion(`✅ ${nombrePersona} gastó S/${monto.toFixed(2)}`, 'success');
@@ -381,7 +540,7 @@ async function agregarGasto() {
 async function eliminarGasto(id) {
     if (!confirm('¿Estás seguro de eliminar este gasto?')) return;
     
-    mostrarNotificacion('⏳ Eliminando...', 'info');
+    mostrarNotificacion('⌛ Eliminando...', 'info');
     
     const gastoEliminado = gastos.find(g => g.id === id);
     gastos = gastos.filter(g => g.id !== id);
@@ -407,7 +566,7 @@ async function eliminarGasto(id) {
 }
 
 // ====================
-// RESTO DE FUNCIONES (sin cambios)
+// FUNCIONES DE CONFIGURACIÓN
 // ====================
 
 async function guardarNombres() {
@@ -454,6 +613,19 @@ async function guardarPresupuesto() {
         saveToLocalStorage();
     }
 }
+
+async function saveConfigToFirebase() {
+    try {
+        await firebase.firestore().collection('config').doc('nuestra_pareja').set(config);
+    } catch (error) {
+        console.error("Error guardando configuración:", error);
+        throw error;
+    }
+}
+
+// ====================
+// EVENTOS ORIGINALES (MODIFICADOS)
+// ====================
 
 function configurarEventos() {
     document.getElementById('theme-btn').addEventListener('click', toggleTema);
@@ -514,14 +686,6 @@ function configurarEventos() {
     document.getElementById('cancel-budget').addEventListener('click', ocultarModalPresupuesto);
     
     document.getElementById('export-btn').addEventListener('click', exportarDatos);
-    document.getElementById('search-toggle').addEventListener('click', toggleBusqueda);
-    document.getElementById('search-clear').addEventListener('click', limpiarBusqueda);
-    document.getElementById('search-input').addEventListener('input', filtrarGastos);
-    
-    document.getElementById('filter-category').addEventListener('change', filtrarGastos);
-    document.getElementById('filter-person').addEventListener('change', filtrarGastos);
-    document.getElementById('filter-date').addEventListener('change', filtrarGastos);
-    document.getElementById('clear-filters').addEventListener('click', limpiarFiltros);
     
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
@@ -533,30 +697,12 @@ function configurarEventos() {
 
 function ejecutarAccion(accion) {
     switch(accion) {
-        case 'ver-mis-gastos':
-            document.getElementById('filter-person').value = 'persona1';
-            filtrarGastos();
-            break;
         case 'ver-mis-finanzas':
             window.location.href = 'finanzas-personales.html?persona=yo';
             break;
-        //case 'ver-sus-finanzas':
-        //    window.location.href = 'finanzas-personales.html?persona=ella';
-        //    break;
         case 'ver-limites':
             window.location.href = 'limites.html';
             break;
-        case 'ver-sus-gastos':
-            document.getElementById('filter-person').value = 'persona2';
-            filtrarGastos();
-            break;
-        case 'ver-semana':
-            document.getElementById('filter-date').value = 'week';
-            filtrarGastos();
-            break;
-        //case 'ver-todos':
-        //    limpiarFiltros();
-        //    break;
         case 'ver-ahorros':
             window.location.href = 'ahorro.html';
             break;
@@ -566,11 +712,15 @@ function ejecutarAccion(accion) {
     }
 }
 
+// ====================
+// FUNCIONES DE UI
+// ====================
+
 function actualizarUI() {
     actualizarResumen();
     actualizarPresupuesto();
     actualizarGrafico('categorias');
-    filtrarGastos();
+    aplicarFiltrosNuevos(); // Usar los nuevos filtros
     actualizarQuickSummary();
     actualizarNombresEnUI();
 }
@@ -580,6 +730,12 @@ function actualizarNombresEnUI() {
     const el2 = document.getElementById('name-persona2');
     if (el1) el1.textContent = config.nombres.persona1;
     if (el2) el2.textContent = config.nombres.persona2;
+    
+    // Actualizar filtros
+    const filtroPersona1 = document.getElementById('filtro-persona1');
+    const filtroPersona2 = document.getElementById('filtro-persona2');
+    if (filtroPersona1) filtroPersona1.textContent = config.nombres.persona1;
+    if (filtroPersona2) filtroPersona2.textContent = config.nombres.persona2;
 }
 
 function actualizarResumen() {
@@ -631,56 +787,6 @@ function actualizarPresupuesto() {
     document.getElementById('budget-persona2').textContent = `S/${gastosPersona2.toFixed(2)}`;
 }
 
-function filtrarGastos() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const categoria = document.getElementById('filter-category').value;
-    const persona = document.getElementById('filter-person').value;
-    const rangoFecha = document.getElementById('filter-date').value;
-    
-    let gastosFiltrados = [...gastos];
-    
-    if (searchTerm) {
-        gastosFiltrados = gastosFiltrados.filter(g => 
-            g.descripcion.toLowerCase().includes(searchTerm)
-        );
-    }
-    
-    if (categoria) gastosFiltrados = gastosFiltrados.filter(g => g.categoria === categoria);
-    if (persona) gastosFiltrados = gastosFiltrados.filter(g => g.persona === persona);
-    
-    if (rangoFecha && rangoFecha !== 'all') {
-        const hoy = new Date();
-        let fechaInicio;
-        
-        switch(rangoFecha) {
-            case 'today':
-                fechaInicio = new Date(hoy.setHours(0, 0, 0, 0));
-                break;
-            case 'week':
-                fechaInicio = obtenerInicioSemana();
-                break;
-            case 'month':
-                fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                break;
-            default:
-                fechaInicio = null;
-        }
-        
-        if (fechaInicio) {
-            gastosFiltrados = gastosFiltrados.filter(g => new Date(g.fecha) >= fechaInicio);
-        }
-    }
-    
-    gastosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    mostrarGastosFiltrados(gastosFiltrados);
-    
-    const totalFiltrado = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
-    const totalGeneral = gastos.reduce((sum, g) => sum + g.monto, 0);
-    
-    document.getElementById('total-filtrado').textContent = `S/${totalFiltrado.toFixed(2)}`;
-    document.getElementById('total-general').textContent = `S/${totalGeneral.toFixed(2)}`;
-}
-
 function mostrarGastosFiltrados(gastosFiltrados) {
     const container = document.getElementById('gastos-container');
     const emptyState = document.getElementById('empty-state');
@@ -688,19 +794,19 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     
     if (gastosFiltrados.length === 0) {
         container.innerHTML = `
-            <div class="empty-state">
+            <div class="empty-state" style="display: block;">
                 <i class="far fa-search"></i>
                 <h4>No se encontraron gastos</h4>
                 <p>Intenta con otros filtros.</p>
             </div>
         `;
-        emptyState.style.display = 'none';
-        totales.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'none';
+        if (totales) totales.style.display = 'none';
         return;
     }
     
-    emptyState.style.display = 'none';
-    totales.style.display = 'block';
+    if (emptyState) emptyState.style.display = 'none';
+    if (totales) totales.style.display = 'block';
     
     const iconosCategorias = {
         comida: '🍔',
@@ -721,7 +827,6 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     let html = '';
     
     gastosFiltrados.forEach(gasto => {
-        // 👇 ESTO ES LO NUEVO - REEMPLAZA la línea anterior
         let fechaFormateada;
         const fechaGasto = new Date(gasto.fecha + 'T00:00:00');
         const ahora = new Date();
@@ -782,16 +887,6 @@ function mostrarGastosFiltrados(gastosFiltrados) {
     });
     
     container.innerHTML = html;
-}
-
-function limpiarFiltros() {
-    document.getElementById('search-input').value = '';
-    document.getElementById('filter-category').value = '';
-    document.getElementById('filter-person').value = '';
-    document.getElementById('filter-date').value = 'all';
-    document.getElementById('search-box').style.display = 'none';
-    filtrarGastos();
-    mostrarNotificacion('Filtros limpiados', 'info');
 }
 
 function inicializarGrafico() {
@@ -916,17 +1011,6 @@ function obtenerInicioSemana() {
     return new Date(hoy.setDate(diff)).setHours(0, 0, 0, 0);
 }
 
-function toggleBusqueda() {
-    const searchBox = document.getElementById('search-box');
-    searchBox.style.display = searchBox.style.display === 'none' ? 'block' : 'none';
-    if (searchBox.style.display === 'block') document.getElementById('search-input').focus();
-}
-
-function limpiarBusqueda() {
-    document.getElementById('search-input').value = '';
-    filtrarGastos();
-}
-
 function mostrarNotificacion(mensaje, tipo = 'info') {
     const notificacion = document.getElementById('notification');
     if (!notificacion) return;
@@ -978,4 +1062,4 @@ function ocultarModalPresupuesto() {
 // Hacer funciones globales
 window.eliminarGasto = eliminarGasto;
 
-console.log("✅ app.js cargado correctamente (versión sin duplicados)");
+console.log("✅ app.js cargado correctamente (versión con filtros nuevos)");

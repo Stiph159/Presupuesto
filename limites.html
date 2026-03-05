@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="-es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -111,17 +111,17 @@
                 </div>
             </div>
 
-                <!-- Input de gasto real -->
-                <div class="input-row">
-                    <div class="input-group">
-                        <div class="input-with-currency">
-                            <span class="currency">S/</span>
-                            <input type="number" id="gasto-real" placeholder="0.00" step="0.01" min="0">
-                        </div>
+            <!-- Input de gasto real -->
+            <div class="input-row">
+                <div class="input-group">
+                    <div class="input-with-currency">
+                        <span class="currency">S/</span>
+                        <input type="number" id="gasto-real" placeholder="0.00" step="0.01" min="0">
                     </div>
-                    
-                    <input type="text" id="descripcion-limite" placeholder="¿En qué gastamos? (opcional)" maxlength="50">
                 </div>
+                
+                <input type="text" id="descripcion-limite" placeholder="¿En qué gastamos? (opcional)" maxlength="50">
+            </div>
 
             <!-- Fecha -->
             <div class="date-selector">
@@ -189,7 +189,7 @@
                 <h4><i class="fas fa-users"></i> Desglose por Persona</h4>
                 <div class="breakdown-grid">
                     <div class="person-result">
-                        <div class="person-avatar">👤</div>
+                        <div class="person-avatar">👨</div>
                         <div class="person-info">
                             <span id="name-persona1-result">Yo</span>
                             <div class="person-amount" id="ahorro-persona1">S/0.00</div>
@@ -242,7 +242,7 @@
             </div>
         </section>
 
-        <!-- Botones de acción -->
+        <!-- Botones de acción (opcionales, puedes mantenerlos) -->
         <section class="action-buttons">
             <button class="action-btn" data-action="ver-mis-limites">
                 <i class="fas fa-user"></i> Mis Excesos
@@ -258,20 +258,96 @@
             </button>
         </section>
 
-        <!-- Lista de registros -->
+        <!-- Lista de registros (AQUÍ VAN LOS FILTROS NUEVOS) -->
         <section class="gastos-list-section">
             <div class="list-header">
                 <h3 id="list-title-limites">Historial de Límites</h3>
                 <div class="list-actions">
-                    <button class="list-action-btn" id="clear-all" title="Limpiar todo">
-                        <i class="fas fa-trash"></i>
+                    <button class="list-action-btn" id="export-limites-btn" title="Exportar">
+                        <i class="fas fa-file-export"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="gastos-container" id="registros-container">
-                <!-- Los registros se cargan aquí dinámicamente -->
+            <!-- FILTROS NUEVOS PARA LÍMITES -->
+            <div class="filtros-container" style="margin-bottom: 20px;">
+                <!-- Primera fila: Búsqueda y filtros básicos -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                    
+                    <!-- Buscador -->
+                    <div style="flex: 2; min-width: 200px; position: relative;">
+                        <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                        <input type="text" 
+                               id="busqueda-limites" 
+                               placeholder="Buscar por descripción..." 
+                               style="width: 100%; padding: 10px 10px 10px 35px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                    </div>
+
+                    <!-- Filtro Tipo (Dentro/Exceso) -->
+                    <div style="flex: 1; min-width: 140px;">
+                        <select id="filtro-tipo-limite" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                            <option value="">Todos los tipos</option>
+                            <option value="cumplido">Dentro de límite</option>
+                            <option value="exceso">Con exceso</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtro Fecha -->
+                    <div style="flex: 1; min-width: 140px;">
+                        <select id="filtro-fecha-limite" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                            <option value="all">Todas las fechas</option>
+                            <option value="today">Hoy</option>
+                            <option value="week">Esta semana</option>
+                            <option value="month">Este mes</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+
+                    <!-- Botón Limpiar -->
+                    <button id="limpiar-filtros-limites" style="padding: 10px 20px; background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-color); cursor: pointer;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Rango de fechas personalizado (oculto por defecto) -->
+                <div id="rango-fechas-limite" style="display: none; margin-top: 10px; padding: 15px; background: var(--card-bg); border-radius: 10px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Desde:</label>
+                            <input type="date" id="fecha-desde-limite" style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Hasta:</label>
+                            <input type="date" id="fecha-hasta-limite" style="width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button id="aplicar-fecha-limite" style="padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                Aplicar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estadísticas rápidas -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 10px; background: var(--card-bg); border-radius: 8px;">
+                    <span style="color: var(--text-secondary);">
+                        Mostrando: <strong id="filtro-mostrando-limites">0</strong> de <strong id="filtro-total-limites">0</strong>
+                    </span>
+                    <span style="color: var(--primary-color); font-weight: bold; font-size: 1.1rem;" id="filtro-total-monto-limites">
+                        S/0.00
+                    </span>
+                </div>
+
+                <!-- Botón limpiar todo -->
+                <div style="margin-top: 10px;">
+                    <button id="limpiar-todo-historial-limites" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-trash"></i> LIMPIAR TODO EL HISTORIAL
+                    </button>
+                </div>
             </div>
+
+            <!-- Lista de registros -->
+            <div class="gastos-container" id="registros-container"></div>
 
             <!-- Estado vacío -->
             <div class="empty-state" id="empty-state-limites">
@@ -313,22 +389,34 @@
                 </div>
             </div>
         </div>
+
+        <!-- MODAL DE CONFIRMACIÓN PARA LIMPIAR TODO -->
+        <div class="modal" id="modal-limpiar-todo-limites">
+            <div class="modal-content" style="text-align: center;">
+                <div style="font-size: 4rem; color: var(--accent-color); margin-bottom: 20px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 style="margin-bottom: 15px;">¿Eliminar todo el historial?</h3>
+                <p style="margin-bottom: 10px;">Vas a eliminar <strong><span id="total-registros-eliminar-limites">0</span> registros</strong></p>
+                <p style="margin-bottom: 20px; font-size: 1.2rem; color: var(--accent-color);" id="monto-total-eliminar-limites">S/0.00</p>
+                <p style="color: var(--text-secondary); margin-bottom: 25px;">¡Esta acción no se puede deshacer!</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="modal-btn cancel" id="cancelar-limpiar-todo-limites">Cancelar</button>
+                    <button class="modal-btn save" id="confirmar-limpiar-todo-limites" style="background: var(--accent-color);">Sí, eliminar todo</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Notificaciones -->
     <div id="notification" class="notification"></div>
 
-       <!-- Scripts -->
-    <!-- Firebase -->
+    <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="firebase-config.js"></script>
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Tu código PARA LÍMITES -->
     <script src="app-limites.js"></script>
 </body>
 </html>

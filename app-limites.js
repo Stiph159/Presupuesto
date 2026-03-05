@@ -1,6 +1,4 @@
-// File: app-limites.js
-// ====================
-// VERSIÓN CORREGIDA - SIN RECARGAS
+// File: app-limites.js - VERSIÓN CON FILTROS NUEVOS
 // ====================
 
 let registrosLimites = [];
@@ -50,10 +48,6 @@ async function loadConfigLimitesFromFirebase() {
     }
 }
 
-// ====================
-// LISTENER CORREGIDO (SIN RECARGAS)
-// ====================
-
 function setupRealtimeListenersLimites() {
     if (unsubscribeLimites) unsubscribeLimites();
     if (unsubscribeConfigLimites) unsubscribeConfigLimites();
@@ -78,7 +72,6 @@ function setupRealtimeListenersLimites() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        // Buscar si tenemos un temporal que coincida
                         const temporalIndex = registrosLimites.findIndex(r => 
                             r.id.toString().startsWith('temp_') && 
                             r.fecha === limiteData.fecha && 
@@ -87,7 +80,6 @@ function setupRealtimeListenersLimites() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // ✅ Es NUESTRO registro
                             console.log("🔄 Reemplazando nuestro registro temporal");
                             registrosLimites[temporalIndex] = {
                                 ...limiteData,
@@ -96,13 +88,12 @@ function setupRealtimeListenersLimites() {
                             };
                         } 
                         else if (!registrosLimites.some(r => r.id === limiteData.id)) {
-                            // ✅ Es registro de OTRO dispositivo
                             console.log("➕ Nuevo registro de otro dispositivo");
                             registrosLimites.push({
                                 ...limiteData,
                                 sincronizando: false
                             });
-                            mostrarNotificacion(`📊 Nuevo registro de límite`, 'info');
+                            mostrarNotificacion(`📌 Nuevo registro de límite`, 'info');
                         }
                         break;
                     case 'modified':
@@ -178,33 +169,6 @@ async function deleteLimiteFromFirebase(id) {
     }
 }
 
-async function eliminarTodosLimitesDeFirebase() {
-    try {
-        const db = firebase.firestore();
-        const limitesSnapshot = await db.collection('limites')
-            .where('sharedId', '==', 'nuestra_pareja')
-            .get();
-        
-        const batch = db.batch();
-        limitesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-    } catch (error) {
-        console.error("❌ Error eliminando todos:", error);
-    }
-}
-
-async function saveConfigLimitesToFirebase() {
-    try {
-        const db = firebase.firestore();
-        await db.collection('config')
-            .doc('nuestra_pareja')
-            .set({ nombres: configLimites.nombres }, { merge: true });
-    } catch (error) {
-        console.error("❌ Error guardando configuración:", error);
-        throw error;
-    }
-}
-
 // ====================
 // LOCALSTORAGE
 // ====================
@@ -252,6 +216,7 @@ function inicializarAppLimites() {
     actualizarIconoTema(temaGuardado);
     
     configurarEventosLimites();
+    configurarFiltrosLimites(); // <-- NUEVO
     actualizarNombresEnUILimites();
     
     document.getElementById('fecha-limite').value = new Date().toISOString().split('T')[0];
@@ -264,6 +229,296 @@ function actualizarNombresEnUILimites() {
         document.getElementById('name-persona1-result').textContent = configLimites.nombres.persona1;
         document.getElementById('name-persona2-result').textContent = configLimites.nombres.persona2;
     }
+}
+
+// ====================
+// NUEVAS FUNCIONES DE FILTROS
+// ====================
+
+function configurarFiltrosLimites() {
+    const busquedaInput = document.getElementById('busqueda-limites');
+    const filtroTipo = document.getElementById('filtro-tipo-limite');
+    const filtroFecha = document.getElementById('filtro-fecha-limite');
+    const rangoFechas = document.getElementById('rango-fechas-limite');
+    const fechaDesde = document.getElementById('fecha-desde-limite');
+    const fechaHasta = document.getElementById('fecha-hasta-limite');
+    const btnAplicarFecha = document.getElementById('aplicar-fecha-limite');
+    const btnLimpiar = document.getElementById('limpiar-filtros-limites');
+    const btnLimpiarTodo = document.getElementById('limpiar-todo-historial-limites');
+    const btnExportar = document.getElementById('export-limites-btn');
+    
+    if (!busquedaInput) {
+        console.warn("No se encontraron los filtros de límites");
+        return;
+    }
+    
+    // Búsqueda en tiempo real
+    busquedaInput.addEventListener('input', aplicarFiltrosLimites);
+    
+    // Filtros por select
+    filtroTipo.addEventListener('change', aplicarFiltrosLimites);
+    filtroFecha.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            rangoFechas.style.display = 'block';
+        } else {
+            rangoFechas.style.display = 'none';
+            aplicarFiltrosLimites();
+        }
+    });
+    
+    // Aplicar fechas personalizadas
+    btnAplicarFecha.addEventListener('click', aplicarFiltrosLimites);
+    
+    // Botón limpiar filtros
+    btnLimpiar.addEventListener('click', function() {
+        busquedaInput.value = '';
+        filtroTipo.value = '';
+        filtroFecha.value = 'all';
+        rangoFechas.style.display = 'none';
+        fechaDesde.value = '';
+        fechaHasta.value = '';
+        aplicarFiltrosLimites();
+        mostrarNotificacion('Filtros limpiados', 'info');
+    });
+    
+    // Botón limpiar todo
+    btnLimpiarTodo.addEventListener('click', mostrarModalLimpiarTodoLimites);
+    
+    // Botón exportar
+    if (btnExportar) {
+        btnExportar.addEventListener('click', exportarRegistrosLimites);
+    }
+    
+    // Eventos del modal
+    const cancelarBtn = document.getElementById('cancelar-limpiar-todo-limites');
+    const confirmarBtn = document.getElementById('confirmar-limpiar-todo-limites');
+    
+    if (cancelarBtn) {
+        cancelarBtn.addEventListener('click', function() {
+            document.getElementById('modal-limpiar-todo-limites').classList.remove('active');
+        });
+    }
+    
+    if (confirmarBtn) {
+        confirmarBtn.addEventListener('click', limpiarTodoHistorialLimites);
+    }
+}
+
+function aplicarFiltrosLimites() {
+    const busqueda = document.getElementById('busqueda-limites')?.value.toLowerCase() || '';
+    const tipo = document.getElementById('filtro-tipo-limite')?.value || '';
+    const filtroFecha = document.getElementById('filtro-fecha-limite')?.value || 'all';
+    const fechaDesde = document.getElementById('fecha-desde-limite')?.value || '';
+    const fechaHasta = document.getElementById('fecha-hasta-limite')?.value || '';
+    
+    let registrosFiltrados = [...registrosLimites];
+    
+    // Filtro por búsqueda
+    if (busqueda) {
+        registrosFiltrados = registrosFiltrados.filter(r => 
+            r.descripcion.toLowerCase().includes(busqueda)
+        );
+    }
+    
+    // Filtro por tipo (dentro/exceso)
+    if (tipo === 'cumplido') {
+        registrosFiltrados = registrosFiltrados.filter(r => r.dentroDeLimite === true);
+    } else if (tipo === 'exceso') {
+        registrosFiltrados = registrosFiltrados.filter(r => r.exceso > 0);
+    }
+    
+    // Filtro por fecha
+    if (filtroFecha !== 'all') {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        switch(filtroFecha) {
+            case 'today':
+                const hoyStr = hoy.toISOString().split('T')[0];
+                registrosFiltrados = registrosFiltrados.filter(r => r.fecha === hoyStr);
+                break;
+            case 'week':
+                const inicioSemana = obtenerInicioSemana();
+                registrosFiltrados = registrosFiltrados.filter(r => new Date(r.fecha) >= new Date(inicioSemana));
+                break;
+            case 'month':
+                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                registrosFiltrados = registrosFiltrados.filter(r => new Date(r.fecha) >= inicioMes);
+                break;
+            case 'custom':
+                if (fechaDesde && fechaHasta) {
+                    const desde = new Date(fechaDesde);
+                    const hasta = new Date(fechaHasta);
+                    hasta.setHours(23, 59, 59, 999);
+                    registrosFiltrados = registrosFiltrados.filter(r => {
+                        const fechaR = new Date(r.fecha);
+                        return fechaR >= desde && fechaR <= hasta;
+                    });
+                }
+                break;
+        }
+    }
+    
+    // Ordenar
+    registrosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    // Actualizar estadísticas
+    const mostrandoEl = document.getElementById('filtro-mostrando-limites');
+    const totalEl = document.getElementById('filtro-total-limites');
+    const totalMontoEl = document.getElementById('filtro-total-monto-limites');
+    
+    if (mostrandoEl) mostrandoEl.textContent = registrosFiltrados.length;
+    if (totalEl) totalEl.textContent = registrosLimites.length;
+    
+    const totalAhorro = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
+    if (totalMontoEl) totalMontoEl.textContent = `S/${totalAhorro.toFixed(2)}`;
+    
+    // Mostrar resultados
+    cargarRegistrosLimitesFiltrados(registrosFiltrados);
+    
+    // Actualizar totales originales también
+    const totalAhorroForzado = document.getElementById('total-ahorro-forzado');
+    const totalDiasExceso = document.getElementById('total-dias-exceso');
+    
+    if (totalAhorroForzado) {
+        totalAhorroForzado.textContent = `S/${registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0).toFixed(2)}`;
+    }
+    if (totalDiasExceso) {
+        totalDiasExceso.textContent = registrosLimites.filter(r => r.exceso > 0).length;
+    }
+}
+
+function cargarRegistrosLimitesFiltrados(registrosFiltrados) {
+    const container = document.getElementById('registros-container');
+    const emptyState = document.getElementById('empty-state-limites');
+    const totales = document.getElementById('totales-limites');
+    
+    if (!container) return;
+    
+    if (registrosFiltrados.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="display: block;">
+                <i class="far fa-search"></i>
+                <h4>No se encontraron registros</h4>
+                <p>Intenta con otros filtros.</p>
+            </div>
+        `;
+        if (emptyState) emptyState.style.display = 'none';
+        if (totales) totales.style.display = 'none';
+        return;
+    }
+    
+    if (emptyState) emptyState.style.display = 'none';
+    if (totales) totales.style.display = 'block';
+    
+    let html = '';
+    
+    registrosFiltrados.forEach(registro => {
+        let fechaFormateada;
+        const fechaRegistro = new Date(registro.fecha + 'T00:00:00');
+        const ahora = new Date();
+        const esHoy = fechaRegistro.toDateString() === ahora.toDateString();
+
+        if (esHoy && registro.timestamp) {
+            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `Hoy ${hora}`;
+        } else if (registro.timestamp) {
+            const fecha = fechaRegistro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            fechaFormateada = `${fecha} ${hora}`;
+        } else {
+            fechaFormateada = fechaRegistro.toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            });
+        }
+        
+        const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
+        const statusText = registro.dentroDeLimite ? 'Dentro de límite' : 'Con exceso';
+        const limiteText = registro.limite === 0 ? 'Sin límite' : `Límite: S/${registro.limite}`;
+        
+        const sincronizandoClass = registro.sincronizando ? 'sincronizando' : '';
+        const sincronizandoIcon = registro.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
+        const errorIcon = registro.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
+        
+        html += `
+            <div class="registro-item ${clase} ${sincronizandoClass}">
+                <div class="registro-header">
+                    <div class="registro-status ${clase}">${statusText}</div>
+                    <div class="registro-monto">S/${registro.gastoReal.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
+                    <button class="delete-btn" onclick="eliminarRegistroLimite('${registro.id}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="gasto-descripcion">${registro.descripcion}</div>
+                <div class="gasto-meta">
+                    <div class="gasto-info">
+                        <span>${limiteText}</span>
+                        ${!registro.dentroDeLimite ? `<span>Ahorro: S/${registro.ahorroTotal.toFixed(2)}</span>` : ''}
+                    </div>
+                    <div class="gasto-fecha">${fechaFormateada}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function mostrarModalLimpiarTodoLimites() {
+    const totalRegistros = document.getElementById('total-registros-eliminar-limites');
+    const totalMonto = document.getElementById('monto-total-eliminar-limites');
+    
+    if (totalRegistros) totalRegistros.textContent = registrosLimites.length;
+    
+    const sumaTotal = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
+    if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)}`;
+    
+    document.getElementById('modal-limpiar-todo-limites').classList.add('active');
+}
+
+async function limpiarTodoHistorialLimites() {
+    mostrarNotificacion('Eliminando todo el historial...', 'info');
+    
+    const idsFirebase = registrosLimites.filter(r => !r.id.toString().startsWith('temp_')).map(r => r.id);
+    for (const id of idsFirebase) {
+        try {
+            await deleteLimiteFromFirebase(id);
+        } catch (error) {
+            console.error("Error eliminando:", id);
+        }
+    }
+    
+    registrosLimites = [];
+    actualizarUILimites();
+    saveLimitesToLocalStorage();
+    
+    document.getElementById('modal-limpiar-todo-limites').classList.remove('active');
+    mostrarNotificacion('Todo el historial eliminado', 'success');
+}
+
+function exportarRegistrosLimites() {
+    const dataStr = JSON.stringify(registrosLimites, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `limites_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    mostrarNotificacion('Datos exportados', 'success');
 }
 
 // ====================
@@ -326,10 +581,6 @@ function calcularLimite() {
     };
 }
 
-// ====================
-// FUNCIÓN GUARDAR REGISTRO CORREGIDA (CON ID TEMPORAL)
-// ====================
-
 async function guardarRegistroLimite() {
     if (!window.calculoTemporalLimite) {
         mostrarNotificacion('Primero calcula un resultado', 'error');
@@ -338,7 +589,6 @@ async function guardarRegistroLimite() {
     
     const calculo = window.calculoTemporalLimite;
     
-    // 1. Crear ID TEMPORAL
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoRegistro = {
         id: tempId,
@@ -354,11 +604,9 @@ async function guardarRegistroLimite() {
         sincronizando: true
     };
     
-    // 2. MOSTRAR INMEDIATAMENTE
     registrosLimites.unshift(nuevoRegistro);
     actualizarUILimites();
     
-    // 3. Limpiar formulario
     document.getElementById('gasto-real').value = '';
     document.getElementById('descripcion-limite').value = '';
     document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
@@ -369,12 +617,11 @@ async function guardarRegistroLimite() {
     habilitarBotonCalcular();
     
     const mensaje = calculo.dentroDeLimite 
-        ? '⏳ Guardando... ¡Excelente! Cumpliste el límite'
-        : `⏳ Guardando... Ahorro: S/${calculo.ahorroTotal.toFixed(2)}`;
+        ? '⌛ Guardando... ¡Excelente! Cumpliste el límite'
+        : `⌛ Guardando... Ahorro: S/${calculo.ahorroTotal.toFixed(2)}`;
     
     mostrarNotificacion(mensaje, 'info');
     
-    // 4. Guardar en Firebase
     try {
         const firebaseId = await saveLimiteToFirebase(nuevoRegistro);
         
@@ -401,7 +648,7 @@ async function guardarRegistroLimite() {
 async function eliminarRegistroLimite(id) {
     if (!confirm('¿Eliminar este registro?')) return;
     
-    mostrarNotificacion('⏳ Eliminando...', 'info');
+    mostrarNotificacion('⌛ Eliminando...', 'info');
     
     const registroEliminado = registrosLimites.find(r => r.id === id);
     registrosLimites = registrosLimites.filter(r => r.id !== id);
@@ -421,43 +668,6 @@ async function eliminarRegistroLimite(id) {
             actualizarUILimites();
         }
         mostrarNotificacion('Error al eliminar', 'error');
-    }
-    
-    saveLimitesToLocalStorage();
-}
-
-async function eliminarTodosLimitesDeFirebase() {
-    try {
-        const db = firebase.firestore();
-        const limitesSnapshot = await db.collection('limites')
-            .where('sharedId', '==', 'nuestra_pareja')
-            .get();
-        
-        const batch = db.batch();
-        limitesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-    } catch (error) {
-        console.error("Error eliminando todos:", error);
-    }
-}
-
-async function guardarNombres() {
-    const nombre1 = document.getElementById('nombre-persona1').value.trim() || 'Yo';
-    const nombre2 = document.getElementById('nombre-persona2').value.trim() || 'Ella';
-    
-    configLimites.nombres.persona1 = nombre1;
-    configLimites.nombres.persona2 = nombre2;
-    
-    actualizarNombresEnUILimites();
-    actualizarUILimites();
-    ocultarModal('names-modal');
-    
-    try {
-        await saveConfigLimitesToFirebase();
-        mostrarNotificacion('Nombres actualizados', 'success');
-    } catch (error) {
-        console.error("Error guardando nombres:", error);
-        mostrarNotificacion('Nombres actualizados (local)', 'warning');
     }
     
     saveLimitesToLocalStorage();
@@ -500,19 +710,6 @@ function configurarEventosLimites() {
     const guardarBtn = document.getElementById('guardar-btn');
     if (guardarBtn) guardarBtn.addEventListener('click', guardarRegistroLimite);
     
-    const clearAllBtn = document.getElementById('clear-all');
-    if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', function() {
-            if (confirm('¿Eliminar todos los registros?')) {
-                registrosLimites = [];
-                eliminarTodosLimitesDeFirebase();
-                actualizarUILimites();
-                saveLimitesToLocalStorage();
-                mostrarNotificacion('Todos los registros eliminados', 'success');
-            }
-        });
-    }
-    
     document.querySelectorAll('.chart-option').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.chart-option').forEach(b => b.classList.remove('active'));
@@ -551,15 +748,15 @@ function mostrarInfoLimiteSeleccionado() {
     
     switch(limiteSeleccionado) {
         case 30:
-            nombreLimite = '$30.00';
+            nombreLimite = 'S/30.00';
             tipoLimite = 'Estricto';
             break;
         case 20:
-            nombreLimite = '$20.00';
+            nombreLimite = 'S/20.00';
             tipoLimite = 'Moderado';
             break;
         case 10:
-            nombreLimite = '$10.00';
+            nombreLimite = 'S/10.00';
             tipoLimite = 'Suave';
             break;
         case 0:
@@ -583,7 +780,7 @@ function habilitarBotonCalcular() {
 
 function actualizarUILimites() {
     actualizarResumenLimites();
-    cargarRegistrosLimites();
+    aplicarFiltrosLimites(); // Usar los nuevos filtros
     actualizarGraficoLimites('excesos');
 }
 
@@ -599,99 +796,10 @@ function actualizarResumenLimites() {
     const totalHoy = registrosHoy.reduce((sum, r) => sum + r.ahorroTotal, 0);
     const totalSemana = registrosSemana.reduce((sum, r) => sum + r.ahorroTotal, 0);
     const totalMes = registrosMes.reduce((sum, r) => sum + r.ahorroTotal, 0);
-    const totalAhorro = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
-    const totalExcesos = registrosLimites.filter(r => r.exceso > 0).length;
     
     document.getElementById('summary-hoy-limite').textContent = `S/${totalHoy.toFixed(2)}`;
     document.getElementById('summary-semana-limite').textContent = `S/${totalSemana.toFixed(2)}`;
     document.getElementById('summary-mes-limite').textContent = `S/${totalMes.toFixed(2)}`;
-    document.getElementById('total-ahorro-forzado').textContent = `S/${totalAhorro.toFixed(2)}`;
-    document.getElementById('total-dias-exceso').textContent = totalExcesos;
-}
-
-function cargarRegistrosLimites() {
-    const container = document.getElementById('registros-container');
-    const emptyState = document.getElementById('empty-state-limites');
-    const totales = document.getElementById('totales-limites');
-    
-    if (!container) return;
-    
-    if (registrosLimites.length === 0) {
-        container.innerHTML = '';
-        emptyState.style.display = 'block';
-        totales.style.display = 'none';
-        return;
-    }
-    
-    emptyState.style.display = 'none';
-    totales.style.display = 'block';
-    
-    const registrosOrdenados = [...registrosLimites].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    
-    let html = '';
-    
-    registrosOrdenados.forEach(registro => {
-        // Formatear fecha con hora
-        let fechaFormateada;
-        const fechaRegistro = new Date(registro.fecha + 'T00:00:00');
-        const ahora = new Date();
-        const esHoy = fechaRegistro.toDateString() === ahora.toDateString();
-
-        if (esHoy && registro.timestamp) {
-            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `Hoy ${hora}`;
-        } else if (registro.timestamp) {
-            const fecha = fechaRegistro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `${fecha} ${hora}`;
-        } else {
-            fechaFormateada = fechaRegistro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-        }
-        
-        const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
-        const statusText = registro.dentroDeLimite ? 'Dentro de límite' : 'Con exceso';
-        const limiteText = registro.limite === 0 ? 'Sin límite' : `Límite: S/${registro.limite}`;
-        
-        const sincronizandoClass = registro.sincronizando ? 'sincronizando' : '';
-        const sincronizandoIcon = registro.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
-        const errorIcon = registro.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
-        
-        html += `
-            <div class="registro-item ${clase} ${sincronizandoClass}">
-                <div class="registro-header">
-                    <div class="registro-status ${clase}">${statusText}</div>
-                    <div class="registro-monto">S/${registro.gastoReal.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
-                    <button class="delete-btn" onclick="eliminarRegistroLimite('${registro.id}')" title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-                <div class="gasto-descripcion">${registro.descripcion}</div>
-                <div class="gasto-meta">
-                    <div class="gasto-info">
-                        <span>${limiteText}</span>
-                        ${!registro.dentroDeLimite ? `<span>Ahorro: S/${registro.ahorroTotal.toFixed(2)}</span>` : ''}
-                    </div>
-                    <div class="gasto-fecha">${fechaFormateada}</div>
-                </div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
 }
 
 function inicializarGraficoLimites() {
@@ -854,6 +962,41 @@ function ocultarModal(modalId) {
     if (modal) modal.classList.remove('active');
 }
 
+async function guardarNombres() {
+    const nombre1 = document.getElementById('nombre-persona1').value.trim() || 'Yo';
+    const nombre2 = document.getElementById('nombre-persona2').value.trim() || 'Ella';
+    
+    configLimites.nombres.persona1 = nombre1;
+    configLimites.nombres.persona2 = nombre2;
+    
+    actualizarNombresEnUILimites();
+    actualizarUILimites();
+    ocultarModal('names-modal');
+    
+    try {
+        await saveConfigLimitesToFirebase();
+        mostrarNotificacion('Nombres actualizados', 'success');
+    } catch (error) {
+        console.error("Error guardando nombres:", error);
+        mostrarNotificacion('Nombres actualizados (local)', 'warning');
+    }
+    
+    saveLimitesToLocalStorage();
+}
+
+async function saveConfigLimitesToFirebase() {
+    try {
+        const db = firebase.firestore();
+        await db.collection('config')
+            .doc('nuestra_pareja')
+            .set({ nombres: configLimites.nombres }, { merge: true });
+    } catch (error) {
+        console.error("❌ Error guardando configuración:", error);
+        throw error;
+    }
+}
+
+// Hacer funciones globales
 window.eliminarRegistroLimite = eliminarRegistroLimite;
 
-console.log("✅ app-limites.js cargado correctamente (versión sin recargas)");
+console.log("✅ app-limites.js cargado correctamente (versión con filtros nuevos)");
