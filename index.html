@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💰 Nuestros Gastos</title>
+    <title>💰 Nuestros Gastos juntos</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
@@ -18,9 +18,9 @@
     </div>
 
     <div class="container">
-        <!-- Encabezados -->
+        <!-- Encabezado -->
         <header>
-            <h1><i class="fas fa-heart"></i> Nuestros gastos</h1>
+            <h1><i class="fas fa-hand-holding-heart"></i> Nuestro Gastos juntos</h1>
             <div class="header-info">
                 <button class="edit-names-btn" id="edit-names">
                     <i class="fas fa-edit"></i> Editar nombres
@@ -28,18 +28,17 @@
             </div>
         </header>
 
-        <!-- Sección de entrada rápida -->
+        <!-- SECCIÓN DE GASTOS -->
         <section class="input-section">
+            <h3><i class="fas fa-plus-circle"></i> Agregar gasto del día</h3>
             <div class="input-row">
                 <div class="input-group">
                     <input type="number" id="monto" placeholder="0.00" step="0.01" min="0">
                     <span class="currency">S/</span>
                 </div>
-                
                 <input type="text" id="descripcion" placeholder="¿En qué gastamos?" maxlength="50">
             </div>
             
-            <!-- Categorías rápidas -->
             <div class="categories">
                 <button class="category-btn" data-category="comida">
                     <i class="fas fa-utensils"></i> Comida
@@ -58,7 +57,6 @@
                 </button>
             </div>
 
-            <!-- Selector de persona -->
             <div class="person-selector">
                 <div class="person-option active" data-person="persona1">
                     <div class="person-avatar">👨</div>
@@ -70,7 +68,6 @@
                 </div>
             </div>
 
-            <!-- Fecha personalizable -->
             <div class="date-selector">
                 <label for="fecha-gasto">
                     <i class="far fa-calendar"></i> Fecha:
@@ -78,43 +75,12 @@
                 <input type="date" id="fecha-gasto" value="">
             </div>
 
-            <!-- Botón principal -->
             <button id="add-btn" class="add-btn">
                 <i class="fas fa-plus-circle"></i> AGREGAR GASTO
             </button>
         </section>
 
-        <!-- Presupuesto semanal -->
-        <section class="budget-section">
-            <div class="budget-header">
-                <h3><i class="fas fa-chart-line"></i> Presupuesto Semanal</h3>
-                <button class="edit-budget-btn" id="edit-budget">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-            
-            <div class="budget-display">
-                <div class="budget-info">
-                    <span>Meta: S/<span id="budget-amount">1500</span></span>
-                    <span>Restante: S/<span id="budget-remaining">1500</span></span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="budget-progress"></div>
-                </div>
-                <div class="budget-stats">
-                    <div class="stat">
-                        <span class="stat-label">Tú</span>
-                        <span class="stat-value" id="budget-persona1">S/0</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-label">Ella</span>
-                        <span class="stat-value" id="budget-persona2">S/0</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Botones de acción -->
+        <!-- BOTONES DE ACCIÓN -->
         <section class="action-buttons">
             <button class="action-btn" data-action="ver-ahorros">
                 <i class="fas fa-piggy-bank"></i> Nuestro Ahorro
@@ -130,8 +96,8 @@
             </button>
         </section>
 
-        <!-- Sección de gráficos -->
-        <section class="charts-section" id="charts-section">
+        <!-- SECCIÓN DE GRÁFICOS -->
+        <section class="charts-section">
             <div class="charts-header">
                 <h3><i class="fas fa-chart-pie"></i> Resumen Visual</h3>
                 <div class="chart-options">
@@ -145,26 +111,136 @@
             </div>
         </section>
 
-        <!-- Resumen rápido -->
-        <section class="quick-summary">
-            <div class="summary-card">
-                <h4><i class="far fa-clock"></i> Hoy</h4>
-                <div class="summary-amount" id="summary-hoy">S/0</div>
+        <!-- =========================================== -->
+        <!-- BALANCE 50/50 (DESPUÉS DEL RESUMEN VISUAL) -->
+        <!-- =========================================== -->
+        <section class="balance-section">
+            <div class="balance-header">
+                <h3><i class="fas fa-scale-balanced"></i> Balance 50/50</h3>
+                <div class="balance-date-selector">
+                    <select id="balance-fecha-selector">
+                        <option value="today">Hoy</option>
+                        <option value="yesterday">Ayer</option>
+                        <option value="custom">Elegir fecha específica...</option>
+                    </select>
+                    <input type="date" id="balance-fecha-custom" style="display: none; margin-top: 10px; width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                </div>
             </div>
-            <div class="summary-card">
-                <h4><i class="far fa-calendar-alt"></i> Esta Semana</h4>
-                <div class="summary-amount" id="summary-semana">S/0</div>
+
+            
+
+            <!-- Barra visual de balance -->
+            <div class="balance-visual">
+                <div class="balance-labels">
+                    <span id="balance-nombre-tu">Yo</span>
+                    <span id="balance-nombre-ella">Ella</span>
+                </div>
+                <div class="balance-bar-container">
+                    <div class="balance-bar-tu" id="balance-bar-tu" style="width: 50%;">
+                        <span class="balance-bar-text" id="balance-monto-tu">S/0</span>
+                    </div>
+                    <div class="balance-bar-ella" id="balance-bar-ella" style="width: 50%;">
+                        <span class="balance-bar-text" id="balance-monto-ella">S/0</span>
+                    </div>
+                </div>
+                <div class="balance-meta">
+                    <span>Cada uno debería gastar: <strong id="balance-meta-monto">S/0</strong></span>
+                </div>
             </div>
-            <div class="summary-card">
-                <h4><i class="fas fa-balance-scale"></i> Diferencia</h4>
-                <div class="summary-amount" id="summary-diferencia">S/0</div>
+
+            <!-- Tarjeta de resultado (BOTÓN PAGAR AQUÍ) -->
+            <div class="balance-resultado" id="balance-resultado">
+                <div class="resultado-icono">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="resultado-texto">
+                    <span id="balance-diferencia-texto">Están iguales</span>
+                    <strong id="balance-deuda-monto">S/0</strong>
+                </div>
+                <div class="resultado-acciones">
+                    <button class="btn-pagar" id="btn-pagar-deuda">
+                        <i class="fas fa-money-bill-wave"></i> Pagar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Estadísticas rápidas del período -->
+            <div class="balance-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total yo:</span>
+                    <span class="stat-valor" id="stat-tu-periodo">S/0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total ella:</span>
+                    <span class="stat-valor" id="stat-ella-periodo">S/0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Diferencia:</span>
+                    <span class="stat-valor" id="stat-diferencia-periodo">S/0</span>
+                </div>
             </div>
         </section>
 
-        <!-- NUEVOS FILTROS (REEMPLAZAN LOS ANTIGUOS) -->
+        <!-- =========================================== -->
+        <!-- SECCIÓN DE PAGOS -->
+        <!-- =========================================== -->
+        <section class="pagos-section">
+            <div class="section-header">
+                <h3><i class="fas fa-history"></i> Pagos 50/50</h3>
+                <button class="btn-nuevo-pago" id="btn-nuevo-pago">
+                    <i class="fas fa-plus"></i> Nuevo pago
+                </button>
+            </div>
+
+            <!-- Formulario de pago (oculto por defecto) -->
+            <div class="pago-form" id="pago-form" style="display: none;">
+                <h4>Registrar pago</h4>
+                <div class="pago-grid">
+                    <div class="pago-selector">
+                        <label>¿Quién paga?</label>
+                        <select id="pago-quien-paga">
+                            <option value="persona1" id="pago-opcion-tu">Yo</option>
+                            <option value="persona2" id="pago-opcion-ella">Ella</option>
+                        </select>
+                    </div>
+                    <div class="pago-selector">
+                        <label>¿Quién recibe?</label>
+                        <select id="pago-quien-recibe">
+                            <option value="persona2" id="pago-recibe-ella">Ella</option>
+                            <option value="persona1" id="pago-recibe-tu">Yo</option>
+                        </select>
+                    </div>
+                    <div class="pago-monto">
+                        <label>Monto (S/)</label>
+                        <input type="number" id="pago-monto" step="0.01" min="0.01" placeholder="0.00">
+                    </div>
+                    <div class="pago-descripcion">
+                        <label>Descripción (opcional)</label>
+                        <input type="text" id="pago-descripcion" placeholder="Ej: Pago de cena">
+                    </div>
+                    <div class="pago-fecha">
+                        <label>Fecha</label>
+                        <input type="date" id="pago-fecha">
+                    </div>
+                    <div class="pago-botones">
+                        <button class="btn-cancelar" id="cancelar-pago">Cancelar</button>
+                        <button class="btn-guardar" id="guardar-pago">Registrar pago</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial de pagos -->
+            <div class="pagos-list" id="pagos-list"></div>
+            <div class="empty-pagos" id="empty-pagos">
+                <i class="far fa-smile-beam"></i>
+                <p>No hay pagos registrados</p>
+            </div>
+        </section>
+
+        <!-- FILTROS PARA GASTOS -->
         <section class="gastos-list-section">
             <div class="list-header">
-                <h3 id="list-title">Todos los Gastos</h3>
+                <h3>Historial de Gastos</h3>
                 <div class="list-actions">
                     <button class="list-action-btn" id="export-btn" title="Exportar">
                         <i class="fas fa-file-export"></i>
@@ -172,7 +248,7 @@
                 </div>
             </div>
 
-            <!-- FILTROS NUEVOS (AQUÍ ESTÁN TODOS) -->
+            <!-- FILTROS -->
             <div class="filtros-container" style="margin-bottom: 20px;">
                 <!-- Primera fila: Búsqueda y filtros básicos -->
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
@@ -253,7 +329,7 @@
                     </span>
                 </div>
 
-                <!-- Botón limpiar todo -->
+                <!-- BOTÓN LIMPIAR TODO EL HISTORIAL -->
                 <div style="margin-top: 10px;">
                     <button id="limpiar-todo-historial" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <i class="fas fa-trash"></i> LIMPIAR TODO EL HISTORIAL
@@ -305,32 +381,6 @@
             </div>
         </div>
 
-        <!-- Modal para editar presupuesto -->
-        <div class="modal" id="budget-modal">
-            <div class="modal-content">
-                <h3><i class="fas fa-money-bill-wave"></i> Configurar Presupuesto</h3>
-                <div class="modal-inputs">
-                    <div class="input-group-modal">
-                        <label for="presupuesto-semanal">Presupuesto semanal:</label>
-                        <div class="input-with-currency">
-                            <span class="currency">S/</span>
-                            <input type="number" id="presupuesto-semanal" value="1500" min="0" step="100">
-                        </div>
-                    </div>
-                    <div class="input-group-modal">
-                        <label>
-                            <input type="checkbox" id="reset-semanal">
-                            Reiniciar automáticamente cada lunes
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" id="cancel-budget">Cancelar</button>
-                    <button class="modal-btn save" id="save-budget">Guardar</button>
-                </div>
-            </div>
-        </div>
-
         <!-- MODAL DE CONFIRMACIÓN PARA LIMPIAR TODO -->
         <div class="modal" id="modal-limpiar-todo">
             <div class="modal-content" style="text-align: center;">
@@ -344,6 +394,22 @@
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button class="modal-btn cancel" id="cancelar-limpiar-todo">Cancelar</button>
                     <button class="modal-btn save" id="confirmar-limpiar-todo" style="background: var(--accent-color);">Sí, eliminar todo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CONFIRMACIÓN DE PAGO -->
+        <div class="modal" id="modal-confirmar-pago">
+            <div class="modal-content" style="text-align: center;">
+                <div style="font-size: 3rem; color: var(--success-color); margin-bottom: 20px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="margin-bottom: 15px;">¿Confirmar pago?</h3>
+                <p style="margin-bottom: 10px;" id="modal-pago-detalle"></p>
+                <p style="margin-bottom: 20px; font-size: 1.2rem; color: var(--accent-color);" id="modal-pago-monto"></p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="modal-btn cancel" id="cancelar-confirmacion">Cancelar</button>
+                    <button class="modal-btn save" id="confirmar-pago-final">Sí, confirmar</button>
                 </div>
             </div>
         </div>

@@ -720,3 +720,313 @@ h1 {
 .date-selector input[type="date"] {
     width: 100%;
 }
+
+/* ==================== */
+/* ESTILOS PARA BALANCE 50/50 */
+/* ==================== */
+
+.balance-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.balance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.balance-date-selector select {
+    padding: 8px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.balance-visual {
+    margin-bottom: 20px;
+}
+
+.balance-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.balance-bar-container {
+    display: flex;
+    height: 40px;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.balance-bar-tu {
+    background: linear-gradient(135deg, #4299e1, #667eea);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.balance-bar-ella {
+    background: linear-gradient(135deg, #ed64a6, #f56565);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.balance-meta {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.balance-resultado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    color: white;
+}
+
+.resultado-icono {
+    font-size: 2rem;
+}
+
+.resultado-texto {
+    flex: 1;
+    margin-left: 15px;
+}
+
+.resultado-texto span {
+    display: block;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.resultado-texto strong {
+    font-size: 1.5rem;
+    display: block;
+}
+
+.btn-pagar {
+    background: white;
+    color: var(--accent-color);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s;
+}
+
+.btn-pagar:hover {
+    transform: scale(1.05);
+}
+
+.balance-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 10px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.stat-valor {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* Estilos para pagos */
+.pagos-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-nuevo-pago {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pago-form {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.pago-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.pago-selector, .pago-monto, .pago-descripcion, .pago-fecha {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.pago-selector label, .pago-monto label, .pago-descripcion label, .pago-fecha label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pago-selector select, .pago-monto input, .pago-descripcion input, .pago-fecha input {
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+}
+
+.pago-botones {
+    grid-column: span 2;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.btn-cancelar {
+    padding: 10px 20px;
+    background: var(--bg-color);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.btn-guardar {
+    padding: 10px 20px;
+    background: var(--success-color);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+}
+
+.pagos-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.pago-item {
+    background: var(--bg-color);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--success-color);
+}
+
+.pago-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pago-icon {
+    font-size: 1.5rem;
+    color: var(--success-color);
+}
+
+.pago-info {
+    flex: 1;
+}
+
+.pago-descripcion {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.pago-detalle {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pago-monto {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.empty-pagos {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+}
+
+.empty-pagos i {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    .balance-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .pago-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pago-botones {
+        grid-column: span 1;
+    }
+}
