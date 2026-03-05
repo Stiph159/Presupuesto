@@ -614,18 +614,35 @@ h1 {
     color: white;
 }
 
-/* Notificaciones */
+/* Notificaciones - AHORA EN LA PARTE SUPERIOR */
 .notification {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 15px 25px;
+    top: 20px; /* Cambiado de bottom a top */
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
     background: var(--success-color);
     color: white;
-    border-radius: 10px;
+    border-radius: 50px; /* Más redondeado */
     box-shadow: var(--shadow);
     display: none;
     z-index: 3000;
+    font-weight: 500;
+    text-align: center;
+    min-width: 200px;
+    max-width: 90%;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
 }
 
 .notification.show {

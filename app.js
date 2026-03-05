@@ -1452,7 +1452,8 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         default: notificacion.style.background = 'var(--primary-color)';
     }
     
-    setTimeout(() => notificacion.classList.remove('show'), 3000);
+    // Reducir tiempo a 1.5 segundos (antes era 3000 = 3 segundos)
+    setTimeout(() => notificacion.classList.remove('show'), 1500);
 }
 
 function mostrarModalNombres() {
