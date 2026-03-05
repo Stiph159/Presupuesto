@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💰 Nuestros Gastos juntos</title>
+    <title>💰 Balance 50/50 - Nuestros Gastos</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
 </head>
-<body>
+<body class="has-bottom-nav">
     <!-- Modo oscuro toggle -->
     <div class="theme-toggle">
         <button id="theme-btn">
@@ -20,7 +20,7 @@
     <div class="container">
         <!-- Encabezado -->
         <header>
-            <h1><i class="fas fa-hand-holding-heart"></i> Nuestro Gastos juntos</h1>
+            <h1><i class="fas fa-hand-holding-heart"></i> Nuestro Balance 50/50</h1>
             <div class="header-info">
                 <button class="edit-names-btn" id="edit-names">
                     <i class="fas fa-edit"></i> Editar nombres
@@ -80,40 +80,7 @@
             </button>
         </section>
 
-        <!-- BOTONES DE ACCIÓN -->
-        <section class="action-buttons">
-            <button class="action-btn" data-action="ver-ahorros">
-                <i class="fas fa-piggy-bank"></i> Nuestro Ahorro
-            </button>
-            <button class="action-btn" data-action="ver-limites">
-                <i class="fas fa-ban"></i> Límites
-            </button>
-            <button class="action-btn" data-action="ver-mis-finanzas">
-                <i class="fas fa-user"></i> Mis Finanzas
-            </button>
-            <button class="action-btn" data-action="ver-dias-especiales">
-                <i class="fas fa-star"></i> Días Especiales
-            </button>
-        </section>
-
-        <!-- SECCIÓN DE GRÁFICOS -->
-        <section class="charts-section">
-            <div class="charts-header">
-                <h3><i class="fas fa-chart-pie"></i> Resumen Visual</h3>
-                <div class="chart-options">
-                    <button class="chart-option active" data-chart="categorias">Por Categoría</button>
-                    <button class="chart-option" data-chart="personas">Por Persona</button>
-                    <button class="chart-option" data-chart="semana">Por Día</button>
-                </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="gastos-chart"></canvas>
-            </div>
-        </section>
-
-        <!-- =========================================== -->
-        <!-- BALANCE 50/50 (DESPUÉS DEL RESUMEN VISUAL) -->
-        <!-- =========================================== -->
+        <!-- BALANCE 50/50 -->
         <section class="balance-section">
             <div class="balance-header">
                 <h3><i class="fas fa-scale-balanced"></i> Balance 50/50</h3>
@@ -126,8 +93,6 @@
                     <input type="date" id="balance-fecha-custom" style="display: none; margin-top: 10px; width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
                 </div>
             </div>
-
-            
 
             <!-- Barra visual de balance -->
             <div class="balance-visual">
@@ -148,7 +113,7 @@
                 </div>
             </div>
 
-            <!-- Tarjeta de resultado (BOTÓN PAGAR AQUÍ) -->
+            <!-- Tarjeta de resultado -->
             <div class="balance-resultado" id="balance-resultado">
                 <div class="resultado-icono">
                     <i class="fas fa-exchange-alt"></i>
@@ -181,9 +146,7 @@
             </div>
         </section>
 
-        <!-- =========================================== -->
         <!-- SECCIÓN DE PAGOS -->
-        <!-- =========================================== -->
         <section class="pagos-section">
             <div class="section-header">
                 <h3><i class="fas fa-history"></i> Pagos 50/50</h3>
@@ -229,15 +192,15 @@
                 </div>
             </div>
 
-            <!-- Historial de pagos -->
-            <div class="pagos-list" id="pagos-list"></div>
+            <!-- Historial de pagos con scroll -->
+            <div class="pagos-list" id="pagos-list" style="max-height: 200px; overflow-y: auto;"></div>
             <div class="empty-pagos" id="empty-pagos">
                 <i class="far fa-smile-beam"></i>
                 <p>No hay pagos registrados</p>
             </div>
         </section>
 
-        <!-- FILTROS PARA GASTOS -->
+        <!-- HISTORIAL DE GASTOS CON SCROLL -->
         <section class="gastos-list-section">
             <div class="list-header">
                 <h3>Historial de Gastos</h3>
@@ -337,8 +300,13 @@
                 </div>
             </div>
 
-            <!-- Lista de gastos -->
-            <div class="gastos-container" id="gastos-container"></div>
+            <!-- Lista de gastos con SCROLL -->
+            <div class="gastos-container" id="gastos-container" style="max-height: 350px; overflow-y: auto;"></div>
+
+            <!-- Botón Ver más -->
+            <button class="ver-mas-btn" id="ver-mas-historial">
+                <i class="fas fa-chevron-down"></i> Ver más gastos
+            </button>
 
             <!-- Estado vacío -->
             <div class="empty-state" id="empty-state">
@@ -359,6 +327,30 @@
                 </div>
             </div>
         </section>
+
+        <!-- BARRA DE NAVEGACIÓN INFERIOR FIJA -->
+        <nav class="bottom-nav">
+            <button class="bottom-nav-btn active" data-action="ver-inicio">
+                <i class="fas fa-home"></i>
+                <span>Inicio</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-ahorros">
+                <i class="fas fa-piggy-bank"></i>
+                <span>Ahorro</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-limites">
+                <i class="fas fa-ban"></i>
+                <span>Límites</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-mis-finanzas">
+                <i class="fas fa-user"></i>
+                <span>Mis Finanzas</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-dias-especiales">
+                <i class="fas fa-star"></i>
+                <span>Días Especiales</span>
+            </button>
+        </nav>
 
         <!-- Modal para editar nombres -->
         <div class="modal" id="names-modal">

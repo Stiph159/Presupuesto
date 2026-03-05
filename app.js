@@ -345,6 +345,8 @@ function inicializarApp() {
     configurarEventos();
     configurarFiltrosNuevos();
     configurarBalanceEventos();
+    configurarBarraInferior();
+    configurarVerMas();
     actualizarNombresEnUI();
     
     const hoy = new Date().toISOString().split('T')[0];
@@ -355,10 +357,76 @@ function inicializarApp() {
 }
 
 // ====================
-// FUNCIONES DE BALANCE 50/50
+// FUNCIONES DE BARRA INFERIOR Y VER MÁS
 // ====================
 
+function configurarBarraInferior() {
+    const bottomBtns = document.querySelectorAll('.bottom-nav-btn');
+    
+    bottomBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const accion = this.dataset.action;
+            
+            // Quitar active de todos
+            bottomBtns.forEach(b => b.classList.remove('active'));
+            // Poner active al clickeado
+            this.classList.add('active');
+            
+            // Navegar según la acción
+            switch(accion) {
+                case 'ver-inicio':
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    break;
+                case 'ver-ahorros':
+                    window.location.href = 'ahorro.html';
+                    break;
+                case 'ver-limites':
+                    window.location.href = 'limites.html';
+                    break;
+                case 'ver-mis-finanzas':
+                    window.location.href = 'finanzas-personales.html?persona=yo';
+                    break;
+                case 'ver-dias-especiales':
+                    window.location.href = 'dias-especiales.html';
+                    break;
+            }
+        });
+    });
+    
+    // Marcar el botón de inicio como activo
+    const inicioBtn = document.querySelector('[data-action="ver-inicio"]');
+    if (inicioBtn) {
+        inicioBtn.classList.add('active');
+    }
+}
 
+function configurarVerMas() {
+    const verMasBtn = document.getElementById('ver-mas-historial');
+    const gastosContainer = document.getElementById('gastos-container');
+    
+    if (!verMasBtn || !gastosContainer) return;
+    
+    let expandido = false;
+    const alturaNormal = '350px';
+    
+    verMasBtn.addEventListener('click', function() {
+        expandido = !expandido;
+        
+        if (expandido) {
+            gastosContainer.style.maxHeight = 'none';
+            gastosContainer.style.overflowY = 'visible';
+            this.innerHTML = '<i class="fas fa-chevron-up"></i> Ver menos gastos';
+        } else {
+            gastosContainer.style.maxHeight = alturaNormal;
+            gastosContainer.style.overflowY = 'auto';
+            this.innerHTML = '<i class="fas fa-chevron-down"></i> Ver más gastos';
+        }
+    });
+}
+
+// ====================
+// FUNCIONES DE BALANCE 50/50
+// ====================
 
 function configurarBalanceEventos() {
     const selectorFecha = document.getElementById('balance-fecha-selector');
@@ -394,8 +462,7 @@ function configurarBalanceEventos() {
     
     // Botón pagar con fecha inteligente
     btnPagar.addEventListener('click', function() {
-        const selectorFecha = document.getElementById('balance-fecha-selector');
-        const fechaSeleccionada = selectorFecha.value;
+        const selectorFecha = document.getElementById('balance-fecha-selector').value;
         const fechaCustom = document.getElementById('balance-fecha-custom').value;
         const balance = calcularBalance(obtenerFechaBalance());
         
@@ -403,7 +470,7 @@ function configurarBalanceEventos() {
         let fechaPago = '';
         const hoy = new Date().toISOString().split('T')[0];
         
-        switch(fechaSeleccionada) {
+        switch(selectorFecha) {
             case 'today':
                 fechaPago = hoy;
                 break;
@@ -433,7 +500,7 @@ function configurarBalanceEventos() {
         }
         
         // Mostrar el formulario
-        const fechaMostrar = new Date(fechaPago).toLocaleDateString('es-ES');
+        const fechaMostrar = new Date(fechaPago + 'T00:00:00').toLocaleDateString('es-ES');
         mostrarNotificacion(`Pagando deuda del ${fechaMostrar}`, 'info');
         pagoForm.style.display = 'block';
     });
@@ -528,19 +595,15 @@ function obtenerFechaBalance() {
 function calcularBalance(rango) {
     let gastosFiltrados = [];
     
-    // CORREGIDO: Manejar correctamente los diferentes tipos de rango
     if (rango.tipo === 'today' || rango.tipo === 'yesterday' || rango.tipo === 'custom') {
-        // Para fechas específicas, filtrar por fecha exacta
         gastosFiltrados = gastos.filter(g => g.fecha === rango.fecha);
     } else {
-        // Para rangos (week, month), filtrar por rango de fechas
         gastosFiltrados = gastos.filter(g => {
             const fechaG = new Date(g.fecha);
             return fechaG >= rango.fechaInicio && fechaG <= rango.fechaFin;
         });
     }
     
-    // Filtrar pagos de la misma manera
     const pagosFiltrados = pagos.filter(p => {
         if (rango.tipo === 'today' || rango.tipo === 'yesterday' || rango.tipo === 'custom') {
             return p.fecha === rango.fecha;
@@ -696,13 +759,12 @@ async function guardarPagoEnFirebase() {
     const quienPaga = document.getElementById('pago-quien-paga').value;
     const quienRecibe = document.getElementById('pago-quien-recibe').value;
     const descripcion = document.getElementById('pago-descripcion').value;
-    const fecha = document.getElementById('pago-fecha').value; // <-- Fecha seleccionada
+    const fecha = document.getElementById('pago-fecha').value;
     
-    // Al guardar un pago, usamos la fecha seleccionada
     const nuevoPago = {
         id: 'temp_' + Date.now(),
-        fecha: fecha, // La fecha que el usuario selecciona en el formulario
-        fechaPago: new Date().toISOString().split('T')[0], // Fecha en que se realizó el pago
+        fecha: fecha,
+        fechaPago: new Date().toISOString().split('T')[0],
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
         deudor: quienPaga,
@@ -818,8 +880,11 @@ async function eliminarPago(id) {
     saveToLocalStorage();
 }
 
-// Hacerla global
 window.eliminarPago = eliminarPago;
+
+// ====================
+// FUNCIONES DE GASTOS
+// ====================
 
 async function agregarGasto() {
     const monto = parseFloat(document.getElementById('monto').value);
@@ -1049,11 +1114,15 @@ function aplicarFiltrosNuevos() {
     
     gastosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     
-    document.getElementById('filtro-mostrando').textContent = gastosFiltrados.length;
-    document.getElementById('filtro-total').textContent = gastos.length;
+    const mostrandoEl = document.getElementById('filtro-mostrando');
+    const totalEl = document.getElementById('filtro-total');
+    const totalMontoEl = document.getElementById('filtro-total-monto');
+    
+    if (mostrandoEl) mostrandoEl.textContent = gastosFiltrados.length;
+    if (totalEl) totalEl.textContent = gastos.length;
     
     const totalMonto = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
-    document.getElementById('filtro-total-monto').textContent = `S/${totalMonto.toFixed(2)}`;
+    if (totalMontoEl) totalMontoEl.textContent = `S/${totalMonto.toFixed(2)}`;
     
     mostrarGastosFiltrados(gastosFiltrados);
     
@@ -1101,7 +1170,6 @@ async function limpiarTodoHistorial() {
 
 function actualizarUI() {
     actualizarResumen();
-    actualizarGrafico('categorias');
     aplicarFiltrosNuevos();
     actualizarBalance();
     mostrarPagos();
@@ -1140,7 +1208,6 @@ function actualizarResumen() {
     const totalHoy = gastosHoy.reduce((sum, g) => sum + g.monto, 0);
     const totalSemana = gastosSemana.reduce((sum, g) => sum + g.monto, 0);
     
-    // Verificar si los elementos existen antes de usarlos
     const summaryHoy = document.getElementById('summary-hoy');
     const summarySemana = document.getElementById('summary-semana');
     const summaryDiferencia = document.getElementById('summary-diferencia');
@@ -1249,9 +1316,10 @@ function mostrarGastosFiltrados(gastosFiltrados) {
 }
 
 function inicializarGrafico() {
-    const ctx = document.getElementById('gastos-chart').getContext('2d');
+    const ctx = document.getElementById('gastos-chart');
+    if (!ctx) return;
     
-    chartInstance = new Chart(ctx, {
+    chartInstance = new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: [],
@@ -1269,61 +1337,10 @@ function inicializarGrafico() {
                 legend: {
                     position: 'bottom',
                     labels: { color: 'var(--text-color)', padding: 20 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `S/${context.parsed.toFixed(2)}`;
-                        }
-                    }
                 }
             }
         }
     });
-}
-
-function actualizarGrafico(tipo) {
-    if (!chartInstance) return;
-    
-    let labels = [];
-    let datos = [];
-    
-    const inicioSemana = obtenerInicioSemana();
-    const gastosSemana = gastos.filter(g => new Date(g.fecha) >= inicioSemana);
-    
-    if (tipo === 'categorias') {
-        const categorias = ['comida', 'transporte', 'entretenimiento', 'compras', 'otros'];
-        labels = ['Comida', 'Transporte', 'Entretenimiento', 'Compras', 'Otros'];
-        categorias.forEach(cat => {
-            const total = gastosSemana.filter(g => g.categoria === cat).reduce((sum, g) => sum + g.monto, 0);
-            datos.push(total);
-        });
-    } else if (tipo === 'personas') {
-        labels = [config.nombres.persona1, config.nombres.persona2];
-        const totalPersona1 = gastosSemana.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
-        const totalPersona2 = gastosSemana.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
-        datos.push(totalPersona1, totalPersona2);
-    } else if (tipo === 'semana') {
-        const ultimos7Dias = Array.from({length: 7}, (_, i) => {
-            const fecha = new Date();
-            fecha.setDate(fecha.getDate() - i);
-            return fecha.toISOString().split('T')[0];
-        }).reverse();
-        
-        labels = ultimos7Dias.map(fecha => {
-            const d = new Date(fecha);
-            return d.toLocaleDateString('es-ES', { weekday: 'short' });
-        });
-        
-        ultimos7Dias.forEach(fecha => {
-            const total = gastos.filter(g => g.fecha === fecha).reduce((sum, g) => sum + g.monto, 0);
-            datos.push(total);
-        });
-    }
-    
-    chartInstance.data.labels = labels;
-    chartInstance.data.datasets[0].data = datos;
-    chartInstance.update();
 }
 
 function configurarEventos() {
@@ -1358,24 +1375,6 @@ function configurarEventos() {
     document.getElementById('add-btn').addEventListener('click', agregarGasto);
     document.getElementById('descripcion').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') agregarGasto();
-    });
-    
-    document.querySelectorAll('.action-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const accion = this.dataset.action;
-            if (accion === 'ver-ahorros') window.location.href = 'ahorro.html';
-            if (accion === 'ver-limites') window.location.href = 'limites.html';
-            if (accion === 'ver-mis-finanzas') window.location.href = 'finanzas-personales.html?persona=yo';
-            if (accion === 'ver-dias-especiales') window.location.href = 'dias-especiales.html';
-        });
-    });
-    
-    document.querySelectorAll('.chart-option').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.chart-option').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            actualizarGrafico(this.dataset.chart);
-        });
     });
     
     document.getElementById('edit-names').addEventListener('click', () => {

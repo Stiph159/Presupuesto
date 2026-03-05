@@ -1030,3 +1030,183 @@ h1 {
         grid-column: span 1;
     }
 }
+/* ==================== */
+/* MEJORAS DE NAVEGACIÓN Y SCROLL */
+/* ==================== */
+
+/* Contenedor de gastos con scroll */
+.gastos-container {
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 10px;
+    scroll-behavior: smooth;
+}
+
+/* Personalizar scrollbar */
+.gastos-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.gastos-container::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 4px;
+}
+
+.gastos-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.gastos-container::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
+
+/* Scroll para pagos */
+.pagos-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.pagos-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pagos-list::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 3px;
+}
+
+.pagos-list::-webkit-scrollbar-thumb {
+    background: var(--success-color);
+    border-radius: 3px;
+}
+
+/* Botón Ver más */
+.ver-mas-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-color);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 15px 0;
+    transition: all 0.3s;
+}
+
+.ver-mas-btn:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+
+.ver-mas-btn i {
+    transition: transform 0.3s;
+}
+
+/* ==================== */
+/* BARRA DE NAVEGACIÓN INFERIOR */
+/* ==================== */
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    padding: 8px 5px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 2px solid var(--border-color);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.bottom-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: all 0.3s;
+    flex: 1;
+    max-width: 80px;
+}
+
+.bottom-nav-btn i {
+    font-size: 1.3rem;
+    margin-bottom: 2px;
+}
+
+.bottom-nav-btn span {
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+
+.bottom-nav-btn:hover {
+    color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.bottom-nav-btn.active {
+    color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.15);
+}
+
+/* Ajustar el padding del container para que no quede detrás de la barra */
+body.has-bottom-nav .container {
+    padding-bottom: 80px;
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+    .bottom-nav-btn {
+        padding: 6px 8px;
+    }
+    
+    .bottom-nav-btn i {
+        font-size: 1.2rem;
+    }
+    
+    .bottom-nav-btn span {
+        font-size: 0.6rem;
+    }
+}
+
+/* ==================== */
+/* MEJORAS DE ESPACIADO */
+/* ==================== */
+
+/* Separar secciones */
+.input-section,
+.balance-section,
+.pagos-section,
+.gastos-list-section {
+    margin-bottom: 20px;
+}
+
+/* Mejorar visibilidad en modo oscuro */
+[data-theme="dark"] .gastos-container::-webkit-scrollbar-thumb {
+    background: #7c3aed;
+}
+
+[data-theme="dark"] .bottom-nav {
+    background: rgba(45, 55, 72, 0.95);
+    border-top-color: #4a5568;
+}
