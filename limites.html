@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚫 Límites de Gasto</title>
+    <title>🃏 Comodines de Gasto</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="style-limites.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚫</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
 </head>
 <body class="has-bottom-nav">
     <!-- Modo oscuro toggle -->
@@ -28,7 +28,7 @@
 
         <!-- Encabezado -->
         <header>
-            <h1><i class="fas fa-ban"></i> Límites de Gasto</h1>
+            <h1><i class="fas fa-dice"></i> Limites de Gasto</h1>
             <div class="header-info">
                 <button class="edit-names-btn" id="edit-names">
                     <i class="fas fa-edit"></i> Editar nombres
@@ -36,78 +36,72 @@
             </div>
         </header>
 
-        <!-- Sección de opciones de límite (existente) -->
+        <!-- Sección de comodines -->
         <section class="opciones-section">
-            <h3><i class="fas fa-sliders-h"></i> Selecciona tu Límite Diario</h3>
-            <p class="section-subtitle">El exceso se divide entre ambos como ahorro forzado</p>
+            <h3><i class="fas fa-sliders-h"></i> Elige tu comodín hoy</h3>
+            <p class="section-subtitle">A menor límite, mayor ahorro forzado</p>
             
             <div class="opciones-grid">
                 <div class="opcion-card" data-limit="30">
-                    <div class="opcion-icon">
-                        <i class="fas fa-fire"></i>
-                    </div>
+                    <div class="opcion-icon">🃏</div>
                     <div class="opcion-content">
-                        <h4>Límite Estricto</h4>
-                        <p class="opcion-desc">Control máximo</p>
+                        <h4>Comodín Dorado</h4>
+                        <p class="opcion-desc">Límite alto, poco ahorro</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor">30.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Recomendado</div>
+                    <div class="opcion-badge">✨ Relax</div>
                 </div>
                 
                 <div class="opcion-card" data-limit="20">
-                    <div class="opcion-icon">
-                        <i class="fas fa-balance-scale"></i>
-                    </div>
+                    <div class="opcion-icon">🃏</div>
                     <div class="opcion-content">
-                        <h4>Límite Moderado</h4>
-                        <p class="opcion-desc">Equilibrio perfecto</p>
+                        <h4>Comodín Plateado</h4>
+                        <p class="opcion-desc">Balance perfecto</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor">20.00</span>
                         </div>
                     </div>
+                    <div class="opcion-badge">⚖️ Equilibrio</div>
                 </div>
                 
                 <div class="opcion-card" data-limit="10">
-                    <div class="opcion-icon">
-                        <i class="fas fa-feather"></i>
-                    </div>
+                    <div class="opcion-icon">🃏</div>
                     <div class="opcion-content">
-                        <h4>Límite Suave</h4>
-                        <p class="opcion-desc">Para días tranquilos</p>
+                        <h4>Comodín Bronce</h4>
+                        <p class="opcion-desc">Límite bajo, mucho ahorro</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor">10.00</span>
                         </div>
                     </div>
+                    <div class="opcion-badge">💪 Reto</div>
                 </div>
                 
                 <div class="opcion-card" data-limit="0">
-                    <div class="opcion-icon">
-                        <i class="fas fa-infinity"></i>
-                    </div>
+                    <div class="opcion-icon">🃏</div>
                     <div class="opcion-content">
-                        <h4>Sin Límite</h4>
-                        <p class="opcion-desc">Todo se divide en 2</p>
+                        <h4>Comodín Especial</h4>
+                        <p class="opcion-desc">Todo va a ahorro</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor">Todo</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Especial</div>
+                    <div class="opcion-badge">🎯 Modo ahorro</div>
                 </div>
             </div>
         </section>
 
-        <!-- Sección de entrada (existente) -->
+        <!-- Sección de entrada -->
         <section class="input-section">
             <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
                 <div class="selected-opcion">
-                    <span>Límite seleccionado: <strong id="opcion-seleccionada-texto"></strong></span>
-                    <span>Tipo: <strong id="opcion-seleccionada-tipo"></strong></span>
+                    <span>Comodín seleccionado: <strong id="opcion-seleccionada-texto"></strong></span>
+                    <span>Límite: <strong id="opcion-seleccionada-tipo"></strong></span>
                 </div>
             </div>
 
@@ -137,7 +131,7 @@
             </button>
         </section>
 
-        <!-- Resultado del cálculo (existente pero con cálculo mejorado) -->
+        <!-- Resultado del cálculo -->
         <section class="result-section" id="result-section" style="display: none;">
             <h3><i class="fas fa-chart-bar"></i> Resultado del Día</h3>
             
@@ -212,9 +206,7 @@
             </button>
         </section>
 
-        <!-- ==================== -->
-        <!-- NUEVA SECCIÓN: DEUDAS DE AHORRO FORZADO -->
-        <!-- ==================== -->
+        <!-- SECCIÓN DE DEUDAS DE AHORRO FORZADO -->
         <section class="deudas-individuales-section">
             <div class="section-header">
                 <h3><i class="fas fa-hand-holding-heart"></i> Deuda de Ahorro Forzado</h3>
@@ -294,9 +286,7 @@
             </div>
         </section>
 
-        <!-- ==================== -->
         <!-- FORMULARIO DE PAGO (OCULTO) -->
-        <!-- ==================== -->
         <section class="pago-individual-section" id="pago-individual-section" style="display: none;">
             <div class="section-header">
                 <h3><i class="fas fa-hand-holding-usd"></i> Pagar deuda de ahorro</h3>
@@ -338,9 +328,7 @@
             </div>
         </section>
 
-        <!-- ==================== -->
-        <!-- NUEVO: HISTORIAL DE PAGOS -->
-        <!-- ==================== -->
+        <!-- HISTORIAL DE PAGOS -->
         <section class="pagos-historial-section">
             <div class="list-header">
                 <h3><i class="fas fa-hand-holding-usd"></i> Historial de Pagos</h3>
@@ -354,7 +342,7 @@
             </div>
         </section>
 
-        <!-- Resumen rápido (existente) -->
+        <!-- Resumen rápido -->
         <section class="quick-summary">
             <div class="summary-card">
                 <h4><i class="far fa-clock"></i> Hoy</h4>
@@ -370,10 +358,10 @@
             </div>
         </section>
 
-        <!-- Lista de registros (existente) -->
+        <!-- Lista de registros -->
         <section class="gastos-list-section">
             <div class="list-header">
-                <h3 id="list-title-limites">Historial de Límites</h3>
+                <h3 id="list-title-limites">Historial de Comodines</h3>
                 <div class="list-actions">
                     <button class="list-action-btn" id="export-limites-btn" title="Exportar">
                         <i class="fas fa-file-export"></i>
@@ -421,7 +409,7 @@
                     </button>
                 </div>
 
-                <!-- Rango de fechas personalizado (oculto por defecto) -->
+                <!-- Rango de fechas personalizado -->
                 <div id="rango-fechas-limite" style="display: none; margin-top: 10px; padding: 15px; background: var(--card-bg); border-radius: 10px;">
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <div style="flex: 1;">
@@ -481,7 +469,7 @@
             </div>
         </section>
 
-        <!-- BARRA DE NAVEGACIÓN INFERIOR (NUEVA) -->
+        <!-- BARRA DE NAVEGACIÓN INFERIOR -->
         <nav class="bottom-nav">
             <button class="bottom-nav-btn" data-action="ver-inicio">
                 <i class="fas fa-home"></i>
@@ -492,8 +480,8 @@
                 <span>Ahorro</span>
             </button>
             <button class="bottom-nav-btn active" data-action="ver-limites">
-                <i class="fas fa-ban"></i>
-                <span>Límites</span>
+                <i class="fas fa-dice"></i>
+                <span>Comodines</span>
             </button>
             <button class="bottom-nav-btn" data-action="ver-mis-finanzas">
                 <i class="fas fa-user"></i>
@@ -543,7 +531,7 @@
             </div>
         </div>
 
-        <!-- MODAL DE CONFIRMACIÓN DE PAGO (NUEVO) -->
+        <!-- MODAL DE CONFIRMACIÓN DE PAGO -->
         <div class="modal" id="modal-confirmar-pago-limites">
             <div class="modal-content" style="text-align: center;">
                 <div style="font-size: 3rem; color: var(--success-color); margin-bottom: 20px;">

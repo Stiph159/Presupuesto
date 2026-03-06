@@ -1,5 +1,3 @@
-// File: app-ahorro.js
-// ====================
 // VARIABLES GLOBALES
 // ====================
 
@@ -25,6 +23,17 @@ let unsubscribeAhorros = null;
 let unsubscribePagosAhorro = null;
 let unsubscribeConfig = null;
 let ignoreNextSnapshot = false;
+
+// ====================
+// FUNCIÓN PARA OBTENER FECHA LOCAL CORRECTA
+// ====================
+
+function obtenerFechaLocal() {
+    const ahora = new Date();
+    // Ajustar por zona horaria (Perú UTC-5)
+    const fechaLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000));
+    return fechaLocal.toISOString().split('T')[0];
+}
 
 // ====================
 // FUNCIONES FIREBASE
@@ -139,7 +148,7 @@ function setupRealtimeListeners() {
             console.error("❌ Error en listener de ahorros:", error);
         });
     
-    // NUEVO: Listener para pagos de ahorro
+    // Listener para pagos de ahorro
     unsubscribePagosAhorro = db.collection('pagos_ahorro')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
@@ -347,9 +356,10 @@ function inicializarApp() {
     configurarSelectorFecha();
     configurarBarraInferior();
     
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fecha-ahorro').value = hoy;
-    document.getElementById('pago-individual-fecha').value = hoy;
+    // CORREGIDO: Usar obtenerFechaLocal()
+    const fechaLocal = obtenerFechaLocal();
+    document.getElementById('fecha-ahorro').value = fechaLocal;
+    document.getElementById('pago-individual-fecha').value = fechaLocal;
     
     document.getElementById('monto-opcion1').textContent = configAhorro.montosOpciones.opcion1.toFixed(2);
     document.getElementById('monto-opcion2').textContent = configAhorro.montosOpciones.opcion2.toFixed(2);
@@ -533,7 +543,8 @@ function configurarSelectorFecha() {
         if (this.value === 'custom') {
             fechaCustom.style.display = 'block';
             if (!fechaCustom.value) {
-                fechaCustom.value = new Date().toISOString().split('T')[0];
+                // CORREGIDO: Usar obtenerFechaLocal()
+                fechaCustom.value = obtenerFechaLocal();
             }
         } else {
             fechaCustom.style.display = 'none';
@@ -628,11 +639,12 @@ async function guardarPago() {
     
     let fechaFiltro = null;
     if (fechaSelector === 'today') {
-        fechaFiltro = new Date().toISOString().split('T')[0];
+        fechaFiltro = obtenerFechaLocal();
     } else if (fechaSelector === 'yesterday') {
         const ayer = new Date();
         ayer.setDate(ayer.getDate() - 1);
-        fechaFiltro = ayer.toISOString().split('T')[0];
+        const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
+        fechaFiltro = fechaAyer.toISOString().split('T')[0];
     } else if (fechaSelector === 'custom' && fechaCustom) {
         fechaFiltro = fechaCustom;
     }
@@ -735,13 +747,13 @@ async function eliminarPagoAhorro(id) {
 function obtenerFechaFiltro() {
     const selector = document.getElementById('deuda-fecha-selector').value;
     const fechaCustom = document.getElementById('deuda-fecha-custom').value;
-    const hoy = new Date().toISOString().split('T')[0];
     
-    if (selector === 'today') return hoy;
+    if (selector === 'today') return obtenerFechaLocal();
     if (selector === 'yesterday') {
         const ayer = new Date();
         ayer.setDate(ayer.getDate() - 1);
-        return ayer.toISOString().split('T')[0];
+        const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
+        return fechaAyer.toISOString().split('T')[0];
     }
     if (selector === 'custom' && fechaCustom) return fechaCustom;
     return null; // null significa "todo el historial"
@@ -874,7 +886,8 @@ function abrirFormularioPago(persona) {
     document.getElementById('pago-pendiente-actual').textContent = `S/${deudaActual.toFixed(2)}`;
     document.getElementById('pago-individual-monto').value = '';
     document.getElementById('pago-individual-descripcion').value = '';
-    document.getElementById('pago-individual-fecha').value = new Date().toISOString().split('T')[0];
+    // CORREGIDO: Usar obtenerFechaLocal()
+    document.getElementById('pago-individual-fecha').value = obtenerFechaLocal();
     
     document.getElementById('pago-individual-section').style.display = 'block';
 }
@@ -1034,7 +1047,7 @@ function aplicarFiltros() {
         
         switch(filtroFecha) {
             case 'today':
-                const hoyStr = hoy.toISOString().split('T')[0];
+                const hoyStr = obtenerFechaLocal();
                 ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === hoyStr);
                 break;
             case 'week':

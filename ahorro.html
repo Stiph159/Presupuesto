@@ -36,62 +36,54 @@
             </div>
         </header>
 
-        
-
-        <!-- Sección de opciones de ahorro (igual que antes) -->
+        <!-- Sección de opciones de ahorro (con frutas y frases de castigo) -->
         <section class="opciones-section">
-            <h3><i class="fas fa-coins"></i> Opciones de Ahorro</h3>
-            <p class="section-subtitle">Selecciona una opción - CADA UNO deberá ese monto</p>
+            <h3><i class="fas fa-coins"></i> ¿Cuánto ahorramos hoy?</h3>
+            <p class="section-subtitle">Cada vez que hacemos algo, ambos pagamos</p>
             
             <div class="opciones-grid">
                 <div class="opcion-card" data-opcion="1" data-monto="4">
-                    <div class="opcion-icon">
-                        <i class="fas fa-coffee"></i>
-                    </div>
+                    <div class="opcion-icon">🔥</div>
                     <div class="opcion-content">
-                        <h4>Opción 1</h4>
-                        <p class="opcion-desc">Ahorro pequeño diario</p>
+                        <h4>Fuego</h4>
+                        <p class="opcion-desc">Hoy ahorramos poquito</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion1">4.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Cada uno S/4</div>
+                    <div class="opcion-badge">Castigo suave</div>
                 </div>
                 
                 <div class="opcion-card" data-opcion="2" data-monto="5">
-                    <div class="opcion-icon">
-                        <i class="fas fa-hamburger"></i>
-                    </div>
+                    <div class="opcion-icon">🥝</div>
                     <div class="opcion-content">
-                        <h4>Opción 2</h4>
-                        <p class="opcion-desc">Ahorro medio semanal</p>
+                        <h4>Kiwi</h4>
+                        <p class="opcion-desc">Hoy ahorramos regular</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion2">5.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Cada uno S/5</div>
+                    <div class="opcion-badge">Castigo medio</div>
                 </div>
                 
                 <div class="opcion-card" data-opcion="3" data-monto="6">
-                    <div class="opcion-icon">
-                        <i class="fas fa-film"></i>
-                    </div>
+                    <div class="opcion-icon">🍑</div>
                     <div class="opcion-content">
-                        <h4>Opción 3</h4>
-                        <p class="opcion-desc">Ahorro grande ocasional</p>
+                        <h4>Durazno</h4>
+                        <p class="opcion-desc">Hoy ahorramos full</p>
                         <div class="opcion-monto">
                             <span class="monto-simbolo">S/</span>
                             <span class="monto-valor" id="monto-opcion3">6.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Cada uno S/6</div>
+                    <div class="opcion-badge">Castigo fuerte</div>
                 </div>
             </div>
         </section>
 
-        <!-- Sección de entrada (igual que antes) -->
+        <!-- Sección de entrada -->
         <section class="input-section">
             <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
                 <div class="selected-opcion">
@@ -114,7 +106,7 @@
 
             <!-- Descripción opcional -->
             <div class="input-group">
-                <input type="text" id="descripcion-ahorro" placeholder="Descripción (opcional)" maxlength="50">
+                <input type="text" id="descripcion-ahorro" placeholder="¿Qué hicimos? (opcional)" maxlength="50">
             </div>
 
             <!-- Fecha personalizable -->
@@ -127,11 +119,11 @@
 
             <!-- Botón principal -->
             <button id="add-ahorro-btn" class="add-btn" disabled>
-                <i class="fas fa-plus-circle"></i> AGREGAR AHORRO (AMBOS DEBEN)
+                <i class="fas fa-plus-circle"></i> APLICAR MONTO
             </button>
         </section>
 
-        <!-- NUEVA SECCIÓN: DEUDAS INDIVIDUALES (arriba) -->
+        <!-- SECCIÓN DE DEUDAS INDIVIDUALES -->
         <section class="deudas-individuales-section">
             <div class="section-header">
                 <h3><i class="fas fa-hand-holding-heart"></i> ¿Cuánto debe cada uno?</h3>
@@ -253,7 +245,7 @@
             </div>
         </section>
 
-        <!-- HISTORIAL DE PAGOS (nuevo) -->
+        <!-- HISTORIAL DE PAGOS -->
         <section class="pagos-historial-section">
             <div class="list-header">
                 <h3><i class="fas fa-hand-holding-usd"></i> Historial de Pagos</h3>
@@ -270,7 +262,7 @@
         <!-- Lista de ahorros (con filtros) -->
         <section class="ahorros-list-section">
             <div class="list-header">
-                <h3 id="list-title-ahorro">Historial de Ahorros</h3>
+                <h3 id="list-title-ahorro">Historial de Montos</h3>
                 <div class="list-actions">
                     <button class="list-action-btn" id="export-ahorro-btn" title="Exportar">
                         <i class="fas fa-file-export"></i>
@@ -278,7 +270,7 @@
                 </div>
             </div>
 
-            <!-- FILTROS (igual que antes) -->
+            <!-- FILTROS -->
             <div class="filtros-container" style="margin-bottom: 20px;">
                 <!-- Primera fila: Búsqueda y filtros básicos -->
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
@@ -295,10 +287,10 @@
                     <!-- Filtro Opción -->
                     <div style="flex: 1; min-width: 140px;">
                         <select id="filtro-opcion-ahorro" style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
-                            <option value="">Todas las opciones</option>
-                            <option value="1">Opción 1</option>
-                            <option value="2">Opción 2</option>
-                            <option value="3">Opción 3</option>
+                            <option value="">Todos los montos</option>
+                            <option value="1">🔥 Fuego</option>
+                            <option value="2">🥝 Kiwi</option>
+                            <option value="3">🍑 Durazno</option>
                         </select>
                     </div>
 
@@ -371,8 +363,8 @@
             <!-- Estado vacío -->
             <div class="empty-state" id="empty-state-ahorro">
                 <i class="far fa-smile-beam"></i>
-                <h4>¡No hay ahorros aún!</h4>
-                <p>Selecciona una opción y agrega tu primer ahorro.</p>
+                <h4>¡No hay Montos aún!</h4>
+                <p>Selecciona una opción y aplica tu primer monto.</p>
             </div>
 
             <!-- Totales -->
@@ -436,24 +428,24 @@
         <!-- Modal para editar montos de opciones -->
         <div class="modal" id="montos-modal">
             <div class="modal-content">
-                <h3><i class="fas fa-edit"></i> Editar Montos de Ahorro</h3>
+                <h3><i class="fas fa-edit"></i> Editar Montos de Montos</h3>
                 <div class="modal-inputs">
                     <div class="input-group-modal">
-                        <label for="monto-opcion1-input">Opción 1 (Pequeño):</label>
+                        <label for="monto-opcion1-input">🔥 Fuego (S/4):</label>
                         <div class="input-with-currency">
                             <span class="currency">S/</span>
                             <input type="number" id="monto-opcion1-input" value="4.00" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="input-group-modal">
-                        <label for="monto-opcion2-input">Opción 2 (Medio):</label>
+                        <label for="monto-opcion2-input">🥝 Kiwi (S/5):</label>
                         <div class="input-with-currency">
                             <span class="currency">S/</span>
                             <input type="number" id="monto-opcion2-input" value="5.00" min="0" step="0.01">
                         </div>
                     </div>
                     <div class="input-group-modal">
-                        <label for="monto-opcion3-input">Opción 3 (Grande):</label>
+                        <label for="monto-opcion3-input">🍑 Durazno (S/6):</label>
                         <div class="input-with-currency">
                             <span class="currency">S/</span>
                             <input type="number" id="monto-opcion3-input" value="6.00" min="0" step="0.01">

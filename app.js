@@ -1,6 +1,3 @@
-// File: app.js - VERSIÓN CON BALANCE 50/50 Y FILTROS
-// ========================================================
-
 // Variables globales
 let gastos = [];
 let pagos = [];
@@ -18,6 +15,17 @@ let unsubscribeGastos = null;
 let unsubscribePagos = null;
 let unsubscribeConfig = null;
 let ignoreNextSnapshot = false;
+
+// ====================
+// FUNCIÓN PARA OBTENER FECHA LOCAL CORRECTA
+// ====================
+
+function obtenerFechaLocal() {
+    const ahora = new Date();
+    // Ajustar por zona horaria (Perú UTC-5)
+    const fechaLocal = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000));
+    return fechaLocal.toISOString().split('T')[0];
+}
 
 // ====================
 // FUNCIONES FIREBASE
@@ -81,12 +89,12 @@ function setupRealtimeListeners() {
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
             if (ignoreNextSnapshot) {
-                console.log("⏸️ Ignorando snapshot por operación propia");
+                console.log("⏭️ Ignorando snapshot por operación propia");
                 ignoreNextSnapshot = false;
                 return;
             }
             
-            console.log("🔔 Cambios en gastos:", snapshot.docChanges().length);
+            console.log("📊 Cambios en gastos:", snapshot.docChanges().length);
             
             const firebaseIds = new Set();
             snapshot.docs.forEach(doc => firebaseIds.add(doc.id));
@@ -349,9 +357,10 @@ function inicializarApp() {
     configurarVerMas();
     actualizarNombresEnUI();
     
-    const hoy = new Date().toISOString().split('T')[0];
-    document.getElementById('fecha-gasto').value = hoy;
-    document.getElementById('pago-fecha').value = hoy;
+    // CORREGIDO: Usar obtenerFechaLocal() en lugar de new Date().toISOString()
+    const fechaLocal = obtenerFechaLocal();
+    document.getElementById('fecha-gasto').value = fechaLocal;
+    document.getElementById('pago-fecha').value = fechaLocal;
     
     inicializarGrafico();
 }
@@ -446,7 +455,8 @@ function configurarBalanceEventos() {
         if (this.value === 'custom') {
             fechaCustom.style.display = 'block';
             if (!fechaCustom.value) {
-                fechaCustom.value = new Date().toISOString().split('T')[0];
+                // CORREGIDO: Usar obtenerFechaLocal()
+                fechaCustom.value = obtenerFechaLocal();
             }
             actualizarBalance();
         } else {
@@ -468,15 +478,17 @@ function configurarBalanceEventos() {
         
         // Determinar la fecha de pago según lo que el usuario está viendo
         let fechaPago = '';
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = obtenerFechaLocal();
         
         switch(selectorFecha) {
             case 'today':
                 fechaPago = hoy;
                 break;
             case 'yesterday':
-                const ayer = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                fechaPago = ayer;
+                const ayer = new Date();
+                ayer.setDate(ayer.getDate() - 1);
+                const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
+                fechaPago = fechaAyer.toISOString().split('T')[0];
                 break;
             case 'custom':
                 fechaPago = fechaCustom || hoy;
@@ -507,7 +519,8 @@ function configurarBalanceEventos() {
     
     // Botón nuevo pago manual
     btnNuevoPago.addEventListener('click', function() {
-        document.getElementById('pago-fecha').value = new Date().toISOString().split('T')[0];
+        // CORREGIDO: Usar obtenerFechaLocal()
+        document.getElementById('pago-fecha').value = obtenerFechaLocal();
         pagoForm.style.display = 'block';
     });
     
@@ -553,15 +566,16 @@ function obtenerFechaBalance() {
         case 'today':
             return { 
                 tipo: 'today', 
-                fecha: hoy.toISOString().split('T')[0],
+                fecha: obtenerFechaLocal(),
                 descripcion: 'Hoy'
             };
         case 'yesterday':
-            const ayer = new Date(hoy);
+            const ayer = new Date();
             ayer.setDate(ayer.getDate() - 1);
+            const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
             return { 
                 tipo: 'yesterday', 
-                fecha: ayer.toISOString().split('T')[0],
+                fecha: fechaAyer.toISOString().split('T')[0],
                 descripcion: 'Ayer'
             };
         case 'custom':
@@ -579,14 +593,14 @@ function obtenerFechaBalance() {
             } else {
                 return { 
                     tipo: 'today', 
-                    fecha: hoy.toISOString().split('T')[0],
+                    fecha: obtenerFechaLocal(),
                     descripcion: 'Hoy'
                 };
             }
         default:
             return { 
                 tipo: 'today', 
-                fecha: hoy.toISOString().split('T')[0],
+                fecha: obtenerFechaLocal(),
                 descripcion: 'Hoy'
             };
     }
@@ -764,7 +778,7 @@ async function guardarPagoEnFirebase() {
     const nuevoPago = {
         id: 'temp_' + Date.now(),
         fecha: fecha,
-        fechaPago: new Date().toISOString().split('T')[0],
+        fechaPago: obtenerFechaLocal(),
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
         deudor: quienPaga,
@@ -853,7 +867,7 @@ function mostrarPagos() {
 async function eliminarPago(id) {
     if (!confirm('¿Eliminar este registro de pago?')) return;
     
-    mostrarNotificacion('⌛ Eliminando pago...', 'info');
+    mostrarNotificacion('⏳ Eliminando pago...', 'info');
     
     const pagoEliminado = pagos.find(p => p.id === id);
     pagos = pagos.filter(p => p.id !== id);
@@ -897,18 +911,16 @@ async function agregarGasto() {
         return;
     }
     
-    if (!descripcion) {
-        mostrarNotificacion('Ingresa una descripción', 'error');
-        document.getElementById('descripcion').focus();
-        return;
-    }
+    // ✅ AHORA LA DESCRIPCIÓN ES OPCIONAL
+    // Si no hay descripción, usar una genérica
+    const descripcionFinal = descripcion || 'Gasto sin descripción';
     
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoGasto = {
         id: tempId,
         fecha: fecha,
         monto: monto,
-        descripcion: descripcion,
+        descripcion: descripcionFinal,  // Usar la variable con valor por defecto
         persona: personaSeleccionada,
         categoria: categoriaSeleccionada,
         timestamp: new Date(),
@@ -950,7 +962,7 @@ async function agregarGasto() {
 async function eliminarGasto(id) {
     if (!confirm('¿Estás seguro de eliminar este gasto?')) return;
     
-    mostrarNotificacion('⌛ Eliminando...', 'info');
+    mostrarNotificacion('⏳ Eliminando...', 'info');
     
     const gastoEliminado = gastos.find(g => g.id === id);
     gastos = gastos.filter(g => g.id !== id);
@@ -1087,7 +1099,7 @@ function aplicarFiltrosNuevos() {
         
         switch(filtroFecha) {
             case 'today':
-                const hoyStr = hoy.toISOString().split('T')[0];
+                const hoyStr = obtenerFechaLocal();
                 gastosFiltrados = gastosFiltrados.filter(g => g.fecha === hoyStr);
                 break;
             case 'week':
@@ -1199,11 +1211,11 @@ function actualizarNombresEnUI() {
 }
 
 function actualizarResumen() {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = obtenerFechaLocal();
     const inicioSemana = obtenerInicioSemana();
     
     const gastosHoy = gastos.filter(g => g.fecha === hoy);
-    const gastosSemana = gastos.filter(g => new Date(g.fecha) >= inicioSemana);
+    const gastosSemana = gastos.filter(g => new Date(g.fecha) >= new Date(inicioSemana));
     
     const totalHoy = gastosHoy.reduce((sum, g) => sum + g.monto, 0);
     const totalSemana = gastosSemana.reduce((sum, g) => sum + g.monto, 0);
@@ -1249,7 +1261,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         transporte: '🚗',
         entretenimiento: '🎬',
         compras: '🛒',
-        otros: '📦'
+        otros: '📚'
     };
     
     let html = '';
@@ -1286,7 +1298,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         }
         
         const nombrePersona = gasto.persona === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-        const iconoCategoria = iconosCategorias[gasto.categoria] || '📦';
+        const iconoCategoria = iconosCategorias[gasto.categoria] || '📚';
         const idSeguro = gasto.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
         const sincronizandoIcon = gasto.sincronizando ? '<i class="fas fa-sync fa-spin"></i>' : '';
@@ -1391,7 +1403,7 @@ function configurarEventos() {
     document.getElementById('export-btn').addEventListener('click', () => {
         const dataStr = JSON.stringify(gastos, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        const exportFileDefaultName = `gastos_${new Date().toISOString().split('T')[0]}.json`;
+        const exportFileDefaultName = `gastos_${obtenerFechaLocal()}.json`;
         
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
@@ -1452,7 +1464,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         default: notificacion.style.background = 'var(--primary-color)';
     }
     
-    // Reducir tiempo a 1.5 segundos (antes era 3000 = 3 segundos)
     setTimeout(() => notificacion.classList.remove('show'), 1500);
 }
 
