@@ -564,7 +564,7 @@
 }
 
 /* ==================== */
-/* FIX PARA MÓVIL - FORMULARIO DE PAGO */
+/* FIX PARA MÓVIL - SOLO PARA PAGOS */
 /* ==================== */
 
 @media (max-width: 480px) {
@@ -590,7 +590,7 @@
     .pago-descripcion input,
     .pago-fecha input {
         padding: 12px !important;
-        font-size: 16px !important; /* Evita zoom en iOS */
+        font-size: 16px !important;
     }
     
     .pago-botones {
@@ -607,26 +607,26 @@
         font-size: 1rem;
     }
     
-    /* FIX PARA HISTORIAL DE PAGOS - Botón de eliminar */
-    .pago-header {
+    /* FIX PARA HISTORIAL DE PAGOS - SOLO para .pago-item .delete-btn */
+    .pago-item .pago-header {
         display: flex;
         align-items: center;
         gap: 10px;
         position: relative;
-        padding-right: 40px; /* Espacio para el botón eliminar */
+        padding-right: 40px;
     }
     
-    .pago-info {
+    .pago-item .pago-info {
         flex: 1;
-        min-width: 0; /* Permite que el texto se encoja */
+        min-width: 0;
     }
     
-    .pago-monto {
+    .pago-item .pago-monto {
         font-size: 1rem;
         white-space: nowrap;
     }
     
-    .delete-btn {
+    .pago-item .delete-btn {
         position: absolute;
         right: 0;
         top: 50%;
@@ -641,11 +641,10 @@
         margin: 0 !important;
     }
     
-    .delete-btn i {
+    .pago-item .delete-btn i {
         font-size: 1rem;
     }
     
-    /* Ajustar el contenedor de pagos para que el botón no se corte */
     .pagos-container {
         padding-right: 5px;
     }
