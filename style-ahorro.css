@@ -1,5 +1,3 @@
-/* Estilos específicos para la página de ahorro */
-
 /* Botón de volver */
 .back-button {
     margin-bottom: 20px;
@@ -16,6 +14,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    transition: all 0.3s;
 }
 
 #back-btn:hover {
@@ -23,8 +22,11 @@
     color: white;
 }
 
-/* Sección de metas */
-.metas-section {
+/* ==================== */
+/* SECCIÓN DE DEUDAS INDIVIDUALES */
+/* ==================== */
+
+.deudas-individuales-section {
     background: var(--card-bg);
     padding: 20px;
     border-radius: 20px;
@@ -32,60 +34,219 @@
     margin-bottom: 25px;
 }
 
-.metas-header {
+.section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.edit-meta-btn {
-    background: transparent;
-    border: 2px solid var(--primary-color);
+.balance-date-selector select {
+    padding: 8px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.deuda-individual {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.deuda-individual:last-child {
+    margin-bottom: 0;
+}
+
+.deuda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.deuda-header > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.deuda-nombre {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--text-color);
+}
+
+.deuda-total {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.deuda-pagado {
+    display: flex;
+    gap: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.deuda-pagado strong {
     color: var(--primary-color);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    margin-left: 5px;
+}
+
+.deuda-bar-container {
+    height: 30px;
+    background: var(--border-color);
+    border-radius: 15px;
+    overflow: hidden;
+    margin: 15px 0;
+    position: relative;
+}
+
+.deuda-bar-yo {
+    height: 100%;
+    background: linear-gradient(135deg, #4299e1, #667eea);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.deuda-bar-ella {
+    height: 100%;
+    background: linear-gradient(135deg, #ed64a6, #f56565);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.deuda-bar-text {
+    font-size: 0.9rem;
+}
+
+.deuda-acciones {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-pagar-individual {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.btn-pagar-individual:hover {
+    transform: scale(1.05);
+    box-shadow: var(--hover-shadow);
+}
+
+/* Totales generales */
+.deuda-totales-generales {
+    margin-top: 25px;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border-radius: 15px;
+    color: white;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.total-general-item {
+    text-align: center;
+}
+
+.total-general-item span {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.total-general-item strong {
+    font-size: 1.2rem;
+}
+
+.total-pendiente strong {
+    color: #ffd700;
+}
+
+/* ==================== */
+/* FORMULARIO DE PAGO INDIVIDUAL */
+/* ==================== */
+
+.pago-individual-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.btn-cerrar-pago {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.metas-display {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.meta-card {
+.btn-cerrar-pago:hover {
     background: var(--bg-color);
-    padding: 20px;
-    border-radius: 15px;
+    color: var(--accent-color);
+}
+
+.pago-info-persona,
+.pago-info-pendiente {
+    grid-column: span 2;
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 8px;
     text-align: center;
+    font-size: 1.1rem;
 }
 
-.meta-amount {
-    font-size: 2rem;
-    font-weight: bold;
+.pago-info-persona strong,
+.pago-info-pendiente strong {
     color: var(--primary-color);
-    margin: 10px 0;
+    margin-left: 5px;
 }
 
-.progress-bar.small {
-    height: 10px;
-    margin: 10px 0;
-}
+/* ==================== */
+/* OPCIONES DE AHORRO */
+/* ==================== */
 
-.meta-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-top: 10px;
-}
-
-/* Opciones de ahorro */
 .opciones-section {
     background: var(--card-bg);
     padding: 25px;
@@ -98,22 +259,24 @@
     color: var(--text-secondary);
     margin-bottom: 20px;
     text-align: center;
+    font-size: 0.95rem;
 }
 
 .opciones-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
 }
 
 .opcion-card {
     background: var(--bg-color);
-    padding: 20px;
+    padding: 20px 15px;
     border-radius: 15px;
     cursor: pointer;
     transition: all 0.3s;
     position: relative;
     border: 2px solid var(--border-color);
+    text-align: center;
 }
 
 .opcion-card:hover {
@@ -125,32 +288,29 @@
 .opcion-card.selected {
     border-color: var(--success-color);
     background: linear-gradient(135deg, var(--bg-color) 0%, rgba(56, 161, 105, 0.1) 100%);
+    box-shadow: 0 0 0 2px var(--success-color);
 }
 
 .opcion-icon {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     color: var(--primary-color);
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.opcion-content {
-    text-align: center;
+    margin-bottom: 10px;
 }
 
 .opcion-content h4 {
     margin-bottom: 5px;
     color: var(--text-color);
+    font-size: 1.1rem;
 }
 
 .opcion-desc {
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 15px;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
 }
 
 .opcion-monto {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: bold;
     color: var(--success-color);
     display: flex;
@@ -160,18 +320,18 @@
 }
 
 .monto-simbolo {
-    font-size: 1.2rem;
+    font-size: 1rem;
 }
 
 .opcion-badge {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     background: var(--primary-color);
     color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
+    padding: 3px 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
     font-weight: 600;
 }
 
@@ -190,10 +350,16 @@
     align-items: center;
     color: var(--text-color);
     font-weight: 600;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-/* Estadísticas */
-.stats-section {
+/* ==================== */
+/* LISTA DE AHORROS */
+/* ==================== */
+
+.ahorros-list-section,
+.pagos-historial-section {
     background: var(--card-bg);
     padding: 25px;
     border-radius: 20px;
@@ -201,98 +367,36 @@
     margin-bottom: 25px;
 }
 
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
+.ahorros-container,
+.pagos-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
 }
 
-.stat-card {
+.ahorros-container::-webkit-scrollbar,
+.pagos-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ahorros-container::-webkit-scrollbar-track,
+.pagos-container::-webkit-scrollbar-track {
     background: var(--bg-color);
-    padding: 20px;
-    border-radius: 15px;
-    text-align: center;
+    border-radius: 4px;
 }
 
-.stat-icon {
-    font-size: 2rem;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-}
-
-.stat-value {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--text-color);
-    margin: 5px 0;
-}
-
-.stat-desc {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-/* Tips de ahorro */
-.tips-section {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    padding: 20px;
-    border-radius: 20px;
-    margin-bottom: 25px;
-    color: white;
-}
-
-.tips-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.tips-header h3 {
-    color: white;
-    margin: 0;
-}
-
-.refresh-tip-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.refresh-tip-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.tip-content {
-    font-style: italic;
-    text-align: center;
-    padding: 10px;
-}
-
-/* Lista de ahorros */
-.ahorros-list-section {
-    background: var(--card-bg);
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: var(--shadow);
-    margin-bottom: 40px;
+.ahorros-container::-webkit-scrollbar-thumb,
+.pagos-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
 }
 
 .ahorro-item {
     background: var(--bg-color);
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
     border-left: 5px solid var(--success-color);
-    position: relative;
 }
 
 .ahorro-item.persona1 {
@@ -304,19 +408,18 @@
 }
 
 .ahorro-monto {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: var(--success-color);
 }
 
 .ahorro-opcion {
     display: inline-block;
-    background: var(--primary-color);
-    color: white;
     padding: 2px 8px;
     border-radius: 10px;
-    font-size: 0.8rem;
-    margin-right: 10px;
+    font-size: 0.75rem;
+    color: white;
+    margin-left: 8px;
 }
 
 /* Badges para opciones */
@@ -332,29 +435,130 @@
     background: linear-gradient(135deg, #38a169 0%, #68d391 100%);
 }
 
-/* Responsive */
+/* ==================== */
+/* HISTORIAL DE PAGOS */
+/* ==================== */
+
+.pago-item {
+    background: var(--bg-color);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--success-color);
+}
+
+.pago-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.pago-icon {
+    font-size: 1.5rem;
+    color: var(--success-color);
+}
+
+.pago-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.pago-descripcion {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.pago-detalle {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pago-monto {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.pago-persona {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+/* ==================== */
+/* FILTROS Y ESTADÍSTICAS */
+/* ==================== */
+
+.filtros-container {
+    margin-bottom: 20px;
+}
+
+/* ==================== */
+/* ESTADOS VACÍOS */
+/* ==================== */
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state h4 {
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+/* ==================== */
+/* RESPONSIVE */
+/* ==================== */
+
 @media (max-width: 768px) {
-    .metas-display {
-        grid-template-columns: 1fr;
-    }
-    
     .opciones-grid {
         grid-template-columns: 1fr;
     }
     
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 480px) {
-    .stats-grid {
+    .deuda-totales-generales {
         grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .deuda-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .deuda-pagado {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .pago-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
     
     .selected-opcion {
         flex-direction: column;
-        gap: 10px;
-        text-align: center;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-pagar-individual {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }

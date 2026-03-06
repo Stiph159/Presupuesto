@@ -10,7 +10,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
 </head>
-<body>
+<body class="has-bottom-nav">
     <!-- Modo oscuro toggle -->
     <div class="theme-toggle">
         <button id="theme-btn">
@@ -36,13 +36,15 @@
             </div>
         </header>
 
-        <!-- Sección de opciones de ahorro -->
+        
+
+        <!-- Sección de opciones de ahorro (igual que antes) -->
         <section class="opciones-section">
             <h3><i class="fas fa-coins"></i> Opciones de Ahorro</h3>
-            <p class="section-subtitle">Selecciona una opción para agregar a tu ahorro</p>
+            <p class="section-subtitle">Selecciona una opción - CADA UNO deberá ese monto</p>
             
             <div class="opciones-grid">
-                <div class="opcion-card" data-opcion="1">
+                <div class="opcion-card" data-opcion="1" data-monto="4">
                     <div class="opcion-icon">
                         <i class="fas fa-coffee"></i>
                     </div>
@@ -54,10 +56,10 @@
                             <span class="monto-valor" id="monto-opcion1">4.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Diario</div>
+                    <div class="opcion-badge">Cada uno S/4</div>
                 </div>
                 
-                <div class="opcion-card" data-opcion="2">
+                <div class="opcion-card" data-opcion="2" data-monto="5">
                     <div class="opcion-icon">
                         <i class="fas fa-hamburger"></i>
                     </div>
@@ -69,10 +71,10 @@
                             <span class="monto-valor" id="monto-opcion2">5.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Semanal</div>
+                    <div class="opcion-badge">Cada uno S/5</div>
                 </div>
                 
-                <div class="opcion-card" data-opcion="3">
+                <div class="opcion-card" data-opcion="3" data-monto="6">
                     <div class="opcion-icon">
                         <i class="fas fa-film"></i>
                     </div>
@@ -84,12 +86,12 @@
                             <span class="monto-valor" id="monto-opcion3">6.00</span>
                         </div>
                     </div>
-                    <div class="opcion-badge">Ocasional</div>
+                    <div class="opcion-badge">Cada uno S/6</div>
                 </div>
             </div>
         </section>
 
-        <!-- Sección de entrada -->
+        <!-- Sección de entrada (igual que antes) -->
         <section class="input-section">
             <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
                 <div class="selected-opcion">
@@ -125,81 +127,150 @@
 
             <!-- Botón principal -->
             <button id="add-ahorro-btn" class="add-btn" disabled>
-                <i class="fas fa-plus-circle"></i> AGREGAR AHORRO
+                <i class="fas fa-plus-circle"></i> AGREGAR AHORRO (AMBOS DEBEN)
             </button>
         </section>
 
-        <!-- Sección de gráficos -->
-        <section class="charts-section" id="charts-section">
-            <div class="charts-header">
-                <h3><i class="fas fa-chart-pie"></i> Resumen Visual</h3>
-                <div class="chart-options">
-                    <button class="chart-option active" data-chart="opciones">Por Opción</button>
-                    <button class="chart-option" data-chart="personas">Por Persona</button>
-                    <button class="chart-option" data-chart="tiempo">Evolución</button>
+        <!-- NUEVA SECCIÓN: DEUDAS INDIVIDUALES (arriba) -->
+        <section class="deudas-individuales-section">
+            <div class="section-header">
+                <h3><i class="fas fa-hand-holding-heart"></i> ¿Cuánto debe cada uno?</h3>
+                <div class="balance-date-selector">
+                    <select id="deuda-fecha-selector">
+                        <option value="today">Hoy</option>
+                        <option value="yesterday">Ayer</option>
+                        <option value="all">Todo el historial</option>
+                        <option value="custom">Elegir fecha...</option>
+                    </select>
+                    <input type="date" id="deuda-fecha-custom" style="display: none; margin-top: 10px; width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
                 </div>
             </div>
-            <div class="chart-container">
-                <canvas id="ahorro-chart"></canvas>
+
+            <!-- Barra de Yo -->
+            <div class="deuda-individual">
+                <div class="deuda-header">
+                    <div>
+                        <span class="deuda-nombre" id="deuda-nombre-yo">Yo</span>
+                        <span class="deuda-total" id="deuda-total-yo">S/0</span>
+                    </div>
+                    <div class="deuda-pagado">
+                        <span>Pagado: <strong id="pagado-yo">S/0</strong></span>
+                        <span>Pendiente: <strong id="pendiente-yo">S/0</strong></span>
+                    </div>
+                </div>
+                <div class="deuda-bar-container">
+                    <div class="deuda-bar-yo" id="deuda-bar-yo" style="width: 0%">
+                        <span class="deuda-bar-text" id="deuda-porcentaje-yo">0%</span>
+                    </div>
+                </div>
+                <div class="deuda-acciones">
+                    <button class="btn-pagar-individual" data-persona="persona1">
+                        <i class="fas fa-money-bill-wave"></i> Pagar mi parte
+                    </button>
+                </div>
+            </div>
+
+            <!-- Barra de Ella -->
+            <div class="deuda-individual">
+                <div class="deuda-header">
+                    <div>
+                        <span class="deuda-nombre" id="deuda-nombre-ella">Ella</span>
+                        <span class="deuda-total" id="deuda-total-ella">S/0</span>
+                    </div>
+                    <div class="deuda-pagado">
+                        <span>Pagado: <strong id="pagado-ella">S/0</strong></span>
+                        <span>Pendiente: <strong id="pendiente-ella">S/0</strong></span>
+                    </div>
+                </div>
+                <div class="deuda-bar-container">
+                    <div class="deuda-bar-ella" id="deuda-bar-ella" style="width: 0%">
+                        <span class="deuda-bar-text" id="deuda-porcentaje-ella">0%</span>
+                    </div>
+                </div>
+                <div class="deuda-acciones">
+                    <button class="btn-pagar-individual" data-persona="persona2">
+                        <i class="fas fa-money-bill-wave"></i> Pagar su parte
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totales generales -->
+            <div class="deuda-totales-generales">
+                <div class="total-general-item">
+                    <span>Total generado:</span>
+                    <strong id="total-generado">S/0</strong>
+                </div>
+                <div class="total-general-item">
+                    <span>Total pagado:</span>
+                    <strong id="total-pagado-general">S/0</strong>
+                </div>
+                <div class="total-general-item total-pendiente">
+                    <span>Pendiente total:</span>
+                    <strong id="total-pendiente-general">S/0</strong>
+                </div>
             </div>
         </section>
 
-        <!-- Resumen rápido -->
-        <section class="quick-summary">
-            <div class="summary-card">
-                <h4><i class="far fa-clock"></i> Hoy</h4>
-                <div class="summary-amount" id="summary-hoy-ahorro">S/0</div>
-            </div>
-            <div class="summary-card">
-                <h4><i class="far fa-calendar-alt"></i> Este Mes</h4>
-                <div class="summary-amount" id="summary-mes-ahorro">S/0</div>
-            </div>
-            <div class="summary-card">
-                <h4><i class="fas fa-bullseye"></i> % Meta</h4>
-                <div class="summary-amount" id="summary-porcentaje-meta">0%</div>
-            </div>
-        </section>
-
-        <!-- Sección de metas -->
-        <section class="metas-section">
-            <div class="metas-header">
-                <h3><i class="fas fa-bullseye"></i> Metas de Ahorro</h3>
-                <button class="edit-meta-btn" id="edit-meta">
-                    <i class="fas fa-cog"></i>
+        <!-- FORMULARIO DE PAGO (OCULTO) -->
+        <section class="pago-individual-section" id="pago-individual-section" style="display: none;">
+            <div class="section-header">
+                <h3><i class="fas fa-hand-holding-usd"></i> Pagar deuda</h3>
+                <button class="btn-cerrar-pago" id="cerrar-pago-form">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-            
-            <div class="metas-display">
-                <div class="meta-card">
-                    <h4>Meta Mensual</h4>
-                    <div class="meta-amount" id="meta-mensual">S/500</div>
-                    <div class="progress-bar small">
-                        <div class="progress-fill" id="progress-mensual"></div>
+
+            <div class="pago-form" id="pago-individual-form">
+                <div class="pago-grid">
+                    <div class="pago-info-persona" id="pago-info-persona">
+                        Pagando deuda de: <strong id="pago-persona-nombre"></strong>
                     </div>
-                    <div class="meta-info">
-                        <span>Ahorrado: <strong id="ahorrado-mensual">S/0</strong></span>
-                        <span>Restante: <strong id="restante-mensual">S/500</strong></span>
+                    
+                    <div class="pago-monto">
+                        <label>Monto a pagar (S/)</label>
+                        <input type="number" id="pago-individual-monto" step="0.01" min="0.01" placeholder="0.00">
                     </div>
-                </div>
-                
-                <div class="meta-card">
-                    <h4>Meta Anual</h4>
-                    <div class="meta-amount" id="meta-anual">S/6000</div>
-                    <div class="progress-bar small">
-                        <div class="progress-fill" id="progress-anual"></div>
+
+                    <div class="pago-info-pendiente" id="pago-info-pendiente">
+                        Deuda pendiente: <strong id="pago-pendiente-actual">S/0</strong>
                     </div>
-                    <div class="meta-info">
-                        <span>Ahorrado: <strong id="ahorrado-anual">S/0</strong></span>
-                        <span>Restante: <strong id="restante-anual">S/6000</strong></span>
+
+                    <div class="pago-descripcion">
+                        <label>Descripción (opcional)</label>
+                        <input type="text" id="pago-individual-descripcion" placeholder="Ej: Saqué para el cine">
+                    </div>
+
+                    <div class="pago-fecha">
+                        <label>Fecha del pago</label>
+                        <input type="date" id="pago-individual-fecha">
+                    </div>
+
+                    <div class="pago-botones" style="grid-column: span 2;">
+                        <button class="btn-cancelar" id="cancelar-pago-individual">Cancelar</button>
+                        <button class="btn-guardar" id="confirmar-pago-individual">Confirmar pago</button>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Lista de ahorros (AQUÍ VAN LOS FILTROS NUEVOS) -->
+        <!-- HISTORIAL DE PAGOS (nuevo) -->
+        <section class="pagos-historial-section">
+            <div class="list-header">
+                <h3><i class="fas fa-hand-holding-usd"></i> Historial de Pagos</h3>
+            </div>
+
+            <div class="pagos-container" id="pagos-container" style="max-height: 200px; overflow-y: auto;"></div>
+
+            <div class="empty-state" id="empty-state-pagos" style="display: none;">
+                <i class="far fa-smile-beam"></i>
+                <p>No hay pagos registrados</p>
+            </div>
+        </section>
+
+        <!-- Lista de ahorros (con filtros) -->
         <section class="ahorros-list-section">
             <div class="list-header">
-                <h3 id="list-title-ahorro">Todos los Ahorros</h3>
+                <h3 id="list-title-ahorro">Historial de Ahorros</h3>
                 <div class="list-actions">
                     <button class="list-action-btn" id="export-ahorro-btn" title="Exportar">
                         <i class="fas fa-file-export"></i>
@@ -207,7 +278,7 @@
                 </div>
             </div>
 
-            <!-- FILTROS NUEVOS PARA AHORROS -->
+            <!-- FILTROS (igual que antes) -->
             <div class="filtros-container" style="margin-bottom: 20px;">
                 <!-- Primera fila: Búsqueda y filtros básicos -->
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
@@ -257,7 +328,7 @@
                     </button>
                 </div>
 
-                <!-- Rango de fechas personalizado (oculto por defecto) -->
+                <!-- Rango de fechas personalizado -->
                 <div id="rango-fechas-ahorro" style="display: none; margin-top: 10px; padding: 15px; background: var(--card-bg); border-radius: 10px;">
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <div style="flex: 1;">
@@ -295,7 +366,7 @@
             </div>
 
             <!-- Lista de ahorros -->
-            <div class="ahorros-container" id="ahorros-container"></div>
+            <div class="ahorros-container" id="ahorros-container" style="max-height: 300px; overflow-y: auto;"></div>
 
             <!-- Estado vacío -->
             <div class="empty-state" id="empty-state-ahorro">
@@ -317,7 +388,31 @@
             </div>
         </section>
 
-        <!-- Modal para editar nombres -->
+        <!-- BARRA DE NAVEGACIÓN INFERIOR -->
+        <nav class="bottom-nav">
+            <button class="bottom-nav-btn" data-action="ver-inicio">
+                <i class="fas fa-home"></i>
+                <span>Inicio</span>
+            </button>
+            <button class="bottom-nav-btn active" data-action="ver-ahorros">
+                <i class="fas fa-piggy-bank"></i>
+                <span>Ahorro</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-limites">
+                <i class="fas fa-ban"></i>
+                <span>Límites</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-mis-finanzas">
+                <i class="fas fa-user"></i>
+                <span>Mis Finanzas</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-dias-especiales">
+                <i class="fas fa-star"></i>
+                <span>Días Especiales</span>
+            </button>
+        </nav>
+
+        <!-- MODALES -->
         <div class="modal" id="names-modal">
             <div class="modal-content">
                 <h3><i class="fas fa-users"></i> Personalizar Nombres</h3>
@@ -334,39 +429,6 @@
                 <div class="modal-actions">
                     <button class="modal-btn cancel" id="cancel-names">Cancelar</button>
                     <button class="modal-btn save" id="save-names">Guardar</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal para editar metas -->
-        <div class="modal" id="meta-modal">
-            <div class="modal-content">
-                <h3><i class="fas fa-bullseye"></i> Configurar Metas</h3>
-                <div class="modal-inputs">
-                    <div class="input-group-modal">
-                        <label for="meta-mensual-input">Meta mensual de ahorro:</label>
-                        <div class="input-with-currency">
-                            <span class="currency">S/</span>
-                            <input type="number" id="meta-mensual-input" value="500" min="0" step="50">
-                        </div>
-                    </div>
-                    <div class="input-group-modal">
-                        <label for="meta-anual-input">Meta anual de ahorro:</label>
-                        <div class="input-with-currency">
-                            <span class="currency">S/</span>
-                            <input type="number" id="meta-anual-input" value="6000" min="0" step="100">
-                        </div>
-                    </div>
-                    <div class="input-group-modal">
-                        <label for="reset-mensual">
-                            <input type="checkbox" id="reset-mensual">
-                            Reiniciar meta mensual cada mes
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" id="cancel-meta">Cancelar</button>
-                    <button class="modal-btn save" id="save-meta">Guardar</button>
                 </div>
             </div>
         </div>
@@ -418,6 +480,22 @@
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button class="modal-btn cancel" id="cancelar-limpiar-todo-ahorro">Cancelar</button>
                     <button class="modal-btn save" id="confirmar-limpiar-todo-ahorro" style="background: var(--accent-color);">Sí, eliminar todo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CONFIRMACIÓN DE PAGO -->
+        <div class="modal" id="modal-confirmar-pago-ahorro">
+            <div class="modal-content" style="text-align: center;">
+                <div style="font-size: 3rem; color: var(--success-color); margin-bottom: 20px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="margin-bottom: 15px;">¿Confirmar pago?</h3>
+                <p style="margin-bottom: 10px;" id="modal-pago-detalle-ahorro"></p>
+                <p style="margin-bottom: 20px; font-size: 1.2rem; color: var(--accent-color);" id="modal-pago-monto-ahorro"></p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="modal-btn cancel" id="cancelar-confirmacion-ahorro">Cancelar</button>
+                    <button class="modal-btn save" id="confirmar-pago-final-ahorro">Sí, confirmar</button>
                 </div>
             </div>
         </div>
