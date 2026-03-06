@@ -562,3 +562,122 @@
         align-items: flex-start;
     }
 }
+
+/* ==================== */
+/* FIX PARA MÓVIL - FORMULARIO DE PAGO */
+/* ==================== */
+
+@media (max-width: 480px) {
+    /* Hacer el formulario más compacto */
+    .pago-individual-section {
+        padding: 15px;
+    }
+    
+    .pago-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .pago-info-persona,
+    .pago-info-pendiente {
+        grid-column: 1;
+        font-size: 0.95rem;
+        padding: 8px;
+    }
+    
+    .pago-monto input,
+    .pago-descripcion input,
+    .pago-fecha input {
+        padding: 12px !important;
+        font-size: 16px !important; /* Evita zoom en iOS */
+    }
+    
+    .pago-botones {
+        grid-column: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 5px;
+    }
+    
+    .pago-botones button {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+    }
+    
+    /* FIX PARA HISTORIAL DE PAGOS - Botón de eliminar */
+    .pago-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+        padding-right: 40px; /* Espacio para el botón eliminar */
+    }
+    
+    .pago-info {
+        flex: 1;
+        min-width: 0; /* Permite que el texto se encoja */
+    }
+    
+    .pago-monto {
+        font-size: 1rem;
+        white-space: nowrap;
+    }
+    
+    .delete-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(245, 101, 101, 0.1);
+        border-radius: 50%;
+        margin: 0 !important;
+    }
+    
+    .delete-btn i {
+        font-size: 1rem;
+    }
+    
+    /* Ajustar el contenedor de pagos para que el botón no se corte */
+    .pagos-container {
+        padding-right: 5px;
+    }
+    
+    .pago-item {
+        padding: 12px;
+        position: relative;
+    }
+    
+    /* FIX para el selector de fecha en móvil */
+    .date-selector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .date-selector input {
+        width: 100%;
+    }
+    
+    /* FIX para el selector de fecha en deudas */
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .balance-date-selector {
+        width: 100%;
+    }
+    
+    .balance-date-selector select,
+    .balance-date-selector input {
+        width: 100%;
+    }
+}
