@@ -1,5 +1,6 @@
+<!-- --> File: limites.html
 <!DOCTYPE html>
-<html lang="-es">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚫</text></svg>">
 </head>
-<body>
+<body class="has-bottom-nav">
     <!-- Modo oscuro toggle -->
     <div class="theme-toggle">
         <button id="theme-btn">
@@ -36,7 +37,7 @@
             </div>
         </header>
 
-        <!-- Sección de opciones de límite -->
+        <!-- Sección de opciones de límite (existente) -->
         <section class="opciones-section">
             <h3><i class="fas fa-sliders-h"></i> Selecciona tu Límite Diario</h3>
             <p class="section-subtitle">El exceso se divide entre ambos como ahorro forzado</p>
@@ -102,7 +103,7 @@
             </div>
         </section>
 
-        <!-- Sección de entrada -->
+        <!-- Sección de entrada (existente) -->
         <section class="input-section">
             <div class="opcion-seleccionada" id="opcion-seleccionada-info" style="display: none;">
                 <div class="selected-opcion">
@@ -137,7 +138,7 @@
             </button>
         </section>
 
-        <!-- Resultado del cálculo -->
+        <!-- Resultado del cálculo (existente pero con cálculo mejorado) -->
         <section class="result-section" id="result-section" style="display: none;">
             <h3><i class="fas fa-chart-bar"></i> Resultado del Día</h3>
             
@@ -212,7 +213,149 @@
             </button>
         </section>
 
-        <!-- Resumen rápido -->
+        <!-- ==================== -->
+        <!-- NUEVA SECCIÓN: DEUDAS DE AHORRO FORZADO -->
+        <!-- ==================== -->
+        <section class="deudas-individuales-section">
+            <div class="section-header">
+                <h3><i class="fas fa-hand-holding-heart"></i> Deuda de Ahorro Forzado</h3>
+                <div class="balance-date-selector">
+                    <select id="deuda-fecha-selector">
+                        <option value="today">Hoy</option>
+                        <option value="yesterday">Ayer</option>
+                        <option value="all">Todo el historial</option>
+                        <option value="custom">Elegir fecha...</option>
+                    </select>
+                    <input type="date" id="deuda-fecha-custom" style="display: none; margin-top: 10px; width: 100%; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color);">
+                </div>
+            </div>
+
+            <!-- Barra de Yo -->
+            <div class="deuda-individual">
+                <div class="deuda-header">
+                    <div>
+                        <span class="deuda-nombre" id="deuda-nombre-yo">Yo</span>
+                        <span class="deuda-total" id="deuda-total-yo">S/0</span>
+                    </div>
+                    <div class="deuda-pagado">
+                        <span>Pagado: <strong id="pagado-yo">S/0</strong></span>
+                        <span>Pendiente: <strong id="pendiente-yo">S/0</strong></span>
+                    </div>
+                </div>
+                <div class="deuda-bar-container">
+                    <div class="deuda-bar-yo" id="deuda-bar-yo" style="width: 0%">
+                        <span class="deuda-bar-text" id="deuda-porcentaje-yo">0%</span>
+                    </div>
+                </div>
+                <div class="deuda-acciones">
+                    <button class="btn-pagar-individual" data-persona="persona1">
+                        <i class="fas fa-money-bill-wave"></i> Pagar mi parte
+                    </button>
+                </div>
+            </div>
+
+            <!-- Barra de Ella -->
+            <div class="deuda-individual">
+                <div class="deuda-header">
+                    <div>
+                        <span class="deuda-nombre" id="deuda-nombre-ella">Ella</span>
+                        <span class="deuda-total" id="deuda-total-ella">S/0</span>
+                    </div>
+                    <div class="deuda-pagado">
+                        <span>Pagado: <strong id="pagado-ella">S/0</strong></span>
+                        <span>Pendiente: <strong id="pendiente-ella">S/0</strong></span>
+                    </div>
+                </div>
+                <div class="deuda-bar-container">
+                    <div class="deuda-bar-ella" id="deuda-bar-ella" style="width: 0%">
+                        <span class="deuda-bar-text" id="deuda-porcentaje-ella">0%</span>
+                    </div>
+                </div>
+                <div class="deuda-acciones">
+                    <button class="btn-pagar-individual" data-persona="persona2">
+                        <i class="fas fa-money-bill-wave"></i> Pagar su parte
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totales generales -->
+            <div class="deuda-totales-generales">
+                <div class="total-general-item">
+                    <span>Total ahorro generado:</span>
+                    <strong id="total-generado">S/0</strong>
+                </div>
+                <div class="total-general-item">
+                    <span>Total pagado:</span>
+                    <strong id="total-pagado-general">S/0</strong>
+                </div>
+                <div class="total-general-item total-pendiente">
+                    <span>Pendiente total:</span>
+                    <strong id="total-pendiente-general">S/0</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== -->
+        <!-- FORMULARIO DE PAGO (OCULTO) -->
+        <!-- ==================== -->
+        <section class="pago-individual-section" id="pago-individual-section" style="display: none;">
+            <div class="section-header">
+                <h3><i class="fas fa-hand-holding-usd"></i> Pagar deuda de ahorro</h3>
+                <button class="btn-cerrar-pago" id="cerrar-pago-form">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="pago-form" id="pago-individual-form">
+                <div class="pago-grid">
+                    <div class="pago-info-persona" id="pago-info-persona">
+                        Pagando deuda de: <strong id="pago-persona-nombre"></strong>
+                    </div>
+                    
+                    <div class="pago-monto">
+                        <label>Monto a pagar (S/)</label>
+                        <input type="number" id="pago-individual-monto" step="0.01" min="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="pago-info-pendiente" id="pago-info-pendiente">
+                        Deuda pendiente: <strong id="pago-pendiente-actual">S/0</strong>
+                    </div>
+
+                    <div class="pago-descripcion">
+                        <label>Descripción (opcional)</label>
+                        <input type="text" id="pago-individual-descripcion" placeholder="Ej: Saqué para el cine">
+                    </div>
+
+                    <div class="pago-fecha">
+                        <label>Fecha del pago</label>
+                        <input type="date" id="pago-individual-fecha">
+                    </div>
+
+                    <div class="pago-botones" style="grid-column: span 2;">
+                        <button class="btn-cancelar" id="cancelar-pago-individual">Cancelar</button>
+                        <button class="btn-guardar" id="confirmar-pago-individual">Confirmar pago</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== -->
+        <!-- NUEVO: HISTORIAL DE PAGOS -->
+        <!-- ==================== -->
+        <section class="pagos-historial-section">
+            <div class="list-header">
+                <h3><i class="fas fa-hand-holding-usd"></i> Historial de Pagos</h3>
+            </div>
+
+            <div class="pagos-container" id="pagos-container" style="max-height: 200px; overflow-y: auto;"></div>
+
+            <div class="empty-state" id="empty-state-pagos" style="display: none;">
+                <i class="far fa-smile-beam"></i>
+                <p>No hay pagos registrados</p>
+            </div>
+        </section>
+
+        <!-- Resumen rápido (existente) -->
         <section class="quick-summary">
             <div class="summary-card">
                 <h4><i class="far fa-clock"></i> Hoy</h4>
@@ -228,37 +371,7 @@
             </div>
         </section>
 
-        <!-- Sección de gráficos -->
-        <section class="charts-section" id="charts-section">
-            <div class="charts-header">
-                <h3><i class="fas fa-chart-bar"></i> Resumen Visual</h3>
-                <div class="chart-options">
-                    <button class="chart-option active" data-chart="excesos">Excesos por Día</button>
-                    <button class="chart-option" data-chart="ahorros">Ahorro Forzado</button>
-                </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="limites-chart"></canvas>
-            </div>
-        </section>
-
-        <!-- Botones de acción (opcionales, puedes mantenerlos) -->
-        <section class="action-buttons">
-            <button class="action-btn" data-action="ver-mis-limites">
-                <i class="fas fa-user"></i> Mis Excesos
-            </button>
-            <button class="action-btn" data-action="ver-sus-limites">
-                <i class="fas fa-user-friends"></i> Sus Excesos
-            </button>
-            <button class="action-btn" data-action="ver-semana-limites">
-                <i class="fas fa-calendar-week"></i> Esta Semana
-            </button>
-            <button class="action-btn" data-action="ver-todos-limites">
-                <i class="fas fa-list"></i> Todos
-            </button>
-        </section>
-
-        <!-- Lista de registros (AQUÍ VAN LOS FILTROS NUEVOS) -->
+        <!-- Lista de registros (existente) -->
         <section class="gastos-list-section">
             <div class="list-header">
                 <h3 id="list-title-limites">Historial de Límites</h3>
@@ -269,7 +382,7 @@
                 </div>
             </div>
 
-            <!-- FILTROS NUEVOS PARA LÍMITES -->
+            <!-- FILTROS -->
             <div class="filtros-container" style="margin-bottom: 20px;">
                 <!-- Primera fila: Búsqueda y filtros básicos -->
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px;">
@@ -369,6 +482,30 @@
             </div>
         </section>
 
+        <!-- BARRA DE NAVEGACIÓN INFERIOR (NUEVA) -->
+        <nav class="bottom-nav">
+            <button class="bottom-nav-btn" data-action="ver-inicio">
+                <i class="fas fa-home"></i>
+                <span>Inicio</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-ahorros">
+                <i class="fas fa-piggy-bank"></i>
+                <span>Ahorro</span>
+            </button>
+            <button class="bottom-nav-btn active" data-action="ver-limites">
+                <i class="fas fa-ban"></i>
+                <span>Límites</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-mis-finanzas">
+                <i class="fas fa-user"></i>
+                <span>Mis Finanzas</span>
+            </button>
+            <button class="bottom-nav-btn" data-action="ver-dias-especiales">
+                <i class="fas fa-star"></i>
+                <span>Días Especiales</span>
+            </button>
+        </nav>
+
         <!-- Modal para editar nombres -->
         <div class="modal" id="names-modal">
             <div class="modal-content">
@@ -403,6 +540,22 @@
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button class="modal-btn cancel" id="cancelar-limpiar-todo-limites">Cancelar</button>
                     <button class="modal-btn save" id="confirmar-limpiar-todo-limites" style="background: var(--accent-color);">Sí, eliminar todo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CONFIRMACIÓN DE PAGO (NUEVO) -->
+        <div class="modal" id="modal-confirmar-pago-limites">
+            <div class="modal-content" style="text-align: center;">
+                <div style="font-size: 3rem; color: var(--success-color); margin-bottom: 20px;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 style="margin-bottom: 15px;">¿Confirmar pago?</h3>
+                <p style="margin-bottom: 10px;" id="modal-pago-detalle-limites"></p>
+                <p style="margin-bottom: 20px; font-size: 1.2rem; color: var(--accent-color);" id="modal-pago-monto-limites"></p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="modal-btn cancel" id="cancelar-confirmacion-limites">Cancelar</button>
+                    <button class="modal-btn save" id="confirmar-pago-final-limites">Sí, confirmar</button>
                 </div>
             </div>
         </div>

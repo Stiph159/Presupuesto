@@ -1,5 +1,3 @@
-/* Estilos específicos para la página de límites */
-
 /* Botón de volver */
 .back-button {
     margin-bottom: 20px;
@@ -16,6 +14,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    transition: all 0.3s;
 }
 
 #back-btn:hover {
@@ -23,7 +22,313 @@
     color: white;
 }
 
-/* Sección de opciones */
+/* ==================== */
+/* SECCIÓN DE DEUDAS INDIVIDUALES (NUEVA) */
+/* ==================== */
+
+.deudas-individuales-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.balance-date-selector select {
+    padding: 8px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.deuda-individual {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.deuda-individual:last-child {
+    margin-bottom: 0;
+}
+
+.deuda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.deuda-header > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.deuda-nombre {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--text-color);
+}
+
+.deuda-total {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.deuda-pagado {
+    display: flex;
+    gap: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.deuda-pagado strong {
+    color: var(--primary-color);
+    margin-left: 5px;
+}
+
+.deuda-bar-container {
+    height: 30px;
+    background: var(--border-color);
+    border-radius: 15px;
+    overflow: hidden;
+    margin: 15px 0;
+    position: relative;
+}
+
+.deuda-bar-yo {
+    height: 100%;
+    background: linear-gradient(135deg, #4299e1, #667eea);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.deuda-bar-ella {
+    height: 100%;
+    background: linear-gradient(135deg, #ed64a6, #f56565);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 15px;
+    font-weight: bold;
+    transition: width 0.5s;
+    white-space: nowrap;
+}
+
+.deuda-bar-text {
+    font-size: 0.9rem;
+}
+
+.deuda-acciones {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-pagar-individual {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.btn-pagar-individual:hover {
+    transform: scale(1.05);
+    box-shadow: var(--hover-shadow);
+}
+
+/* Totales generales */
+.deuda-totales-generales {
+    margin-top: 25px;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    border-radius: 15px;
+    color: white;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.total-general-item {
+    text-align: center;
+}
+
+.total-general-item span {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.total-general-item strong {
+    font-size: 1.2rem;
+}
+
+.total-pendiente strong {
+    color: #ffd700;
+}
+
+/* ==================== */
+/* FORMULARIO DE PAGO INDIVIDUAL (NUEVO) */
+/* ==================== */
+
+.pago-individual-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.btn-cerrar-pago {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-cerrar-pago:hover {
+    background: var(--bg-color);
+    color: var(--accent-color);
+}
+
+.pago-info-persona,
+.pago-info-pendiente {
+    grid-column: span 2;
+    padding: 10px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.pago-info-persona strong,
+.pago-info-pendiente strong {
+    color: var(--primary-color);
+    margin-left: 5px;
+}
+
+/* ==================== */
+/* HISTORIAL DE PAGOS (NUEVO) */
+/* ==================== */
+
+.pagos-historial-section {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 25px;
+}
+
+.pagos-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.pagos-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pagos-container::-webkit-scrollbar-track {
+    background: var(--bg-color);
+    border-radius: 4px;
+}
+
+.pagos-container::-webkit-scrollbar-thumb {
+    background: var(--success-color);
+    border-radius: 4px;
+}
+
+.pago-item {
+    background: var(--bg-color);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--success-color);
+}
+
+.pago-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    position: relative;
+    padding-right: 40px;
+}
+
+.pago-icon {
+    font-size: 1.5rem;
+    color: var(--success-color);
+}
+
+.pago-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.pago-descripcion {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.pago-detalle {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.pago-monto {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.pago-persona {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+/* ==================== */
+/* SECCIÓN DE OPCIONES (existente) */
+/* ==================== */
+
 .opciones-section {
     background: var(--card-bg);
     padding: 25px;
@@ -127,9 +432,14 @@
     align-items: center;
     color: var(--text-color);
     font-weight: 600;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-/* Result section */
+/* ==================== */
+/* RESULT SECTION (existente) */
+/* ==================== */
+
 .result-section {
     background: var(--card-bg);
     padding: 25px;
@@ -331,7 +641,10 @@
     font-size: 1.2rem;
 }
 
-/* Responsive */
+/* ==================== */
+/* FIX PARA MÓVIL */
+/* ==================== */
+
 @media (max-width: 768px) {
     .opciones-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -351,6 +664,11 @@
         gap: 10px;
         text-align: center;
     }
+    
+    .deuda-totales-generales {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -360,5 +678,80 @@
     
     .result-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .pago-individual-section {
+        padding: 15px;
+    }
+    
+    .pago-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .pago-info-persona,
+    .pago-info-pendiente {
+        grid-column: 1;
+        font-size: 0.95rem;
+        padding: 8px;
+    }
+    
+    .pago-monto input,
+    .pago-descripcion input,
+    .pago-fecha input {
+        padding: 12px !important;
+        font-size: 16px !important;
+    }
+    
+    .pago-botones {
+        grid-column: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 5px;
+    }
+    
+    .pago-botones button {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+    }
+    
+    .pago-header {
+        padding-right: 40px;
+    }
+    
+    .delete-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(245, 101, 101, 0.1);
+        border-radius: 50%;
+        margin: 0 !important;
+    }
+    
+    .delete-btn i {
+        font-size: 1rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .balance-date-selector {
+        width: 100%;
+    }
+    
+    .balance-date-selector select,
+    .balance-date-selector input {
+        width: 100%;
     }
 }

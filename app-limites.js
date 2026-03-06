@@ -1,7 +1,10 @@
-// File: app-limites.js - VERSIÓN CON FILTROS NUEVOS
+// File: app-limites.js
+// ====================
+// VARIABLES GLOBALES
 // ====================
 
-let registrosLimites = [];
+let registrosLimites = [];      // Registros de límites (existentes)
+let pagosLimites = [];          // NUEVO: Pagos de ahorro forzado
 let configLimites = {
     nombres: {
         persona1: 'Yo',
@@ -12,7 +15,9 @@ let configLimites = {
 let limiteSeleccionado = null;
 let chartLimitesInstance = null;
 let unsubscribeLimites = null;
+let unsubscribePagosLimites = null;  // NUEVO
 let unsubscribeConfigLimites = null;
+let ignoreNextSnapshot = false;
 
 // ====================
 // FUNCIONES FIREBASE
@@ -21,8 +26,23 @@ let unsubscribeConfigLimites = null;
 async function initFirebaseLimites() {
     try {
         console.log("🚫 Inicializando Firebase para límites...");
+        
+        if (typeof firebase === 'undefined') {
+            console.error("Firebase no está cargado");
+            mostrarNotificacion("⚠️ Firebase no disponible", "warning");
+            return false;
+        }
+        
+        try {
+            await firebase.auth().signInAnonymously();
+            console.log("✅ Autenticado anónimamente");
+        } catch (authError) {
+            console.warn("No se pudo autenticar:", authError);
+        }
+        
         await loadConfigLimitesFromFirebase();
         setupRealtimeListenersLimites();
+        
         mostrarNotificacion("✅ Límites conectados a la nube", "success");
         return true;
     } catch (error) {
@@ -50,15 +70,22 @@ async function loadConfigLimitesFromFirebase() {
 
 function setupRealtimeListenersLimites() {
     if (unsubscribeLimites) unsubscribeLimites();
+    if (unsubscribePagosLimites) unsubscribePagosLimites();
     if (unsubscribeConfigLimites) unsubscribeConfigLimites();
     
     const db = firebase.firestore();
     
+    // Listener para registros de límites (existente)
     unsubscribeLimites = db.collection('limites')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("🚫 Cambios detectados en límites:", snapshot.docChanges().length);
+            if (ignoreNextSnapshot) {
+                ignoreNextSnapshot = false;
+                return;
+            }
+            
+            console.log("📊 Cambios detectados en límites:", snapshot.docChanges().length);
             
             snapshot.docChanges().forEach(cambio => {
                 const limiteData = {
@@ -75,8 +102,7 @@ function setupRealtimeListenersLimites() {
                         const temporalIndex = registrosLimites.findIndex(r => 
                             r.id.toString().startsWith('temp_') && 
                             r.fecha === limiteData.fecha && 
-                            Math.abs(r.gastoReal - limiteData.gastoReal) < 0.01 &&
-                            Math.abs(r.exceso - limiteData.exceso) < 0.01
+                            Math.abs(r.gastoReal - limiteData.gastoReal) < 0.01
                         );
                         
                         if (temporalIndex !== -1) {
@@ -107,17 +133,59 @@ function setupRealtimeListenersLimites() {
                 }
             });
             
-            registrosLimites.sort((a, b) => {
-                const dateA = a.timestamp || new Date(a.fecha);
-                const dateB = b.timestamp || new Date(b.fecha);
-                return dateB - dateA;
-            });
-            
+            registrosLimites.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             actualizarUILimites();
             saveLimitesToLocalStorage();
             
         }, (error) => {
             console.error("❌ Error en listener:", error);
+        });
+    
+    // NUEVO: Listener para pagos de límites
+    unsubscribePagosLimites = db.collection('pagos_limites')
+        .where('sharedId', '==', 'nuestra_pareja')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot((snapshot) => {
+            if (ignoreNextSnapshot) {
+                ignoreNextSnapshot = false;
+                return;
+            }
+            
+            console.log("💸 Cambios en pagos de límites:", snapshot.docChanges().length);
+            
+            snapshot.docChanges().forEach(cambio => {
+                const pagoData = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
+                };
+                
+                if (pagoData.timestamp && pagoData.timestamp.toDate) {
+                    pagoData.timestamp = pagoData.timestamp.toDate();
+                }
+                
+                switch (cambio.type) {
+                    case 'added':
+                        if (!pagosLimites.some(p => p.id === pagoData.id)) {
+                            pagosLimites.push(pagoData);
+                            mostrarNotificacion(`💸 Nuevo pago registrado`, 'info');
+                        }
+                        break;
+                    case 'modified':
+                        const indexMod = pagosLimites.findIndex(p => p.id === pagoData.id);
+                        if (indexMod !== -1) pagosLimites[indexMod] = pagoData;
+                        break;
+                    case 'removed':
+                        pagosLimites = pagosLimites.filter(p => p.id !== pagoData.id);
+                        mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
+                        break;
+                }
+            });
+            
+            pagosLimites.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            actualizarUILimites();
+            saveLimitesToLocalStorage();
+        }, (error) => {
+            console.error("❌ Error en listener de pagos:", error);
         });
     
     unsubscribeConfigLimites = db.collection('config')
@@ -152,19 +220,74 @@ async function saveLimiteToFirebase(limite) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
+        ignoreNextSnapshot = true;
         const docRef = await db.collection('limites').add(limiteData);
+        
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
+        
         return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando:", error);
+        ignoreNextSnapshot = false;
+        throw error;
+    }
+}
+
+async function savePagoLimiteToFirebase(pago) {
+    try {
+        const db = firebase.firestore();
+        const pagoData = {
+            fecha: pago.fecha,
+            monto: pago.monto,
+            descripcion: pago.descripcion,
+            persona: pago.persona,
+            sharedId: 'nuestra_pareja',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        ignoreNextSnapshot = true;
+        const docRef = await db.collection('pagos_limites').add(pagoData);
+        
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
+        
+        return docRef.id;
+    } catch (error) {
+        console.error("❌ Error guardando pago:", error);
+        ignoreNextSnapshot = false;
         throw error;
     }
 }
 
 async function deleteLimiteFromFirebase(id) {
     try {
+        ignoreNextSnapshot = true;
         await firebase.firestore().collection('limites').doc(id).delete();
+        
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
     } catch (error) {
         console.error("❌ Error eliminando:", error);
+        ignoreNextSnapshot = false;
+        throw error;
+    }
+}
+
+async function deletePagoLimiteFromFirebase(id) {
+    try {
+        ignoreNextSnapshot = true;
+        await firebase.firestore().collection('pagos_limites').doc(id).delete();
+        
+        setTimeout(() => {
+            ignoreNextSnapshot = false;
+        }, 2000);
+    } catch (error) {
+        console.error("❌ Error eliminando pago:", error);
+        ignoreNextSnapshot = false;
         throw error;
     }
 }
@@ -176,6 +299,7 @@ async function deleteLimiteFromFirebase(id) {
 function saveLimitesToLocalStorage() {
     try {
         localStorage.setItem('limites_registros', JSON.stringify(registrosLimites));
+        localStorage.setItem('pagos_limites', JSON.stringify(pagosLimites));
         localStorage.setItem('gastos_config', JSON.stringify(configLimites));
     } catch (error) {
         console.error("Error guardando:", error);
@@ -185,9 +309,11 @@ function saveLimitesToLocalStorage() {
 function loadLimitesFromLocalStorage() {
     try {
         const savedLimites = localStorage.getItem('limites_registros');
+        const savedPagos = localStorage.getItem('pagos_limites');
         const savedConfig = localStorage.getItem('gastos_config');
         
         if (savedLimites) registrosLimites = JSON.parse(savedLimites);
+        if (savedPagos) pagosLimites = JSON.parse(savedPagos);
         if (savedConfig) configLimites = JSON.parse(savedConfig);
     } catch (error) {
         console.error("Error cargando:", error);
@@ -216,23 +342,512 @@ function inicializarAppLimites() {
     actualizarIconoTema(temaGuardado);
     
     configurarEventosLimites();
-    configurarFiltrosLimites(); // <-- NUEVO
+    configurarFiltrosLimites();
+    configurarSelectorFecha();
+    configurarBarraInferior();
     actualizarNombresEnUILimites();
     
-    document.getElementById('fecha-limite').value = new Date().toISOString().split('T')[0];
+    // Fecha actual con ajuste de zona horaria
+    const fechaLocal = obtenerFechaLocal();
+    document.getElementById('fecha-limite').value = fechaLocal;
+    document.getElementById('pago-individual-fecha').value = fechaLocal;
     
-    inicializarGraficoLimites();
+    // Eliminar gráficos (sección eliminada)
+    const chartsSection = document.getElementById('charts-section');
+    if (chartsSection) chartsSection.remove();
+}
+
+function obtenerFechaLocal() {
+    const ahora = new Date();
+    return new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000))
+        .toISOString().split('T')[0];
 }
 
 function actualizarNombresEnUILimites() {
     if (configLimites.nombres) {
         document.getElementById('name-persona1-result').textContent = configLimites.nombres.persona1;
         document.getElementById('name-persona2-result').textContent = configLimites.nombres.persona2;
+        
+        document.getElementById('deuda-nombre-yo').textContent = configLimites.nombres.persona1;
+        document.getElementById('deuda-nombre-ella').textContent = configLimites.nombres.persona2;
     }
 }
 
 // ====================
-// NUEVAS FUNCIONES DE FILTROS
+// NUEVO: SELECTOR DE FECHA
+// ====================
+
+function configurarSelectorFecha() {
+    const selector = document.getElementById('deuda-fecha-selector');
+    const fechaCustom = document.getElementById('deuda-fecha-custom');
+    
+    if (!selector) return;
+    
+    selector.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            fechaCustom.style.display = 'block';
+            if (!fechaCustom.value) {
+                fechaCustom.value = obtenerFechaLocal();
+            }
+        } else {
+            fechaCustom.style.display = 'none';
+        }
+        actualizarDeudasPorFecha();
+    });
+    
+    fechaCustom.addEventListener('change', function() {
+        actualizarDeudasPorFecha();
+    });
+}
+
+// ====================
+// NUEVAS FUNCIONES DE CÁLCULO DE DEUDAS
+// ====================
+
+function obtenerFechaFiltro() {
+    const selector = document.getElementById('deuda-fecha-selector').value;
+    const fechaCustom = document.getElementById('deuda-fecha-custom').value;
+    
+    if (selector === 'today') return obtenerFechaLocal();
+    if (selector === 'yesterday') {
+        const ayer = new Date();
+        ayer.setDate(ayer.getDate() - 1);
+        return new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000))
+            .toISOString().split('T')[0];
+    }
+    if (selector === 'custom' && fechaCustom) return fechaCustom;
+    return null; // null significa "todo el historial"
+}
+
+function calcularDeudas() {
+    const fechaFiltro = obtenerFechaFiltro();
+    
+    // Filtrar registros de límites por fecha
+    let registrosFiltrados = [...registrosLimites];
+    if (fechaFiltro) {
+        registrosFiltrados = registrosFiltrados.filter(r => r.fecha === fechaFiltro);
+    }
+    
+    // Filtrar pagos por fecha
+    let pagosFiltrados = [...pagosLimites];
+    if (fechaFiltro) {
+        pagosFiltrados = pagosFiltrados.filter(p => p.fecha === fechaFiltro);
+    }
+    
+    // Total de ahorro generado (suma de ahorroTotal)
+    const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
+    
+    // Cada uno debe la mitad del total generado
+    const debeCadaUno = totalGenerado / 2;
+    
+    // Pagos por persona
+    const pagadoYo = pagosFiltrados.filter(p => p.persona === 'persona1')
+        .reduce((sum, p) => sum + p.monto, 0);
+    const pagadoElla = pagosFiltrados.filter(p => p.persona === 'persona2')
+        .reduce((sum, p) => sum + p.monto, 0);
+    
+    // Deudas actuales
+    const deudaYo = Math.max(0, debeCadaUno - pagadoYo);
+    const deudaElla = Math.max(0, debeCadaUno - pagadoElla);
+    
+    return {
+        totalGenerado,
+        debeCadaUno,
+        pagadoYo,
+        pagadoElla,
+        deudaYo,
+        deudaElla,
+        totalPagado: pagadoYo + pagadoElla,
+        totalPendiente: deudaYo + deudaElla
+    };
+}
+
+function actualizarDeudasPorFecha() {
+    const calculos = calcularDeudas();
+    
+    // Actualizar UI
+    document.getElementById('deuda-total-yo').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
+    document.getElementById('deuda-total-ella').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
+    
+    document.getElementById('pagado-yo').textContent = `S/${calculos.pagadoYo.toFixed(2)}`;
+    document.getElementById('pagado-ella').textContent = `S/${calculos.pagadoElla.toFixed(2)}`;
+    
+    document.getElementById('pendiente-yo').textContent = `S/${calculos.deudaYo.toFixed(2)}`;
+    document.getElementById('pendiente-ella').textContent = `S/${calculos.deudaElla.toFixed(2)}`;
+    
+    // Barras de progreso
+    const porcentajeYo = calculos.debeCadaUno > 0 ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 : 0;
+    const porcentajeElla = calculos.debeCadaUno > 0 ? (calculos.pagadoElla / calculos.debeCadaUno) * 100 : 0;
+    
+    document.getElementById('deuda-bar-yo').style.width = `${porcentajeYo}%`;
+    document.getElementById('deuda-bar-ella').style.width = `${porcentajeElla}%`;
+    
+    document.getElementById('deuda-porcentaje-yo').textContent = `${porcentajeYo.toFixed(1)}%`;
+    document.getElementById('deuda-porcentaje-ella').textContent = `${porcentajeElla.toFixed(1)}%`;
+    
+    // Totales generales
+    document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)}`;
+    document.getElementById('total-pagado-general').textContent = `S/${calculos.totalPagado.toFixed(2)}`;
+    document.getElementById('total-pendiente-general').textContent = `S/${calculos.totalPendiente.toFixed(2)}`;
+}
+
+// ====================
+// NUEVO: FUNCIONES DE PAGO
+// ====================
+
+let personaPagoSeleccionada = null;
+
+function abrirFormularioPago(persona) {
+    personaPagoSeleccionada = persona;
+    const nombre = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+    
+    const fechaFiltro = obtenerFechaFiltro();
+    let deudaActual = 0;
+    
+    if (fechaFiltro) {
+        const registrosFiltrados = registrosLimites.filter(r => r.fecha === fechaFiltro);
+        const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
+        const debe = totalGenerado / 2;
+        const pagado = pagosLimites.filter(p => p.fecha === fechaFiltro && p.persona === persona)
+            .reduce((sum, p) => sum + p.monto, 0);
+        deudaActual = debe - pagado;
+    } else {
+        const totalGenerado = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
+        const debe = totalGenerado / 2;
+        const pagado = pagosLimites.filter(p => p.persona === persona)
+            .reduce((sum, p) => sum + p.monto, 0);
+        deudaActual = debe - pagado;
+    }
+    
+    document.getElementById('pago-persona-nombre').textContent = nombre;
+    document.getElementById('pago-pendiente-actual').textContent = `S/${Math.max(0, deudaActual).toFixed(2)}`;
+    document.getElementById('pago-individual-monto').value = '';
+    document.getElementById('pago-individual-descripcion').value = '';
+    document.getElementById('pago-individual-fecha').value = obtenerFechaLocal();
+    
+    document.getElementById('pago-individual-section').style.display = 'block';
+}
+
+function cerrarFormularioPago() {
+    document.getElementById('pago-individual-section').style.display = 'none';
+    personaPagoSeleccionada = null;
+}
+
+function mostrarModalConfirmacionPago() {
+    const monto = document.getElementById('pago-individual-monto').value;
+    const persona = personaPagoSeleccionada;
+    const nombre = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+    
+    if (!monto || parseFloat(monto) <= 0) {
+        mostrarNotificacion('Ingresa un monto válido', 'error');
+        return;
+    }
+    
+    // Validar que no pague más de lo que debe
+    const fechaFiltro = obtenerFechaFiltro();
+    let deudaActual = 0;
+    
+    if (fechaFiltro) {
+        const registrosFiltrados = registrosLimites.filter(r => r.fecha === fechaFiltro);
+        const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
+        const debe = totalGenerado / 2;
+        const pagado = pagosLimites.filter(p => p.fecha === fechaFiltro && p.persona === persona)
+            .reduce((sum, p) => sum + p.monto, 0);
+        deudaActual = debe - pagado;
+    } else {
+        const totalGenerado = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
+        const debe = totalGenerado / 2;
+        const pagado = pagosLimites.filter(p => p.persona === persona)
+            .reduce((sum, p) => sum + p.monto, 0);
+        deudaActual = debe - pagado;
+    }
+    
+    if (parseFloat(monto) > deudaActual + 0.01) {
+        mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
+        return;
+    }
+    
+    document.getElementById('modal-pago-detalle-limites').textContent = `${nombre} va a pagar S/${parseFloat(monto).toFixed(2)}`;
+    document.getElementById('modal-pago-monto-limites').textContent = `S/${parseFloat(monto).toFixed(2)}`;
+    
+    document.getElementById('modal-confirmar-pago-limites').classList.add('active');
+}
+
+async function guardarPago() {
+    const monto = parseFloat(document.getElementById('pago-individual-monto').value);
+    const descripcion = document.getElementById('pago-individual-descripcion').value.trim();
+    const fecha = document.getElementById('pago-individual-fecha').value;
+    
+    const nuevoPago = {
+        id: 'temp_' + Date.now(),
+        fecha: fecha,
+        monto: monto,
+        descripcion: descripcion || 'Pago de ahorro forzado',
+        persona: personaPagoSeleccionada,
+        timestamp: new Date()
+    };
+    
+    pagosLimites.unshift(nuevoPago);
+    actualizarUILimites();
+    
+    cerrarFormularioPago();
+    document.getElementById('modal-confirmar-pago-limites').classList.remove('active');
+    
+    const nombrePersona = personaPagoSeleccionada === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+    mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
+    
+    try {
+        await savePagoLimiteToFirebase(nuevoPago);
+    } catch (error) {
+        console.error("Error guardando pago:", error);
+    }
+    
+    saveLimitesToLocalStorage();
+}
+
+async function eliminarPagoLimite(id) {
+    if (!confirm('¿Eliminar este registro de pago?')) return;
+    
+    mostrarNotificacion('⏳ Eliminando...', 'info');
+    
+    const pagoEliminado = pagosLimites.find(p => p.id === id);
+    pagosLimites = pagosLimites.filter(p => p.id !== id);
+    actualizarUILimites();
+    
+    try {
+        if (id && !id.toString().startsWith('temp_')) {
+            await deletePagoLimiteFromFirebase(id);
+            mostrarNotificacion('✅ Pago eliminado', 'success');
+        } else {
+            mostrarNotificacion('✅ Pago eliminado (local)', 'success');
+        }
+    } catch (error) {
+        console.error("Error eliminando:", error);
+        if (pagoEliminado) {
+            pagosLimites.push(pagoEliminado);
+            actualizarUILimites();
+        }
+        mostrarNotificacion('Error al eliminar', 'error');
+    }
+    
+    saveLimitesToLocalStorage();
+}
+
+function mostrarPagos() {
+    const container = document.getElementById('pagos-container');
+    const emptyState = document.getElementById('empty-state-pagos');
+    
+    if (!container) return;
+    
+    if (pagosLimites.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    
+    let html = '';
+    pagosLimites.slice(0, 20).forEach(pago => {
+        const nombrePersona = pago.persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+        
+        const fecha = new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short'
+        });
+        
+        html += `
+            <div class="pago-item">
+                <div class="pago-header">
+                    <div class="pago-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="pago-info">
+                        <div class="pago-descripcion">${pago.descripcion}</div>
+                        <div class="pago-detalle">
+                            <span class="pago-persona">${nombrePersona}</span>
+                            <span class="pago-fecha">${fecha}</span>
+                        </div>
+                    </div>
+                    <div class="pago-monto">S/${pago.monto.toFixed(2)}</div>
+                    <button class="delete-btn" onclick="eliminarPagoLimite('${pago.id}')" title="Eliminar pago">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ====================
+// FUNCIÓN MEJORADA DE CÁLCULO (con redondeo a múltiplo de 5)
+// ====================
+
+function calcularLimite() {
+    const gastoReal = parseFloat(document.getElementById('gasto-real').value);
+    const descripcion = document.getElementById('descripcion-limite').value.trim();
+    
+    if (!gastoReal || gastoReal <= 0) {
+        mostrarNotificacion('Ingresa un gasto válido', 'error');
+        return;
+    }
+    
+    if (limiteSeleccionado === null) {
+        mostrarNotificacion('Selecciona un límite', 'error');
+        return;
+    }
+    
+    let exceso = 0;
+    let ahorroTotal = 0;
+    let ahorroPorPersona = 0;
+    let dentroDeLimite = false;
+    let montoLimite = limiteSeleccionado === 0 ? 0 : limiteSeleccionado;
+    
+    if (limiteSeleccionado === 0) {
+        // Sin límite: todo el gasto es ahorro
+        exceso = gastoReal;
+        ahorroTotal = gastoReal;
+        ahorroPorPersona = gastoReal / 2;
+    } else {
+        exceso = Math.max(gastoReal - montoLimite, 0);
+        
+        if (exceso > 0) {
+            // REDONDEO AL SIGUIENTE MÚLTIPLO DE 5
+            let excesoRedondeado = Math.ceil(exceso / 5) * 5;
+            ahorroTotal = excesoRedondeado;
+            ahorroPorPersona = ahorroTotal / 2;
+            
+            // Si tiene decimal .5, redondear hacia arriba
+            if (ahorroPorPersona % 1 !== 0) {
+                ahorroPorPersona = Math.ceil(ahorroPorPersona);
+            }
+        } else {
+            dentroDeLimite = true;
+        }
+    }
+    
+    document.getElementById('result-gasto-real').textContent = `S/${gastoReal.toFixed(2)}`;
+    document.getElementById('result-limite').textContent = montoLimite === 0 ? 'Sin límite' : `S/${montoLimite.toFixed(2)}`;
+    document.getElementById('result-exceso').textContent = `S/${exceso.toFixed(2)}`;
+    document.getElementById('result-ahorro-total').textContent = `S/${ahorroTotal.toFixed(2)}`;
+    document.getElementById('ahorro-persona1').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
+    document.getElementById('ahorro-persona2').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
+    
+    document.getElementById('result-section').style.display = 'block';
+    
+    window.calculoTemporalLimite = {
+        fecha: document.getElementById('fecha-limite').value,
+        gastoReal: gastoReal,
+        limite: montoLimite,
+        exceso: exceso,
+        ahorroTotal: ahorroTotal,
+        ahorroPorPersona: ahorroPorPersona,
+        dentroDeLimite: dentroDeLimite,
+        descripcion: descripcion || `Gasto del día`
+    };
+}
+
+// ====================
+// FUNCIONES EXISTENTES (modificadas)
+// ====================
+
+async function guardarRegistroLimite() {
+    if (!window.calculoTemporalLimite) {
+        mostrarNotificacion('Primero calcula un resultado', 'error');
+        return;
+    }
+    
+    const calculo = window.calculoTemporalLimite;
+    
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const nuevoRegistro = {
+        id: tempId,
+        fecha: calculo.fecha,
+        gastoReal: calculo.gastoReal,
+        limite: calculo.limite,
+        exceso: calculo.exceso,
+        ahorroTotal: calculo.ahorroTotal,
+        ahorroPorPersona: calculo.ahorroPorPersona,
+        dentroDeLimite: calculo.dentroDeLimite,
+        descripcion: calculo.descripcion,
+        timestamp: new Date(),
+        sincronizando: true
+    };
+    
+    registrosLimites.unshift(nuevoRegistro);
+    actualizarUILimites();
+    
+    document.getElementById('gasto-real').value = '';
+    document.getElementById('descripcion-limite').value = '';
+    document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('opcion-seleccionada-info').style.display = 'none';
+    document.getElementById('result-section').style.display = 'none';
+    limiteSeleccionado = null;
+    window.calculoTemporalLimite = null;
+    habilitarBotonCalcular();
+    
+    const mensaje = calculo.dentroDeLimite 
+        ? '⏳ Guardando... ¡Excelente! Cumpliste el límite'
+        : `⏳ Guardando... Ahorro: S/${calculo.ahorroTotal.toFixed(2)}`;
+    
+    mostrarNotificacion(mensaje, 'info');
+    
+    try {
+        const firebaseId = await saveLimiteToFirebase(nuevoRegistro);
+        
+        const index = registrosLimites.findIndex(r => r.id === tempId);
+        if (index !== -1) {
+            registrosLimites[index].id = firebaseId;
+            registrosLimites[index].sincronizando = false;
+        }
+        
+        mostrarNotificacion('✅ Registro guardado en la nube', 'success');
+        
+    } catch (error) {
+        console.error("Error guardando:", error);
+        const index = registrosLimites.findIndex(r => r.id === tempId);
+        if (index !== -1) {
+            registrosLimites[index].error = true;
+        }
+        mostrarNotificacion('⚠️ Registro guardado localmente', 'warning');
+    }
+    
+    saveLimitesToLocalStorage();
+}
+
+async function eliminarRegistroLimite(id) {
+    if (!confirm('¿Eliminar este registro?')) return;
+    
+    mostrarNotificacion('⏳ Eliminando...', 'info');
+    
+    const registroEliminado = registrosLimites.find(r => r.id === id);
+    registrosLimites = registrosLimites.filter(r => r.id !== id);
+    actualizarUILimites();
+    
+    try {
+        if (id && !id.toString().startsWith('temp_')) {
+            await deleteLimiteFromFirebase(id);
+            mostrarNotificacion('✅ Registro eliminado', 'success');
+        } else {
+            mostrarNotificacion('✅ Registro eliminado (local)', 'success');
+        }
+    } catch (error) {
+        console.error("Error eliminando:", error);
+        if (registroEliminado) {
+            registrosLimites.push(registroEliminado);
+            actualizarUILimites();
+        }
+        mostrarNotificacion('Error al eliminar', 'error');
+    }
+    
+    saveLimitesToLocalStorage();
+}
+
+// ====================
+// FUNCIONES DE FILTROS (existentes)
 // ====================
 
 function configurarFiltrosLimites() {
@@ -252,10 +867,7 @@ function configurarFiltrosLimites() {
         return;
     }
     
-    // Búsqueda en tiempo real
     busquedaInput.addEventListener('input', aplicarFiltrosLimites);
-    
-    // Filtros por select
     filtroTipo.addEventListener('change', aplicarFiltrosLimites);
     filtroFecha.addEventListener('change', function() {
         if (this.value === 'custom') {
@@ -266,10 +878,8 @@ function configurarFiltrosLimites() {
         }
     });
     
-    // Aplicar fechas personalizadas
     btnAplicarFecha.addEventListener('click', aplicarFiltrosLimites);
     
-    // Botón limpiar filtros
     btnLimpiar.addEventListener('click', function() {
         busquedaInput.value = '';
         filtroTipo.value = '';
@@ -281,15 +891,12 @@ function configurarFiltrosLimites() {
         mostrarNotificacion('Filtros limpiados', 'info');
     });
     
-    // Botón limpiar todo
     btnLimpiarTodo.addEventListener('click', mostrarModalLimpiarTodoLimites);
     
-    // Botón exportar
     if (btnExportar) {
         btnExportar.addEventListener('click', exportarRegistrosLimites);
     }
     
-    // Eventos del modal
     const cancelarBtn = document.getElementById('cancelar-limpiar-todo-limites');
     const confirmarBtn = document.getElementById('confirmar-limpiar-todo-limites');
     
@@ -313,21 +920,18 @@ function aplicarFiltrosLimites() {
     
     let registrosFiltrados = [...registrosLimites];
     
-    // Filtro por búsqueda
     if (busqueda) {
         registrosFiltrados = registrosFiltrados.filter(r => 
             r.descripcion.toLowerCase().includes(busqueda)
         );
     }
     
-    // Filtro por tipo (dentro/exceso)
     if (tipo === 'cumplido') {
         registrosFiltrados = registrosFiltrados.filter(r => r.dentroDeLimite === true);
     } else if (tipo === 'exceso') {
         registrosFiltrados = registrosFiltrados.filter(r => r.exceso > 0);
     }
     
-    // Filtro por fecha
     if (filtroFecha !== 'all') {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
@@ -359,10 +963,8 @@ function aplicarFiltrosLimites() {
         }
     }
     
-    // Ordenar
     registrosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     
-    // Actualizar estadísticas
     const mostrandoEl = document.getElementById('filtro-mostrando-limites');
     const totalEl = document.getElementById('filtro-total-limites');
     const totalMontoEl = document.getElementById('filtro-total-monto-limites');
@@ -373,10 +975,8 @@ function aplicarFiltrosLimites() {
     const totalAhorro = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
     if (totalMontoEl) totalMontoEl.textContent = `S/${totalAhorro.toFixed(2)}`;
     
-    // Mostrar resultados
     cargarRegistrosLimitesFiltrados(registrosFiltrados);
     
-    // Actualizar totales originales también
     const totalAhorroForzado = document.getElementById('total-ahorro-forzado');
     const totalDiasExceso = document.getElementById('total-dias-exceso');
     
@@ -500,7 +1100,17 @@ async function limpiarTodoHistorialLimites() {
         }
     }
     
+    const idsPagos = pagosLimites.filter(p => !p.id.toString().startsWith('temp_')).map(p => p.id);
+    for (const id of idsPagos) {
+        try {
+            await deletePagoLimiteFromFirebase(id);
+        } catch (error) {
+            console.error("Error eliminando pago:", id);
+        }
+    }
+    
     registrosLimites = [];
+    pagosLimites = [];
     actualizarUILimites();
     saveLimitesToLocalStorage();
     
@@ -509,7 +1119,13 @@ async function limpiarTodoHistorialLimites() {
 }
 
 function exportarRegistrosLimites() {
-    const dataStr = JSON.stringify(registrosLimites, null, 2);
+    const data = {
+        limites: registrosLimites,
+        pagos: pagosLimites,
+        config: configLimites
+    };
+    
+    const dataStr = JSON.stringify(data, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     const exportFileDefaultName = `limites_${new Date().toISOString().split('T')[0]}.json`;
     
@@ -522,159 +1138,7 @@ function exportarRegistrosLimites() {
 }
 
 // ====================
-// FUNCIONES PRINCIPALES
-// ====================
-
-function calcularLimite() {
-    const gastoReal = parseFloat(document.getElementById('gasto-real').value);
-    const descripcion = document.getElementById('descripcion-limite').value.trim();
-    
-    if (!gastoReal || gastoReal <= 0) {
-        mostrarNotificacion('Ingresa un gasto válido', 'error');
-        return;
-    }
-    
-    if (limiteSeleccionado === null) {
-        mostrarNotificacion('Selecciona un límite', 'error');
-        return;
-    }
-    
-    let exceso = 0;
-    let ahorroTotal = 0;
-    let ahorroPorPersona = 0;
-    let dentroDeLimite = false;
-    let montoLimite = limiteSeleccionado === 0 ? 0 : limiteSeleccionado;
-    
-    if (limiteSeleccionado === 0) {
-        exceso = gastoReal;
-        ahorroTotal = gastoReal;
-        ahorroPorPersona = gastoReal / 2;
-    } else {
-        exceso = Math.max(gastoReal - montoLimite, 0);
-        
-        if (exceso > 0) {
-            ahorroTotal = exceso;
-            ahorroPorPersona = exceso / 2;
-        } else {
-            dentroDeLimite = true;
-        }
-    }
-    
-    document.getElementById('result-gasto-real').textContent = `S/${gastoReal.toFixed(2)}`;
-    document.getElementById('result-limite').textContent = montoLimite === 0 ? 'Sin límite' : `S/${montoLimite.toFixed(2)}`;
-    document.getElementById('result-exceso').textContent = `S/${exceso.toFixed(2)}`;
-    document.getElementById('result-ahorro-total').textContent = `S/${ahorroTotal.toFixed(2)}`;
-    document.getElementById('ahorro-persona1').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
-    document.getElementById('ahorro-persona2').textContent = `S/${ahorroPorPersona.toFixed(2)}`;
-    
-    document.getElementById('result-section').style.display = 'block';
-    
-    window.calculoTemporalLimite = {
-        fecha: document.getElementById('fecha-limite').value,
-        gastoReal: gastoReal,
-        limite: montoLimite,
-        exceso: exceso,
-        ahorroTotal: ahorroTotal,
-        ahorroPorPersona: ahorroPorPersona,
-        dentroDeLimite: dentroDeLimite,
-        descripcion: descripcion || `Gasto del día`
-    };
-}
-
-async function guardarRegistroLimite() {
-    if (!window.calculoTemporalLimite) {
-        mostrarNotificacion('Primero calcula un resultado', 'error');
-        return;
-    }
-    
-    const calculo = window.calculoTemporalLimite;
-    
-    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    const nuevoRegistro = {
-        id: tempId,
-        fecha: calculo.fecha,
-        gastoReal: calculo.gastoReal,
-        limite: calculo.limite,
-        exceso: calculo.exceso,
-        ahorroTotal: calculo.ahorroTotal,
-        ahorroPorPersona: calculo.ahorroPorPersona,
-        dentroDeLimite: calculo.dentroDeLimite,
-        descripcion: calculo.descripcion,
-        timestamp: new Date(),
-        sincronizando: true
-    };
-    
-    registrosLimites.unshift(nuevoRegistro);
-    actualizarUILimites();
-    
-    document.getElementById('gasto-real').value = '';
-    document.getElementById('descripcion-limite').value = '';
-    document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('opcion-seleccionada-info').style.display = 'none';
-    document.getElementById('result-section').style.display = 'none';
-    limiteSeleccionado = null;
-    window.calculoTemporalLimite = null;
-    habilitarBotonCalcular();
-    
-    const mensaje = calculo.dentroDeLimite 
-        ? '⌛ Guardando... ¡Excelente! Cumpliste el límite'
-        : `⌛ Guardando... Ahorro: S/${calculo.ahorroTotal.toFixed(2)}`;
-    
-    mostrarNotificacion(mensaje, 'info');
-    
-    try {
-        const firebaseId = await saveLimiteToFirebase(nuevoRegistro);
-        
-        const index = registrosLimites.findIndex(r => r.id === tempId);
-        if (index !== -1) {
-            registrosLimites[index].id = firebaseId;
-            registrosLimites[index].sincronizando = false;
-        }
-        
-        mostrarNotificacion('✅ Registro guardado en la nube', 'success');
-        
-    } catch (error) {
-        console.error("Error guardando:", error);
-        const index = registrosLimites.findIndex(r => r.id === tempId);
-        if (index !== -1) {
-            registrosLimites[index].error = true;
-        }
-        mostrarNotificacion('⚠️ Registro guardado localmente', 'warning');
-    }
-    
-    saveLimitesToLocalStorage();
-}
-
-async function eliminarRegistroLimite(id) {
-    if (!confirm('¿Eliminar este registro?')) return;
-    
-    mostrarNotificacion('⌛ Eliminando...', 'info');
-    
-    const registroEliminado = registrosLimites.find(r => r.id === id);
-    registrosLimites = registrosLimites.filter(r => r.id !== id);
-    actualizarUILimites();
-    
-    try {
-        if (id && !id.toString().startsWith('temp_')) {
-            await deleteLimiteFromFirebase(id);
-            mostrarNotificacion('✅ Registro eliminado', 'success');
-        } else {
-            mostrarNotificacion('✅ Registro eliminado (local)', 'success');
-        }
-    } catch (error) {
-        console.error("Error eliminando:", error);
-        if (registroEliminado) {
-            registrosLimites.push(registroEliminado);
-            actualizarUILimites();
-        }
-        mostrarNotificacion('Error al eliminar', 'error');
-    }
-    
-    saveLimitesToLocalStorage();
-}
-
-// ====================
-// CONFIGURACIÓN DE EVENTOS
+// FUNCIONES DE CONFIGURACIÓN DE EVENTOS
 // ====================
 
 function configurarEventosLimites() {
@@ -710,14 +1174,6 @@ function configurarEventosLimites() {
     const guardarBtn = document.getElementById('guardar-btn');
     if (guardarBtn) guardarBtn.addEventListener('click', guardarRegistroLimite);
     
-    document.querySelectorAll('.chart-option').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.chart-option').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            actualizarGraficoLimites(this.dataset.chart);
-        });
-    });
-    
     const editNamesBtn = document.getElementById('edit-names');
     if (editNamesBtn) {
         editNamesBtn.addEventListener('click', () => {
@@ -734,6 +1190,54 @@ function configurarEventosLimites() {
     if (cancelNamesBtn) {
         cancelNamesBtn.addEventListener('click', () => ocultarModal('names-modal'));
     }
+    
+    // NUEVO: Botones de pago
+    document.querySelectorAll('.btn-pagar-individual').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const persona = this.dataset.persona;
+            abrirFormularioPago(persona);
+        });
+    });
+    
+    document.getElementById('cerrar-pago-form').addEventListener('click', cerrarFormularioPago);
+    document.getElementById('cancelar-pago-individual').addEventListener('click', cerrarFormularioPago);
+    document.getElementById('confirmar-pago-individual').addEventListener('click', mostrarModalConfirmacionPago);
+    
+    document.getElementById('confirmar-pago-final-limites').addEventListener('click', guardarPago);
+    document.getElementById('cancelar-confirmacion-limites').addEventListener('click', () => {
+        document.getElementById('modal-confirmar-pago-limites').classList.remove('active');
+    });
+}
+
+function configurarBarraInferior() {
+    const bottomBtns = document.querySelectorAll('.bottom-nav-btn');
+    
+    bottomBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const accion = this.dataset.action;
+            
+            bottomBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            switch(accion) {
+                case 'ver-inicio':
+                    window.location.href = 'index.html';
+                    break;
+                case 'ver-ahorros':
+                    window.location.href = 'ahorro.html';
+                    break;
+                case 'ver-limites':
+                    window.location.href = 'limites.html';
+                    break;
+                case 'ver-mis-finanzas':
+                    window.location.href = 'finanzas-personales.html?persona=yo';
+                    break;
+                case 'ver-dias-especiales':
+                    window.location.href = 'dias-especiales.html';
+                    break;
+            }
+        });
+    });
 }
 
 function mostrarInfoLimiteSeleccionado() {
@@ -780,17 +1284,18 @@ function habilitarBotonCalcular() {
 
 function actualizarUILimites() {
     actualizarResumenLimites();
-    aplicarFiltrosLimites(); // Usar los nuevos filtros
-    actualizarGraficoLimites('excesos');
+    aplicarFiltrosLimites();
+    actualizarDeudasPorFecha();
+    mostrarPagos();
 }
 
 function actualizarResumenLimites() {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = obtenerFechaLocal();
     const inicioSemana = obtenerInicioSemana();
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     
     const registrosHoy = registrosLimites.filter(r => r.fecha === hoy);
-    const registrosSemana = registrosLimites.filter(r => new Date(r.fecha) >= inicioSemana);
+    const registrosSemana = registrosLimites.filter(r => new Date(r.fecha) >= new Date(inicioSemana));
     const registrosMes = registrosLimites.filter(r => new Date(r.fecha) >= inicioMes);
     
     const totalHoy = registrosHoy.reduce((sum, r) => sum + r.ahorroTotal, 0);
@@ -802,115 +1307,9 @@ function actualizarResumenLimites() {
     document.getElementById('summary-mes-limite').textContent = `S/${totalMes.toFixed(2)}`;
 }
 
-function inicializarGraficoLimites() {
-    const ctx = document.getElementById('limites-chart');
-    if (!ctx) return;
-    
-    chartLimitesInstance = new Chart(ctx.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-            datasets: [{
-                label: 'Ahorro Forzado (S/)',
-                data: [0, 0, 0, 0, 0, 0, 0],
-                backgroundColor: '#667eea',
-                borderColor: '#764ba2',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { labels: { color: 'var(--text-color)' } }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: 'var(--text-secondary)',
-                        callback: value => 'S/' + value
-                    },
-                    grid: { color: 'var(--border-color)' }
-                },
-                x: {
-                    ticks: { color: 'var(--text-secondary)' },
-                    grid: { color: 'var(--border-color)' }
-                }
-            }
-        }
-    });
-}
-
-function actualizarGraficoLimites(tipo) {
-    if (!chartLimitesInstance) return;
-    
-    let labels = [];
-    let datos = [];
-    
-    const hoy = new Date();
-    
-    if (tipo === 'excesos' || !tipo) {
-        const ultimos7Dias = Array.from({length: 7}, (_, i) => {
-            const fecha = new Date();
-            fecha.setDate(fecha.getDate() - i);
-            return fecha.toISOString().split('T')[0];
-        }).reverse();
-        
-        labels = ultimos7Dias.map(fecha => {
-            const d = new Date(fecha);
-            return d.toLocaleDateString('es-ES', { weekday: 'short' });
-        });
-        
-        ultimos7Dias.forEach(fecha => {
-            const registrosDia = registrosLimites.filter(r => r.fecha === fecha);
-            const totalAhorro = registrosDia.reduce((sum, r) => sum + r.ahorroTotal, 0);
-            datos.push(totalAhorro);
-        });
-        
-        chartLimitesInstance.data.datasets[0].label = 'Ahorro Forzado (S/)';
-        chartLimitesInstance.data.datasets[0].backgroundColor = '#f56565';
-    } else if (tipo === 'ahorros') {
-        const ultimas4Semanas = Array.from({length: 4}, (_, i) => {
-            const fecha = new Date();
-            fecha.setDate(fecha.getDate() - (i * 7));
-            const inicioSemanaFecha = obtenerInicioSemanaFecha(fecha);
-            return inicioSemanaFecha;
-        }).reverse();
-        
-        labels = ultimas4Semanas.map(fecha => {
-            const d = new Date(fecha);
-            return `Sem ${d.getDate()}/${d.getMonth() + 1}`;
-        });
-        
-        ultimas4Semanas.forEach(inicioSemanaFecha => {
-            const finSemana = new Date(inicioSemanaFecha);
-            finSemana.setDate(finSemana.getDate() + 6);
-            
-            const registrosSemana = registrosLimites.filter(r => {
-                const fechaReg = new Date(r.fecha);
-                return fechaReg >= inicioSemanaFecha && fechaReg <= finSemana;
-            });
-            
-            const totalAhorro = registrosSemana.reduce((sum, r) => sum + r.ahorroTotal, 0);
-            datos.push(totalAhorro);
-        });
-        
-        chartLimitesInstance.data.datasets[0].label = 'Ahorro Semanal (S/)';
-        chartLimitesInstance.data.datasets[0].backgroundColor = '#38a169';
-    }
-    
-    chartLimitesInstance.data.labels = labels;
-    chartLimitesInstance.data.datasets[0].data = datos;
-    chartLimitesInstance.update();
-}
-
-function obtenerInicioSemanaFecha(fecha) {
-    const fechaObj = new Date(fecha);
-    const dia = fechaObj.getDay();
-    const diff = fechaObj.getDate() - dia + (dia === 0 ? -6 : 1);
-    return new Date(fechaObj.setDate(diff));
-}
+// ====================
+// FUNCIONES UTILITARIAS
+// ====================
 
 function obtenerInicioSemana() {
     const hoy = new Date();
@@ -946,10 +1345,11 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     switch(tipo) {
         case 'success': notificacion.style.background = 'var(--success-color)'; break;
         case 'error': notificacion.style.background = 'var(--accent-color)'; break;
+        case 'warning': notificacion.style.background = 'var(--warning-color)'; break;
         default: notificacion.style.background = 'var(--primary-color)';
     }
     
-    setTimeout(() => notificacion.classList.remove('show'), 3000);
+    setTimeout(() => notificacion.classList.remove('show'), 2500);
 }
 
 function mostrarModal(modalId) {
@@ -996,7 +1396,8 @@ async function saveConfigLimitesToFirebase() {
     }
 }
 
-// Hacer funciones globales
+// Hacer funciones globales para los onclick
 window.eliminarRegistroLimite = eliminarRegistroLimite;
+window.eliminarPagoLimite = eliminarPagoLimite;
 
-console.log("✅ app-limites.js cargado correctamente (versión con filtros nuevos)");
+console.log("✅ app-limites.js cargado correctamente");
