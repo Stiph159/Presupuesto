@@ -872,28 +872,35 @@ function calcularLimite() {
     let montoLimite = limiteSeleccionado === 0 ? 0 : limiteSeleccionado;
     
     if (limiteSeleccionado === 0) {
-        // Sin límite: todo el gasto es ahorro
+        // Comodín Especial: todo el gasto es ahorro
         exceso = gastoReal;
         ahorroTotal = gastoReal;
         ahorroPorPersona = gastoReal / 2;
+        
+        // Redondear para que sea entero si es necesario
+        if (ahorroPorPersona % 1 !== 0) {
+            ahorroPorPersona = Math.ceil(ahorroPorPersona);
+            ahorroTotal = ahorroPorPersona * 2;
+        }
     } else {
         exceso = Math.max(gastoReal - montoLimite, 0);
         
         if (exceso > 0) {
-            // REDONDEO AL SIGUIENTE MÚLTIPLO DE 5
+            // NUEVA LÓGICA: Ahorro total redondeado al múltiplo de 5 superior
             let excesoRedondeado = Math.ceil(exceso / 5) * 5;
             ahorroTotal = excesoRedondeado;
-            ahorroPorPersona = ahorroTotal / 2;
             
-            // Si tiene decimal .5, redondear hacia arriba
-            if (ahorroPorPersona % 1 !== 0) {
-                ahorroPorPersona = Math.ceil(ahorroPorPersona);
-            }
+            // Cada persona paga la mitad, redondeada hacia arriba
+            ahorroPorPersona = Math.ceil(ahorroTotal / 2);
+            
+            // Ajustamos el ahorro total para que sea la suma de las mitades redondeadas
+            ahorroTotal = ahorroPorPersona * 2;
         } else {
             dentroDeLimite = true;
         }
     }
     
+    // Actualizar UI
     document.getElementById('result-gasto-real').textContent = `S/${gastoReal.toFixed(2)}`;
     document.getElementById('result-limite').textContent = montoLimite === 0 ? 'Sin límite' : `S/${montoLimite.toFixed(2)}`;
     document.getElementById('result-exceso').textContent = `S/${exceso.toFixed(2)}`;
