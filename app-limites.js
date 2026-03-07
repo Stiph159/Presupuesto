@@ -670,7 +670,7 @@ function cerrarFormularioPago() {
 }
 
 function mostrarModalConfirmacionPago() {
-    const monto = document.getElementById('pago-individual-monto').value;
+    const monto = parseFloat(document.getElementById('pago-individual-monto').value);
     const persona = personaPagoSeleccionada;
     const nombre = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
     
@@ -683,7 +683,8 @@ function mostrarModalConfirmacionPago() {
     const fechaFiltro = obtenerFechaFiltro();
     const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
     
-    if (parseFloat(monto) > deudaActual + 0.01) {
+    // TOLERANCIA CORREGIDA: usar 0.001 en lugar de 0.01
+    if (parseFloat(monto) > deudaActual + 0.001) {
         mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
         return;
     }
@@ -700,8 +701,23 @@ async function guardarPago() {
     const fecha = document.getElementById('pago-individual-fecha').value;
     const selectorFecha = document.getElementById('deuda-fecha-selector').value;
     
+    if (!monto || monto <= 0) {
+        mostrarNotificacion('Ingresa un monto válido', 'error');
+        return;
+    }
+    
     const persona = personaPagoSeleccionada;
     const nombrePersona = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+    
+    // Validar que no pague más de lo que debe
+    const fechaFiltro = obtenerFechaFiltro();
+    const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
+    
+    // TOLERANCIA CORREGIDA
+    if (monto > deudaActual + 0.001) {
+        mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
+        return;
+    }
     
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const ahora = new Date();
@@ -717,7 +733,7 @@ async function guardarPago() {
     };
     
     if (selectorFecha === 'all') {
-        mostrarNotificacion(`💰 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
+        mostrarNotificacion(`🌍 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
     }
     
     pagosLimites.unshift(nuevoPago);
@@ -874,19 +890,20 @@ function calcularLimite() {
     if (limiteSeleccionado === 0) {
         // Comodín Especial: todo el gasto es ahorro
         exceso = gastoReal;
-        ahorroTotal = gastoReal;
-        ahorroPorPersona = gastoReal / 2;
         
-        // Redondear para que sea entero si es necesario
-        if (ahorroPorPersona % 1 !== 0) {
-            ahorroPorPersona = Math.ceil(ahorroPorPersona);
-            ahorroTotal = ahorroPorPersona * 2;
-        }
+        // CORREGIDO: Siempre redondear hacia arriba la mitad
+        // Porque cualquier número impar/2 dará decimal .5
+        ahorroPorPersona = Math.ceil(gastoReal / 2);
+        ahorroTotal = ahorroPorPersona * 2;
+        
+        // Mostrar notificación informativa
+        console.log(`Comodín Especial: S/${gastoReal} → cada uno paga S/${ahorroPorPersona} (total S/${ahorroTotal})`);
+        
     } else {
         exceso = Math.max(gastoReal - montoLimite, 0);
         
         if (exceso > 0) {
-            // NUEVA LÓGICA: Ahorro total redondeado al múltiplo de 5 superior
+            // Exceso redondeado al múltiplo de 5 superior
             let excesoRedondeado = Math.ceil(exceso / 5) * 5;
             ahorroTotal = excesoRedondeado;
             

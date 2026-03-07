@@ -806,16 +806,18 @@ function obtenerFechaFiltro() {
 function calcularDeudasFIFO() {
     const fechaFiltro = obtenerFechaFiltro();
     
-    // PASO 1: Obtener todas las fechas únicas con ahorros
-    const fechas = [...new Set(ahorros.map(a => a.fecha))].sort();
+    // PASO 1: Filtrar SOLO ahorros donde persona = 'ambos'
+    // Esto es importante porque los ahorros siempre son para ambos
+    const ahorrosAmbos = ahorros.filter(a => a.persona === 'ambos');
     
-    // PASO 2: Estructura para guardar deudas por fecha y persona
+    // PASO 2: Obtener todas las fechas únicas con ahorros
+    const fechas = [...new Set(ahorrosAmbos.map(a => a.fecha))].sort();
+    
+    // PASO 3: Estructura para guardar deudas por fecha y persona
     const deudasPorFecha = {};
-    const ahorrosPorFecha = {};
     
     fechas.forEach(fecha => {
-        const ahorrosFecha = ahorros.filter(a => a.fecha === fecha);
-        ahorrosPorFecha[fecha] = ahorrosFecha;
+        const ahorrosFecha = ahorrosAmbos.filter(a => a.fecha === fecha);
         
         // Calcular el monto TOTAL de ahorros en esta fecha
         // Como usamos 'ambos', cada ahorro ya representa lo que CADA UNO debe
@@ -828,11 +830,11 @@ function calcularDeudasFIFO() {
         };
     });
     
-    // PASO 3: Aplicar pagos FIFO
+    // PASO 4: Aplicar pagos FIFO
     const deudasRestantes = JSON.parse(JSON.stringify(deudasPorFecha));
     
     // Obtener todas las fechas ordenadas (más antigua primero) para FIFO
-    const fechasOrdenadas = [...fechas].sort(); // Ya están ordenadas por .sort()
+    const fechasOrdenadas = [...fechas].sort();
     
     ['persona1', 'persona2'].forEach(persona => {
         // Separar pagos específicos (con fecha) y globales (sin fecha)
@@ -858,10 +860,10 @@ function calcularDeudasFIFO() {
             
             // Recorrer fechas de la MÁS ANTIGUA a la MÁS NUEVA
             for (const fecha of fechasOrdenadas) {
-                if (montoRestante <= 0.01) break;
+                if (montoRestante <= 0.001) break;
                 
                 const deudaActual = deudasRestantes[fecha][persona];
-                if (deudaActual > 0.01) {
+                if (deudaActual > 0.001) {
                     const pagoAplicado = Math.min(deudaActual, montoRestante);
                     deudasRestantes[fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
                     montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
@@ -870,7 +872,7 @@ function calcularDeudasFIFO() {
         });
     });
     
-    // PASO 4: Calcular según la vista actual
+    // PASO 5: Calcular según la vista actual
     let totalVista = 0;
     let pagadoVistaYo = 0;
     let pagadoVistaElla = 0;
@@ -906,10 +908,10 @@ function calcularDeudasFIFO() {
         }
     }
 
-    // Totales generales (multiplicar por 2 porque cada ahorro es para 2 personas)
-    const totalGenerado = ahorros.reduce((sum, a) => sum + a.monto, 0) * 2;
+    // CORREGIDO: Totales generales - SOLO contar ahorros donde persona = 'ambos'
+    const totalGenerado = ahorrosAmbos.reduce((sum, a) => sum + a.monto, 0) * 2;
     const totalPagado = pagosAhorro.reduce((sum, p) => sum + p.monto, 0);
-    const totalPendiente = Math.max(0, totalGenerado - totalPagado); // ✅ Nunca negativo
+    const totalPendiente = Math.max(0, totalGenerado - totalPagado);
     
     return {
         // Vista actual
@@ -1327,16 +1329,16 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
             else fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
         }
         
-        // ✅ CORREGIDO: Mostrar la persona que activó (no "ambos")
+        // CORREGIDO: Manejar campo activadoPor con fallback seguro
         let nombrePersona = '';
         if (ahorro.activadoPor) {
-            // Si tenemos el campo activadoPor, mostramos esa persona
             nombrePersona = ahorro.activadoPor === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+        } else if (ahorro.persona === 'ambos') {
+            // Si es un registro antiguo sin activadoPor pero con persona='ambos'
+            // Podemos mostrar un mensaje genérico o asumir que fue activado por ambos
+            nombrePersona = `${configAhorro.nombres.persona1} o ${configAhorro.nombres.persona2} (registro antiguo)`;
         } else {
-            // Fallback para registros antiguos
-            nombrePersona = ahorro.persona === 'ambos' 
-                ? `${configAhorro.nombres.persona1} y ${configAhorro.nombres.persona2}`
-                : (ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2);
+            nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
         }
         
         let nombreOpcion = '';
@@ -1344,25 +1346,29 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
         
         switch(ahorro.opcion) {
             case '1':
-                nombreOpcion = 'Opción 1';
+                nombreOpcion = '🔥 Fuego';
                 claseBadge = 'badge-opcion1';
                 break;
             case '2':
-                nombreOpcion = 'Opción 2';
+                nombreOpcion = '🥝 Kiwi';
                 claseBadge = 'badge-opcion2';
                 break;
             case '3':
-                nombreOpcion = 'Opción 3';
+                nombreOpcion = '🍑 Durazno';
                 claseBadge = 'badge-opcion3';
                 break;
+            default:
+                nombreOpcion = 'Opción personalizada';
+                claseBadge = '';
         }
         
         const idSeguro = ahorro.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
+        // CORREGIDO: Mostrar claramente que CADA UNO paga este monto
         html += `
-            <div class="ahorro-item ${ahorro.persona === 'ambos' ? 'ambos' : ahorro.persona}">
+            <div class="ahorro-item ambos">
                 <div class="gasto-header">
-                    <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} (cada uno)</div>
+                    <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} <span style="font-size:0.8rem; color:var(--text-secondary);">(cada uno)</span></div>
                     <button class="delete-btn" onclick="eliminarAhorro('${idSeguro}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -1371,7 +1377,7 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
                 <div class="gasto-meta">
                     <div class="gasto-info">
                         <span class="gasto-persona"><i class="fas fa-user"></i> Activó: ${nombrePersona}</span>
-                        <span class="ahorro-opcion ${claseBadge}">${nombreOpcion}</span>
+                        ${claseBadge ? `<span class="ahorro-opcion ${claseBadge}">${nombreOpcion}</span>` : ''}
                     </div>
                     <div class="gasto-fecha">
                         <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
@@ -1380,6 +1386,9 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
                         </span>
                     </div>
                 </div>
+                <div style="font-size:0.8rem; color:var(--success-color); margin-top:5px;">
+                    <i class="fas fa-info-circle"></i> Total ahorrado: S/${(ahorro.monto * 2).toFixed(2)}
+                </div>
             </div>
         `;
     });
@@ -1387,15 +1396,20 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
     container.innerHTML = html;
 }
 
+
 function mostrarModalLimpiarTodo() {
     const totalRegistros = document.getElementById('total-registros-eliminar-ahorro');
     const totalMonto = document.getElementById('monto-total-eliminar-ahorro');
     
     if (totalRegistros) totalRegistros.textContent = ahorros.length;
     
-    // ✅ SIN MULTIPLICAR
-    const sumaTotal = ahorros.reduce((sum, a) => sum + a.monto, 0);
-    if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)}`;
+    // CORREGIDO: Calcular el monto total REAL (lo que cada uno debe)
+    // Cada ahorro es lo que CADA PERSONA debe, no el total
+    const ahorrosAmbos = ahorros.filter(a => a.persona === 'ambos');
+    const sumaPorPersona = ahorrosAmbos.reduce((sum, a) => sum + a.monto, 0);
+    const sumaTotal = sumaPorPersona * 2; // Total real ahorrado
+    
+    if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)} (${sumaPorPersona.toFixed(2)} c/u)`;
     
     document.getElementById('modal-limpiar-todo-ahorro').classList.add('active');
 }

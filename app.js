@@ -566,7 +566,7 @@ function calcularBalance(rango) {
     
     // Inicializar pagos
     let pagadoTuAElla = 0;  // Cuánto ha pagado YO a ELLA
-    let pagadoEllaATu = 0;  // Cuánto ha pagado ELLA a YO
+    let pagadoEllaATu = 0;  // Cuánto ha pagado ELLA a MÍ
     
     // Calcular pagos
     pagosFiltrados.forEach(p => {
@@ -580,21 +580,28 @@ function calcularBalance(rango) {
     // Calcular la diferencia de gastos
     const diferenciaGastos = totalTu - totalElla;
     
-    // Determinar quién debe a quién
-    let deudaTuAElla = 0;
-    let deudaEllaATu = 0;
+    // Determinar quién debe a quién (SIN PAGOS AÚN)
+    let deudaBrutaTuAElla = 0;
+    let deudaBrutaEllaATu = 0;
     
     if (diferenciaGastos > 0) {
         // Tú gastaste más, Ella te debe la mitad de la diferencia
-        deudaEllaATu = diferenciaGastos / 2;
+        deudaBrutaEllaATu = diferenciaGastos / 2;
     } else if (diferenciaGastos < 0) {
         // Ella gastó más, Tú le debes la mitad de la diferencia
-        deudaTuAElla = Math.abs(diferenciaGastos) / 2;
+        deudaBrutaTuAElla = Math.abs(diferenciaGastos) / 2;
     }
     
-    // Restar lo que ya se pagó
-    deudaTuAElla = Math.max(0, deudaTuAElla - pagadoTuAElla);
-    deudaEllaATu = Math.max(0, deudaEllaATu - pagadoEllaATu);
+    // APLICAR PAGOS: Restar lo que ya se pagó
+    // Importante: Los pagos reducen la deuda de quien paga
+    let deudaTuAElla = Math.max(0, deudaBrutaTuAElla - pagadoTuAElla);
+    let deudaEllaATu = Math.max(0, deudaBrutaEllaATu - pagadoEllaATu);
+    
+    // Calcular gasto efectivo (lo que realmente ha salido de cada bolsillo)
+    // FÓRMULA CORREGIDA: 
+    // Gasto efectivo = Lo que gasté - lo que pagué a otros + lo que otros me pagaron
+    const gastoEfectivoTu = totalTu - pagadoTuAElla + pagadoEllaATu;
+    const gastoEfectivoElla = totalElla - pagadoEllaATu + pagadoTuAElla;
     
     const totalGastos = totalTu + totalElla;
     const meta = totalGastos / 2;
@@ -607,6 +614,8 @@ function calcularBalance(rango) {
         deudaEllaATu,
         pagadoTuAElla,
         pagadoEllaATu,
+        gastoEfectivoTu,      // NUEVO: para mostrar en UI
+        gastoEfectivoElla,    // NUEVO: para mostrar en UI
         diferencia: Math.abs(totalTu - totalElla)
     };
 }
@@ -644,31 +653,26 @@ function actualizarBalance() {
     elements.statEllaPeriodo.textContent = `S/${balance.totalElla.toFixed(2)}`;
     elements.statDiferenciaPeriodo.textContent = `S/${Math.abs(balance.totalTu - balance.totalElla).toFixed(2)}`;
     
-    // ✅ CORREGIDO: Gasto efectivo después de pagos
-    // El que paga: su gasto efectivo AUMENTA
-    // El que recibe: su gasto efectivo DISMINUYE
-    const gastoEfectivoTu = balance.totalTu + balance.pagadoTuAElla - balance.pagadoEllaATu;
-    const gastoEfectivoElla = balance.totalElla + balance.pagadoEllaATu - balance.pagadoTuAElla;
-    
-    elements.balanceMontoTu.textContent = `S/${gastoEfectivoTu.toFixed(2)}`;
-    elements.balanceMontoElla.textContent = `S/${gastoEfectivoElla.toFixed(2)}`;
+    // USAR LA FÓRMULA CORREGIDA para gasto efectivo
+    elements.balanceMontoTu.textContent = `S/${balance.gastoEfectivoTu.toFixed(2)}`;
+    elements.balanceMontoElla.textContent = `S/${balance.gastoEfectivoElla.toFixed(2)}`;
     elements.balanceMetaMonto.textContent = `S/${balance.meta.toFixed(2)}`;
     
-    // Calcular porcentajes para la barra
-    const totalEfectivo = gastoEfectivoTu + gastoEfectivoElla;
-    const porcentajeTu = totalEfectivo > 0 ? (gastoEfectivoTu / totalEfectivo) * 100 : 50;
-    const porcentajeElla = totalEfectivo > 0 ? (gastoEfectivoElla / totalEfectivo) * 100 : 50;
+    // Calcular porcentajes para la barra (basado en gasto efectivo)
+    const totalEfectivo = balance.gastoEfectivoTu + balance.gastoEfectivoElla;
+    const porcentajeTu = totalEfectivo > 0 ? (balance.gastoEfectivoTu / totalEfectivo) * 100 : 50;
+    const porcentajeElla = totalEfectivo > 0 ? (balance.gastoEfectivoElla / totalEfectivo) * 100 : 50;
     
     elements.balanceBarTu.style.width = `${porcentajeTu}%`;
     elements.balanceBarElla.style.width = `${porcentajeElla}%`;
     
     // Mostrar quién debe a quién
-    if (balance.deudaEllaATu > 0.01) {
+    if (balance.deudaEllaATu > 0.001) { // Tolerancia de 0.001
         elements.deudaTexto.textContent = `${nombreElla} debe a ${nombreTu}:`;
         elements.deudaMonto.textContent = `S/${balance.deudaEllaATu.toFixed(2)}`;
         elements.btnPagar.style.display = 'block';
         if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--accent-color)';
-    } else if (balance.deudaTuAElla > 0.01) {
+    } else if (balance.deudaTuAElla > 0.001) {
         elements.deudaTexto.textContent = `${nombreTu} debe a ${nombreElla}:`;
         elements.deudaMonto.textContent = `S/${balance.deudaTuAElla.toFixed(2)}`;
         elements.btnPagar.style.display = 'block';
@@ -712,13 +716,38 @@ async function guardarPagoEnFirebase() {
     const descripcion = document.getElementById('pago-descripcion').value;
     const fecha = document.getElementById('pago-fecha').value;
     
-    // 🔥 Verificar si estamos en "Todo el historial"
+    // Validaciones
+    if (!monto || monto <= 0) {
+        mostrarNotificacion('Ingresa un monto válido', 'error');
+        return;
+    }
+    
+    // Validar que no pague más de lo que debe
+    const rango = obtenerFechaBalance();
+    const balance = calcularBalance(rango);
+    
+    let deudaMaxima = 0;
+    if (quienPaga === 'persona1' && quienRecibe === 'persona2') {
+        deudaMaxima = balance.deudaTuAElla;
+    } else if (quienPaga === 'persona2' && quienRecibe === 'persona1') {
+        deudaMaxima = balance.deudaEllaATu;
+    } else {
+        mostrarNotificacion('Selección de pagador/receptor inválida', 'error');
+        return;
+    }
+    
+    // TOLERANCIA CORREGIDA: usar 0.001 en lugar de 0.01
+    if (monto > deudaMaxima + 0.001) {
+        const nombrePaga = quienPaga === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
+        mostrarNotificacion(`${nombrePaga} solo debe S/${deudaMaxima.toFixed(2)}`, 'error');
+        return;
+    }
+    
     const selectorFecha = document.getElementById('balance-fecha-selector').value;
     
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoPago = {
         id: tempId,
-        // Si es "all", no asignar fecha (o asignar null)
         fecha: selectorFecha === 'all' ? null : fecha,
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
@@ -726,7 +755,7 @@ async function guardarPagoEnFirebase() {
         acreedor: quienRecibe,
         completado: true,
         timestamp: new Date(),
-        esPagoGlobal: selectorFecha === 'all' // Bandera para identificar pagos globales
+        esPagoGlobal: selectorFecha === 'all'
     };
     
     pagos.unshift(nuevoPago);
