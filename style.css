@@ -1394,3 +1394,21 @@ body.has-bottom-nav .container {
     border-color: #4a5568;
     color: #cbd5e0;
 }
+/* Badge para pagos globales */
+.badge-global {
+    background: var(--accent-color);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    margin-left: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .badge-global {
+    background: #f87171;
+    color: #1a202c;
+}

@@ -552,8 +552,13 @@ function calcularBalance(rango) {
     // Filtrar gastos por fecha
     const gastosFiltrados = rango.fecha ? gastos.filter(g => g.fecha === rango.fecha) : gastos;
     
-    // Filtrar pagos por fecha
-    const pagosFiltrados = rango.fecha ? pagos.filter(p => p.fecha === rango.fecha) : pagos;
+    // Filtrar pagos: incluir los que no tienen fecha (pagos globales) SIEMPRE
+    const pagosFiltrados = pagos.filter(p => {
+        // Si el pago no tiene fecha (pago global), incluirlo siempre
+        if (!p.fecha) return true;
+        // Si tiene fecha, filtrar normalmente
+        return rango.fecha ? p.fecha === rango.fecha : true;
+    });
     
     // Total gastado por cada uno
     const totalTu = gastosFiltrados.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
@@ -707,16 +712,21 @@ async function guardarPagoEnFirebase() {
     const descripcion = document.getElementById('pago-descripcion').value;
     const fecha = document.getElementById('pago-fecha').value;
     
+    // 🔥 Verificar si estamos en "Todo el historial"
+    const selectorFecha = document.getElementById('balance-fecha-selector').value;
+    
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const nuevoPago = {
         id: tempId,
-        fecha: fecha,
+        // Si es "all", no asignar fecha (o asignar null)
+        fecha: selectorFecha === 'all' ? null : fecha,
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
         deudor: quienPaga,
         acreedor: quienRecibe,
         completado: true,
-        timestamp: new Date()
+        timestamp: new Date(),
+        esPagoGlobal: selectorFecha === 'all' // Bandera para identificar pagos globales
     };
     
     pagos.unshift(nuevoPago);
@@ -777,9 +787,14 @@ function mostrarPagos() {
         const nombreRecibe = pago.acreedor === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
         const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        const fechaGasto = new Date(pago.fecha + 'T00:00:00');
-        const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        // Fecha del gasto (la que el usuario eligió)
+        let fechaGastoFormateada = '📅 Global';
+        if (pago.fecha) {
+            const fechaGasto = new Date(pago.fecha + 'T00:00:00');
+            fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
         
+        // Fecha de la acción (timestamp de creación)
         let fechaAccionFormateada = '', horaAccionFormateada = '';
         if (pago.timestamp) {
             const fechaAccion = new Date(pago.timestamp);
@@ -804,7 +819,11 @@ function mostrarPagos() {
                             <span class="pago-personas">${nombrePaga} → ${nombreRecibe}</span>
                             <span class="pago-fecha">
                                 <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
-                                <span class="badge-accion"><i class="fas fa-clock"></i> registrado ${fechaAccionFormateada} ${horaAccionFormateada}</span>
+                                <span class="badge-accion">
+                                    <i class="fas fa-clock"></i> 
+                                    registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                                    ${pago.esPagoGlobal ? '<span class="badge-global">🌍 Pago global</span>' : ''}
+                                </span>
                             </span>
                         </div>
                     </div>
