@@ -128,8 +128,8 @@ function setupRealtimeListeners() {
                         // 🔥 BUSCAR si existe un TEMPORAL con los mismos datos
                         const temporalIndex = ahorros.findIndex(a => 
                             a.id.toString().startsWith('temp_') && 
+                            Math.abs(a.monto - ahorroData.monto) < 0.01 &&
                             a.fecha === ahorroData.fecha &&
-                            a.monto === ahorroData.monto &&
                             a.persona === ahorroData.persona
                         );
                         
@@ -158,7 +158,6 @@ function setupRealtimeListeners() {
                 }
             });
             
-            ahorros.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             actualizarUIAhorro();
             saveToLocalStorage();
         }, (error) => {
@@ -187,13 +186,24 @@ function setupRealtimeListeners() {
                     pagoData.timestamp = pagoData.timestamp.toDate();
                 }
                 
+                // 🔥 Si no hay timestamp, crear uno basado en la fecha
+                if (!pagoData.timestamp) {
+                    const fechaParts = pagoData.fecha.split('-');
+                    pagoData.timestamp = new Date(
+                        parseInt(fechaParts[0]), 
+                        parseInt(fechaParts[1]) - 1, 
+                        parseInt(fechaParts[2]),
+                        12, 0, 0
+                    );
+                }
+                
                 switch (cambio.type) {
                     case 'added':
                         // 🔥 BUSCAR si existe un TEMPORAL con los mismos datos
                         const temporalIndex = pagosAhorro.findIndex(p => 
                             p.id.toString().startsWith('temp_') && 
+                            Math.abs(p.monto - pagoData.monto) < 0.01 &&
                             p.fecha === pagoData.fecha &&
-                            p.monto === pagoData.monto &&
                             p.persona === pagoData.persona
                         );
                         
@@ -222,7 +232,6 @@ function setupRealtimeListeners() {
                 }
             });
             
-            pagosAhorro.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             actualizarUIAhorro();
             saveToLocalStorage();
         }, (error) => {
@@ -377,6 +386,7 @@ function inicializarApp() {
     configurarFiltros();
     configurarSelectorFecha();
     configurarBarraInferior();
+    configurarVerMasAhorro(); // ✅ AGREGAR ESTA LÍNEA
     
     // CORREGIDO: Usar obtenerFechaLocal()
     const fechaLocal = obtenerFechaLocal();
@@ -647,29 +657,61 @@ async function guardarPago() {
         return;
     }
     
-    // Validaciones...
-    const nombrePersona = personaPagoSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+    // 🔥 Calcular deuda REAL de esta persona
+    const fechaFiltro = obtenerFechaFiltro();
+    const deudaActual = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, fechaFiltro);
     
-    mostrarNotificacion('⏳ Guardando pago...', 'info');
+    if (monto > deudaActual + 0.01) {
+        mostrarNotificacion(
+            `❌ No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 
+            'error'
+        );
+        return;
+    }
+    
+    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
+    const nombrePersona = personaPagoSeleccionada === 'persona1' 
+        ? configAhorro.nombres.persona1 
+        : configAhorro.nombres.persona2;
+    
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const ahora = new Date();
+    
+    // 🔥 Si es pago global, mostrar advertencia
+    if (selectorFecha === 'all') {
+        const confirmar = confirm(
+            `⚠️ Vas a pagar S/${monto.toFixed(2)} de tu deuda TOTAL.\n` +
+            `¿Estás seguro? Este pago aplicará a TODOS tus ahorros.`
+        );
+        if (!confirmar) return;
+    }
+    
+    const nuevoPago = {
+        id: tempId,
+        fecha: selectorFecha === 'all' ? null : fecha,
+        monto: monto,
+        descripcion: descripcion || `Pago de ${nombrePersona}`,
+        persona: personaPagoSeleccionada,
+        timestamp: ahora,
+        esPagoGlobal: selectorFecha === 'all'
+    };
+    
+    pagosAhorro.unshift(nuevoPago);
+    actualizarUIAhorro();
+    
+    cerrarFormularioPago();
+    document.getElementById('modal-confirmar-pago-ahorro').classList.remove('active');
+    
+    mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
     
     try {
-        // 🔥 SOLO guardar en Firebase, NO agregar a la lista local
-        await savePagoAhorroToFirebase({
-            fecha: fecha,
-            monto: monto,
-            descripcion: descripcion || `Pago de ${nombrePersona}`,
-            persona: personaPagoSeleccionada
-        });
-        
-        cerrarFormularioPago();
-        document.getElementById('modal-confirmar-pago-ahorro').classList.remove('active');
-        
-        // ✅ El snapshot agregará el pago automáticamente
-        
+        await savePagoAhorroToFirebase(nuevoPago);
     } catch (error) {
         console.error("Error guardando pago:", error);
-        mostrarNotificacion('❌ Error al guardar el pago', 'error');
+        mostrarNotificacion('⚠️ Pago guardado localmente', 'warning');
     }
+    
+    saveToLocalStorage();
 }
 
 async function eliminarAhorro(id) {
@@ -743,68 +785,87 @@ function obtenerFechaFiltro() {
         const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
         return fechaAyer.toISOString().split('T')[0];
     }
+    if (selector === 'all') return null; // null significa "todo el historial"
     if (selector === 'custom' && fechaCustom) return fechaCustom;
-    return null; // null significa "todo el historial"
+    return null;
 }
 
 function calcularDeudas() {
     const fechaFiltro = obtenerFechaFiltro();
     
-    // Filtrar ahorros por fecha si es necesario
+    // Filtrar ahorros por fecha
     let ahorrosFiltrados = [...ahorros];
     if (fechaFiltro) {
         ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fechaFiltro);
     }
     
-    // Filtrar pagos por fecha si es necesario
-    let pagosFiltrados = [...pagosAhorro];
-    if (fechaFiltro) {
-        pagosFiltrados = pagosFiltrados.filter(p => p.fecha === fechaFiltro);
+    // 🔥 CORRECCIÓN: Calcular pagos por persona de manera INDEPENDIENTE
+    let pagosYo = 0;
+    let pagosElla = 0;
+    
+    if (fechaFiltro === null) {
+        // TODO EL HISTORIAL: TODOS los pagos de cada persona (globales + específicos)
+        pagosYo = pagosAhorro
+            .filter(p => p.persona === 'persona1')
+            .reduce((sum, p) => sum + p.monto, 0);
+            
+        pagosElla = pagosAhorro
+            .filter(p => p.persona === 'persona2')
+            .reduce((sum, p) => sum + p.monto, 0);
+    } else {
+        // FECHA ESPECÍFICA: Pagos de esa fecha + pagos globales de cada persona
+        pagosYo = pagosAhorro
+            .filter(p => p.persona === 'persona1' && (!p.fecha || p.fecha === fechaFiltro))
+            .reduce((sum, p) => sum + p.monto, 0);
+            
+        pagosElla = pagosAhorro
+            .filter(p => p.persona === 'persona2' && (!p.fecha || p.fecha === fechaFiltro))
+            .reduce((sum, p) => sum + p.monto, 0);
     }
     
-    // Total generado (cada ahorro genera deuda para AMBOS)
-    const totalGenerado = ahorrosFiltrados.reduce((sum, a) => sum + (a.monto * 2), 0);
+    // Total ahorros en el período (para CADA UNO)
+    const totalAhorrosPeriodo = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
     
-    // Cada uno debe la suma de todos los montos de ahorro
-    const debeCadaUno = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
-    
-    // Pagos por persona
-    const pagadoYo = pagosFiltrados.filter(p => p.persona === 'persona1')
-        .reduce((sum, p) => sum + p.monto, 0);
-    const pagadoElla = pagosFiltrados.filter(p => p.persona === 'persona2')
-        .reduce((sum, p) => sum + p.monto, 0);
-    
-    // Deudas actuales
-    const deudaYo = Math.max(0, debeCadaUno - pagadoYo);
-    const deudaElla = Math.max(0, debeCadaUno - pagadoElla);
+    // 🔥 CADA UNO tiene su propia deuda INDEPENDIENTE
+    const deudaYo = Math.max(0, totalAhorrosPeriodo - pagosYo);
+    const deudaElla = Math.max(0, totalAhorrosPeriodo - pagosElla);
     
     return {
-        totalGenerado,
-        debeCadaUno,
-        pagadoYo,
-        pagadoElla,
+        totalGenerado: ahorrosFiltrados.reduce((sum, a) => sum + (a.monto * 2), 0),
+        debeCadaUno: totalAhorrosPeriodo,
+        pagadoYo: pagosYo,
+        pagadoElla: pagosElla,
         deudaYo,
         deudaElla,
-        totalPagado: pagadoYo + pagadoElla,
+        totalPagado: pagosYo + pagosElla,
         totalPendiente: deudaYo + deudaElla
     };
 }
 
 function calcularDeudaPersonaPorFecha(persona, fecha) {
-    // Si fecha es null, calcular todo el historial
-    let ahorrosFiltrados = fecha ? ahorros.filter(a => a.fecha === fecha) : ahorros;
-    let pagosFiltrados = fecha ? pagosAhorro.filter(p => p.fecha === fecha && p.persona === persona) 
-                               : pagosAhorro.filter(p => p.persona === persona);
+    // 🔥 CORRECCIÓN: Calcular deuda de UNA persona específica
     
-    const debe = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
-    const pagado = pagosFiltrados.reduce((sum, p) => sum + p.monto, 0);
+    // Total de ahorros hasta la fecha (o todo el historial)
+    let ahorrosFiltrados = [...ahorros];
+    if (fecha) {
+        ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fecha);
+    }
+    const totalAhorros = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
     
-    return Math.max(0, debe - pagado);
+    // 🔥 TODOS los pagos de esta persona (globales + específicos)
+    const todosLosPagos = pagosAhorro
+        .filter(p => p.persona === persona)
+        .reduce((sum, p) => sum + p.monto, 0);
+    
+    // Deuda = Ahorros totales - Todo lo que ha pagado
+    return Math.max(0, totalAhorros - todosLosPagos);
 }
 
 function actualizarDeudasPorFecha() {
     const calculos = calcularDeudas();
     const fechaFiltro = obtenerFechaFiltro();
+    const selectorFecha = document.getElementById('deuda-fecha-selector');
+    const opcionTexto = selectorFecha.options[selectorFecha.selectedIndex].text;
     
     // Actualizar UI
     document.getElementById('deuda-total-yo').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
@@ -816,9 +877,13 @@ function actualizarDeudasPorFecha() {
     document.getElementById('pendiente-yo').textContent = `S/${calculos.deudaYo.toFixed(2)}`;
     document.getElementById('pendiente-ella').textContent = `S/${calculos.deudaElla.toFixed(2)}`;
     
-    // Barras de progreso (porcentaje pagado)
-    const porcentajeYo = calculos.debeCadaUno > 0 ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 : 0;
-    const porcentajeElla = calculos.debeCadaUno > 0 ? (calculos.pagadoElla / calculos.debeCadaUno) * 100 : 0;
+    // 🔥 Barras de progreso INDEPENDIENTES para cada persona
+    const porcentajeYo = calculos.debeCadaUno > 0 
+        ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 
+        : 0;
+    const porcentajeElla = calculos.debeCadaUno > 0 
+        ? (calculos.pagadoElla / calculos.debeCadaUno) * 100 
+        : 0;
     
     document.getElementById('deuda-bar-yo').style.width = `${porcentajeYo}%`;
     document.getElementById('deuda-bar-ella').style.width = `${porcentajeElla}%`;
@@ -826,8 +891,12 @@ function actualizarDeudasPorFecha() {
     document.getElementById('deuda-porcentaje-yo').textContent = `${porcentajeYo.toFixed(1)}%`;
     document.getElementById('deuda-porcentaje-ella').textContent = `${porcentajeElla.toFixed(1)}%`;
     
-    // Totales generales
-    document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)}`;
+    // 🔥 Mostrar contexto del filtro
+    const contexto = fechaFiltro === null 
+        ? 'Todo el historial' 
+        : new Date(fechaFiltro).toLocaleDateString();
+    
+    document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)} (${contexto})`;
     document.getElementById('total-pagado-general').textContent = `S/${calculos.totalPagado.toFixed(2)}`;
     document.getElementById('total-pendiente-general').textContent = `S/${calculos.totalPendiente.toFixed(2)}`;
 }
@@ -874,8 +943,13 @@ function abrirFormularioPago(persona) {
     document.getElementById('pago-pendiente-actual').textContent = `S/${deudaActual.toFixed(2)}`;
     document.getElementById('pago-individual-monto').value = '';
     document.getElementById('pago-individual-descripcion').value = '';
-    // CORREGIDO: Usar obtenerFechaLocal()
     document.getElementById('pago-individual-fecha').value = obtenerFechaLocal();
+    
+    // 🔥 Si es "Todo el historial", mostrar mensaje
+    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
+    if (selectorFecha === 'all') {
+        mostrarNotificacion('💡 Este pago liquidará TODA tu deuda acumulada', 'info');
+    }
     
     document.getElementById('pago-individual-section').style.display = 'block';
 }
@@ -915,15 +989,40 @@ function mostrarPagos() {
     
     emptyState.style.display = 'none';
     
+    // 🔥 ORDENAR POR TIMESTAMP (más reciente arriba)
+    const pagosOrdenados = [...pagosAhorro].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA;
+    });
+    
     let html = '';
-    pagosAhorro.slice(0, 20).forEach(pago => {
+    
+    pagosOrdenados.slice(0, 20).forEach(pago => {
         const nombrePersona = pago.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+        const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        const fecha = new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+        // 🔥 Fecha del pago (la que el usuario eligió)
+        let fechaGastoFormateada = '📅 Global';
+        if (pago.fecha) {
+            const fechaGasto = new Date(pago.fecha + 'T00:00:00');
+            fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
+        
+        // 🔥 Fecha de la acción (timestamp de creación)
+        let fechaAccionFormateada = '', horaAccionFormateada = '';
+        if (pago.timestamp) {
+            const fechaAccion = new Date(pago.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            horaAccionFormateada = fechaAccion.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            if (fechaAccion.toDateString() === hoy.toDateString()) fechaAccionFormateada = 'hoy';
+            else if (fechaAccion.toDateString() === ayer.toDateString()) fechaAccionFormateada = 'ayer';
+            else fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
         
         html += `
             <div class="pago-item">
@@ -935,11 +1034,18 @@ function mostrarPagos() {
                         <div class="pago-descripcion">${pago.descripcion}</div>
                         <div class="pago-detalle">
                             <span class="pago-persona">${nombrePersona}</span>
-                            <span class="pago-fecha">${fecha}</span>
+                            <span class="pago-fecha">
+                                <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                                <span class="badge-accion">
+                                    <i class="fas fa-clock"></i> 
+                                    registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                                    ${pago.esPagoGlobal ? '<span class="badge-global">🌍 Pago global</span>' : ''}
+                                </span>
+                            </span>
                         </div>
                     </div>
                     <div class="pago-monto">S/${pago.monto.toFixed(2)}</div>
-                    <button class="delete-btn" onclick="eliminarPagoAhorro('${pago.id}')" title="Eliminar pago">
+                    <button class="delete-btn" onclick="eliminarPagoAhorro('${idSeguro}')" title="Eliminar pago">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1091,14 +1197,34 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
     emptyState.style.display = 'none';
     totales.style.display = 'block';
     
+    // 🔥 ORDENAR POR TIMESTAMP (más reciente arriba)
+    const ahorrosOrdenados = [...ahorrosFiltrados].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.fecha + 'T00:00:00').getTime();
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.fecha + 'T00:00:00').getTime();
+        return timeB - timeA;
+    });
+    
     let html = '';
     
-    ahorrosFiltrados.forEach(ahorro => {
-        const fecha = new Date(ahorro.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+    ahorrosOrdenados.forEach(ahorro => {
+        // 🔥 Fecha del ahorro (la que el usuario eligió)
+        const fechaGasto = new Date(ahorro.fecha + 'T00:00:00');
+        const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        
+        // 🔥 Fecha de la acción (timestamp de creación)
+        let fechaAccionFormateada = '', horaAccionFormateada = '';
+        if (ahorro.timestamp) {
+            const fechaAccion = new Date(ahorro.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            horaAccionFormateada = fechaAccion.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            if (fechaAccion.toDateString() === hoy.toDateString()) fechaAccionFormateada = 'hoy';
+            else if (fechaAccion.toDateString() === ayer.toDateString()) fechaAccionFormateada = 'ayer';
+            else fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
         
         const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
         let nombreOpcion = '';
@@ -1119,21 +1245,28 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
                 break;
         }
         
+        const idSeguro = ahorro.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
+        
         html += `
             <div class="ahorro-item ${ahorro.persona}">
                 <div class="gasto-header">
                     <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} (cada uno)</div>
-                    <button class="delete-btn" onclick="eliminarAhorro('${ahorro.id}')" title="Eliminar">
+                    <button class="delete-btn" onclick="eliminarAhorro('${idSeguro}')" title="Eliminar">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
                 <div class="gasto-descripcion">${ahorro.descripcion}</div>
                 <div class="gasto-meta">
                     <div class="gasto-info">
-                        <span class="gasto-persona">Activó: ${nombrePersona}</span>
+                        <span class="gasto-persona"><i class="fas fa-user"></i> Activó: ${nombrePersona}</span>
                         <span class="ahorro-opcion ${claseBadge}">${nombreOpcion}</span>
                     </div>
-                    <div class="gasto-fecha">${fecha}</div>
+                    <div class="gasto-fecha">
+                        <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                        <span class="badge-accion">
+                            <i class="fas fa-clock"></i> registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                        </span>
+                    </div>
                 </div>
             </div>
         `;
@@ -1362,3 +1495,31 @@ window.eliminarAhorro = eliminarAhorro;
 window.eliminarPagoAhorro = eliminarPagoAhorro;
 
 console.log("✅ app-ahorro.js cargado correctamente");
+
+// ====================
+// FUNCIÓN PARA VER MÁS AHORROS
+// ====================
+
+function configurarVerMasAhorro() {
+    const verMasBtn = document.getElementById('ver-mas-ahorro');
+    const ahorrosContainer = document.getElementById('ahorros-container');
+    
+    if (!verMasBtn || !ahorrosContainer) return;
+    
+    let expandido = false;
+    const alturaNormal = '300px';
+    
+    verMasBtn.addEventListener('click', function() {
+        expandido = !expandido;
+        
+        if (expandido) {
+            ahorrosContainer.style.maxHeight = 'none';
+            ahorrosContainer.style.overflowY = 'visible';
+            this.innerHTML = '<i class="fas fa-chevron-up"></i> Ver menos montos';
+        } else {
+            ahorrosContainer.style.maxHeight = alturaNormal;
+            ahorrosContainer.style.overflowY = 'auto';
+            this.innerHTML = '<i class="fas fa-chevron-down"></i> Ver más montos';
+        }
+    });
+}
