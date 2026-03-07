@@ -657,13 +657,13 @@ async function guardarPago() {
         return;
     }
     
-    // 🔥 Calcular deuda REAL de esta persona
     const fechaFiltro = obtenerFechaFiltro();
     const deudaActual = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, fechaFiltro);
     
+    // 🔥 CORRECCIÓN: Validación más estricta
     if (monto > deudaActual + 0.01) {
         mostrarNotificacion(
-            `❌ No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 
+            `❌ No puedes pagar más de lo que debes en esta fecha (S/${deudaActual.toFixed(2)})`, 
             'error'
         );
         return;
@@ -677,13 +677,16 @@ async function guardarPago() {
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const ahora = new Date();
     
-    // 🔥 Si es pago global, mostrar advertencia
+    // 🔥 CORRECCIÓN: Solo preguntar si es pago global y va a liquidar todo
     if (selectorFecha === 'all') {
-        const confirmar = confirm(
-            `⚠️ Vas a pagar S/${monto.toFixed(2)} de tu deuda TOTAL.\n` +
-            `¿Estás seguro? Este pago aplicará a TODOS tus ahorros.`
-        );
-        if (!confirmar) return;
+        const deudaTotal = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, null);
+        if (Math.abs(monto - deudaTotal) < 0.01) {
+            const confirmar = confirm(
+                `💰 Vas a liquidar TODA tu deuda de S/${deudaTotal.toFixed(2)}.\n` +
+                `¿Estás seguro?`
+            );
+            if (!confirmar) return;
+        }
     }
     
     const nuevoPago = {
@@ -799,7 +802,7 @@ function calcularDeudas() {
         ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fechaFiltro);
     }
     
-    // 🔥 CORRECCIÓN: Calcular pagos por persona de manera INDEPENDIENTE
+    // 🔥 CORRECCIÓN: En "Todo el historial" (fechaFiltro === null), usar TODOS los pagos
     let pagosYo = 0;
     let pagosElla = 0;
     
@@ -813,7 +816,7 @@ function calcularDeudas() {
             .filter(p => p.persona === 'persona2')
             .reduce((sum, p) => sum + p.monto, 0);
     } else {
-        // FECHA ESPECÍFICA: Pagos de esa fecha + pagos globales de cada persona
+        // FECHA ESPECÍFICA: Pagos de esa fecha + pagos globales
         pagosYo = pagosAhorro
             .filter(p => p.persona === 'persona1' && (!p.fecha || p.fecha === fechaFiltro))
             .reduce((sum, p) => sum + p.monto, 0);
@@ -823,12 +826,16 @@ function calcularDeudas() {
             .reduce((sum, p) => sum + p.monto, 0);
     }
     
-    // Total ahorros en el período (para CADA UNO)
+    // Total ahorros en el período
     const totalAhorrosPeriodo = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
     
-    // 🔥 CADA UNO tiene su propia deuda INDEPENDIENTE
+    // Deudas actuales
     const deudaYo = Math.max(0, totalAhorrosPeriodo - pagosYo);
     const deudaElla = Math.max(0, totalAhorrosPeriodo - pagosElla);
+    
+    // 🔥 CORRECCIÓN: Totales generales (para los números de abajo)
+    const totalAhorrosGeneral = ahorros.reduce((sum, a) => sum + a.monto, 0);
+    const totalPagosGeneral = pagosAhorro.reduce((sum, p) => sum + p.monto, 0);
     
     return {
         totalGenerado: ahorrosFiltrados.reduce((sum, a) => sum + (a.monto * 2), 0),
@@ -837,27 +844,25 @@ function calcularDeudas() {
         pagadoElla: pagosElla,
         deudaYo,
         deudaElla,
-        totalPagado: pagosYo + pagosElla,
-        totalPendiente: deudaYo + deudaElla
+        totalPagado: totalPagosGeneral, // ✅ SIEMPRE el total de todos los pagos
+        totalPendiente: (totalAhorrosGeneral * 2) - totalPagosGeneral // ✅ SIEMPRE el total pendiente
     };
 }
 
 function calcularDeudaPersonaPorFecha(persona, fecha) {
-    // 🔥 CORRECCIÓN: Calcular deuda de UNA persona específica
-    
-    // Total de ahorros hasta la fecha (o todo el historial)
+    // Total de ahorros hasta la fecha
     let ahorrosFiltrados = [...ahorros];
     if (fecha) {
         ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fecha);
     }
     const totalAhorros = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
     
-    // 🔥 TODOS los pagos de esta persona (globales + específicos)
+    // 🔥 CORRECCIÓN: Para cualquier fecha, usar TODOS los pagos de la persona
+    // Porque los pagos afectan el total, independientemente de la fecha
     const todosLosPagos = pagosAhorro
         .filter(p => p.persona === persona)
         .reduce((sum, p) => sum + p.monto, 0);
     
-    // Deuda = Ahorros totales - Todo lo que ha pagado
     return Math.max(0, totalAhorros - todosLosPagos);
 }
 
@@ -865,9 +870,9 @@ function actualizarDeudasPorFecha() {
     const calculos = calcularDeudas();
     const fechaFiltro = obtenerFechaFiltro();
     const selectorFecha = document.getElementById('deuda-fecha-selector');
-    const opcionTexto = selectorFecha.options[selectorFecha.selectedIndex].text;
+    const opcionTexto = selectorFecha ? selectorFecha.options[selectorFecha.selectedIndex].text : '';
     
-    // Actualizar UI
+    // Actualizar UI de las barras individuales
     document.getElementById('deuda-total-yo').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
     document.getElementById('deuda-total-ella').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
     
@@ -877,7 +882,7 @@ function actualizarDeudasPorFecha() {
     document.getElementById('pendiente-yo').textContent = `S/${calculos.deudaYo.toFixed(2)}`;
     document.getElementById('pendiente-ella').textContent = `S/${calculos.deudaElla.toFixed(2)}`;
     
-    // 🔥 Barras de progreso INDEPENDIENTES para cada persona
+    // Barras de progreso
     const porcentajeYo = calculos.debeCadaUno > 0 
         ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 
         : 0;
@@ -891,12 +896,8 @@ function actualizarDeudasPorFecha() {
     document.getElementById('deuda-porcentaje-yo').textContent = `${porcentajeYo.toFixed(1)}%`;
     document.getElementById('deuda-porcentaje-ella').textContent = `${porcentajeElla.toFixed(1)}%`;
     
-    // 🔥 Mostrar contexto del filtro
-    const contexto = fechaFiltro === null 
-        ? 'Todo el historial' 
-        : new Date(fechaFiltro).toLocaleDateString();
-    
-    document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)} (${contexto})`;
+    // ✅ Totales generales (SIEMPRE muestran el total de TODO el historial)
+    document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)}`;
     document.getElementById('total-pagado-general').textContent = `S/${calculos.totalPagado.toFixed(2)}`;
     document.getElementById('total-pendiente-general').textContent = `S/${calculos.totalPendiente.toFixed(2)}`;
 }
