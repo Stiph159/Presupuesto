@@ -496,48 +496,113 @@ function obtenerFechaBalance() {
     
     switch(selector) {
         case 'today':
-            return { tipo: 'today', fecha: obtenerFechaLocal(), descripcion: 'Hoy' };
+            return { 
+                tipo: 'today', 
+                fecha: obtenerFechaLocal(),
+                descripcion: 'Hoy'
+            };
+            
         case 'yesterday':
             const ayer = new Date();
             ayer.setDate(ayer.getDate() - 1);
             const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
-            return { tipo: 'yesterday', fecha: fechaAyer.toISOString().split('T')[0], descripcion: 'Ayer' };
+            return { 
+                tipo: 'yesterday', 
+                fecha: fechaAyer.toISOString().split('T')[0],
+                descripcion: 'Ayer'
+            };
+            
+        case 'all':  // ✅ NUEVA OPCIÓN
+            return { 
+                tipo: 'all', 
+                fecha: null,  // null significa "todo el historial"
+                descripcion: 'Todo el historial'
+            };
+            
         case 'custom':
             if (fechaCustom) {
                 const fecha = new Date(fechaCustom + 'T00:00:00');
-                return { tipo: 'custom', fecha: fechaCustom, descripcion: fecha.toLocaleDateString('es-ES', {
-                    weekday: 'long', day: 'numeric', month: 'long'
-                })};
+                return { 
+                    tipo: 'custom', 
+                    fecha: fechaCustom,
+                    descripcion: fecha.toLocaleDateString('es-ES', {
+                        weekday: 'long', 
+                        day: 'numeric', 
+                        month: 'long'
+                    })
+                };
+            } else {
+                return { 
+                    tipo: 'today', 
+                    fecha: obtenerFechaLocal(),
+                    descripcion: 'Hoy'
+                };
             }
+            
         default:
-            return { tipo: 'today', fecha: obtenerFechaLocal(), descripcion: 'Hoy' };
+            return { 
+                tipo: 'today', 
+                fecha: obtenerFechaLocal(),
+                descripcion: 'Hoy'
+            };
     }
 }
 
 function calcularBalance(rango) {
+    // Filtrar gastos por fecha
     const gastosFiltrados = rango.fecha ? gastos.filter(g => g.fecha === rango.fecha) : gastos;
+    
+    // Filtrar pagos por fecha
     const pagosFiltrados = rango.fecha ? pagos.filter(p => p.fecha === rango.fecha) : pagos;
     
+    // Total gastado por cada uno
     const totalTu = gastosFiltrados.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
     const totalElla = gastosFiltrados.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
     
-    let deudaTuAElla = 0, deudaEllaATu = 0;
+    // Inicializar pagos
+    let pagadoTuAElla = 0;  // Cuánto ha pagado YO a ELLA
+    let pagadoEllaATu = 0;  // Cuánto ha pagado ELLA a YO
     
+    // Calcular pagos
     pagosFiltrados.forEach(p => {
-        if (p.deudor === 'persona1' && p.acreedor === 'persona2') deudaTuAElla -= p.monto;
-        else if (p.deudor === 'persona2' && p.acreedor === 'persona1') deudaEllaATu -= p.monto;
+        if (p.deudor === 'persona1' && p.acreedor === 'persona2') {
+            pagadoTuAElla += p.monto;  // Yo pagué a Ella
+        } else if (p.deudor === 'persona2' && p.acreedor === 'persona1') {
+            pagadoEllaATu += p.monto;  // Ella pagó a Mí
+        }
     });
     
+    // Calcular la diferencia de gastos
     const diferenciaGastos = totalTu - totalElla;
     
-    if (diferenciaGastos > 0) deudaEllaATu += diferenciaGastos / 2;
-    else if (diferenciaGastos < 0) deudaTuAElla += Math.abs(diferenciaGastos) / 2;
+    // Determinar quién debe a quién
+    let deudaTuAElla = 0;
+    let deudaEllaATu = 0;
+    
+    if (diferenciaGastos > 0) {
+        // Tú gastaste más, Ella te debe la mitad de la diferencia
+        deudaEllaATu = diferenciaGastos / 2;
+    } else if (diferenciaGastos < 0) {
+        // Ella gastó más, Tú le debes la mitad de la diferencia
+        deudaTuAElla = Math.abs(diferenciaGastos) / 2;
+    }
+    
+    // Restar lo que ya se pagó
+    deudaTuAElla = Math.max(0, deudaTuAElla - pagadoTuAElla);
+    deudaEllaATu = Math.max(0, deudaEllaATu - pagadoEllaATu);
+    
+    const totalGastos = totalTu + totalElla;
+    const meta = totalGastos / 2;
     
     return {
-        totalTu, totalElla,
-        meta: (totalTu + totalElla) / 2,
-        deudaTuAElla: Math.max(0, deudaTuAElla),
-        deudaEllaATu: Math.max(0, deudaEllaATu)
+        totalTu,
+        totalElla,
+        meta,
+        deudaTuAElla,
+        deudaEllaATu,
+        pagadoTuAElla,
+        pagadoEllaATu,
+        diferencia: Math.abs(totalTu - totalElla)
     };
 }
 
@@ -569,24 +634,30 @@ function actualizarBalance() {
     elements.balanceNombreTu.textContent = nombreTu;
     elements.balanceNombreElla.textContent = nombreElla;
     
-    const balanceTu = balance.totalTu - balance.deudaTuAElla + balance.deudaEllaATu;
-    const balanceElla = balance.totalElla - balance.deudaEllaATu + balance.deudaTuAElla;
-    
-    elements.balanceMontoTu.textContent = `S/${balanceTu.toFixed(2)}`;
-    elements.balanceMontoElla.textContent = `S/${balanceElla.toFixed(2)}`;
-    elements.balanceMetaMonto.textContent = `S/${balance.meta.toFixed(2)}`;
-    
+    // Mostrar totales de gastos (sin pagos)
     elements.statTuPeriodo.textContent = `S/${balance.totalTu.toFixed(2)}`;
     elements.statEllaPeriodo.textContent = `S/${balance.totalElla.toFixed(2)}`;
     elements.statDiferenciaPeriodo.textContent = `S/${Math.abs(balance.totalTu - balance.totalElla).toFixed(2)}`;
     
-    const total = balanceTu + balanceElla;
-    const porcentajeTu = total > 0 ? (balanceTu / total) * 100 : 50;
-    const porcentajeElla = total > 0 ? (balanceElla / total) * 100 : 50;
+    // ✅ CORREGIDO: Gasto efectivo después de pagos
+    // El que paga: su gasto efectivo AUMENTA
+    // El que recibe: su gasto efectivo DISMINUYE
+    const gastoEfectivoTu = balance.totalTu + balance.pagadoTuAElla - balance.pagadoEllaATu;
+    const gastoEfectivoElla = balance.totalElla + balance.pagadoEllaATu - balance.pagadoTuAElla;
+    
+    elements.balanceMontoTu.textContent = `S/${gastoEfectivoTu.toFixed(2)}`;
+    elements.balanceMontoElla.textContent = `S/${gastoEfectivoElla.toFixed(2)}`;
+    elements.balanceMetaMonto.textContent = `S/${balance.meta.toFixed(2)}`;
+    
+    // Calcular porcentajes para la barra
+    const totalEfectivo = gastoEfectivoTu + gastoEfectivoElla;
+    const porcentajeTu = totalEfectivo > 0 ? (gastoEfectivoTu / totalEfectivo) * 100 : 50;
+    const porcentajeElla = totalEfectivo > 0 ? (gastoEfectivoElla / totalEfectivo) * 100 : 50;
     
     elements.balanceBarTu.style.width = `${porcentajeTu}%`;
     elements.balanceBarElla.style.width = `${porcentajeElla}%`;
     
+    // Mostrar quién debe a quién
     if (balance.deudaEllaATu > 0.01) {
         elements.deudaTexto.textContent = `${nombreElla} debe a ${nombreTu}:`;
         elements.deudaMonto.textContent = `S/${balance.deudaEllaATu.toFixed(2)}`;
@@ -604,7 +675,10 @@ function actualizarBalance() {
         if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--success-color)';
     }
     
-    document.querySelector('.balance-header h3').innerHTML = `<i class="fas fa-scale-balanced"></i> Balance: ${rango.descripcion}`;
+    const tituloBalance = document.querySelector('.balance-header h3');
+    if (tituloBalance) {
+        tituloBalance.innerHTML = `<i class="fas fa-scale-balanced"></i> Balance: ${rango.descripcion}`;
+    }
 }
 
 function mostrarModalConfirmacionPago() {
