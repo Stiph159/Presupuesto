@@ -125,15 +125,32 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
+                        // 🔥 BUSCAR si existe un TEMPORAL con los mismos datos
+                        const temporalIndex = ahorros.findIndex(a => 
+                            a.id.toString().startsWith('temp_') && 
+                            a.fecha === ahorroData.fecha &&
+                            a.monto === ahorroData.monto &&
+                            a.persona === ahorroData.persona
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // 🔥 Si existe temporal, ELIMINARLO
+                            ahorros.splice(temporalIndex, 1);
+                            console.log("🗑️ Temporal eliminado");
+                        }
+                        
+                        // Solo agregar si no existe ya
                         if (!ahorros.some(a => a.id === ahorroData.id)) {
                             ahorros.push(ahorroData);
                             mostrarNotificacion(`💰 Nuevo ahorro de S/${ahorroData.monto.toFixed(2)}`, 'info');
                         }
                         break;
+                        
                     case 'modified':
                         const indexMod = ahorros.findIndex(a => a.id === ahorroData.id);
                         if (indexMod !== -1) ahorros[indexMod] = ahorroData;
                         break;
+                        
                     case 'removed':
                         ahorros = ahorros.filter(a => a.id !== ahorroData.id);
                         mostrarNotificacion(`📌 Un ahorro fue eliminado`, 'warning');
@@ -172,15 +189,32 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
+                        // 🔥 BUSCAR si existe un TEMPORAL con los mismos datos
+                        const temporalIndex = pagosAhorro.findIndex(p => 
+                            p.id.toString().startsWith('temp_') && 
+                            p.fecha === pagoData.fecha &&
+                            p.monto === pagoData.monto &&
+                            p.persona === pagoData.persona
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // 🔥 Si existe temporal, ELIMINARLO
+                            pagosAhorro.splice(temporalIndex, 1);
+                            console.log("🗑️ Pago temporal eliminado");
+                        }
+                        
+                        // Solo agregar si no existe ya
                         if (!pagosAhorro.some(p => p.id === pagoData.id)) {
                             pagosAhorro.push(pagoData);
                             mostrarNotificacion(`💸 Nuevo pago registrado`, 'info');
                         }
                         break;
+                        
                     case 'modified':
                         const indexMod = pagosAhorro.findIndex(p => p.id === pagoData.id);
                         if (indexMod !== -1) pagosAhorro[indexMod] = pagoData;
                         break;
+                        
                     case 'removed':
                         pagosAhorro = pagosAhorro.filter(p => p.id !== pagoData.id);
                         mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
@@ -230,17 +264,11 @@ async function saveAhorroToFirebase(ahorro) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        ignoreNextSnapshot = true;
+        // 🔥 Quitamos ignoreNextSnapshot de aquí
         const docRef = await db.collection('ahorros').add(ahorroData);
-        
-        setTimeout(() => {
-            ignoreNextSnapshot = false;
-        }, 2000);
-        
-        return docRef.id;
+        return docRef.id; // 🔥 Retornamos el ID real
     } catch (error) {
         console.error("❌ Error guardando:", error);
-        ignoreNextSnapshot = false;
         throw error;
     }
 }
@@ -257,17 +285,11 @@ async function savePagoAhorroToFirebase(pago) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        ignoreNextSnapshot = true;
+        // 🔥 Quitamos ignoreNextSnapshot de aquí
         const docRef = await db.collection('pagos_ahorro').add(pagoData);
-        
-        setTimeout(() => {
-            ignoreNextSnapshot = false;
-        }, 2000);
-        
-        return docRef.id;
+        return docRef.id; // 🔥 Retornamos el ID real
     } catch (error) {
         console.error("❌ Error guardando pago:", error);
-        ignoreNextSnapshot = false;
         throw error;
     }
 }
@@ -588,39 +610,31 @@ async function agregarAhorro() {
             break;
     }
     
-    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    const nuevoAhorro = {
-        id: tempId,
-        fecha: fecha,
-        monto: monto,
-        descripcion: descripcion || nombreOpcion,
-        persona: personaSeleccionada,
-        opcion: opcionSeleccionada,
-        timestamp: new Date(),
-        sincronizando: true
-    };
-    
-    ahorros.unshift(nuevoAhorro);
-    actualizarUIAhorro();
-    
-    // Limpiar formulario
-    document.getElementById('descripcion-ahorro').value = '';
-    document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('opcion-seleccionada-info').style.display = 'none';
-    opcionSeleccionada = null;
-    habilitarBotonAgregar();
-    
-    const nombrePersona = personaSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
-    
-    mostrarNotificacion(`✅ ${nombrePersona} activó: S/${monto.toFixed(2)} para cada uno`, 'success');
+    mostrarNotificacion('⏳ Guardando ahorro...', 'info');
     
     try {
-        await saveAhorroToFirebase(nuevoAhorro);
+        // 🔥 SOLO guardar en Firebase, NO agregar a la lista local
+        await saveAhorroToFirebase({
+            fecha: fecha,
+            monto: monto,
+            descripcion: descripcion || nombreOpcion,
+            persona: personaSeleccionada,
+            opcion: opcionSeleccionada
+        });
+        
+        // Limpiar formulario
+        document.getElementById('descripcion-ahorro').value = '';
+        document.querySelectorAll('.opcion-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById('opcion-seleccionada-info').style.display = 'none';
+        opcionSeleccionada = null;
+        habilitarBotonAgregar();
+        
+        // ✅ El snapshot agregará el registro automáticamente
+        
     } catch (error) {
         console.error("Error guardando:", error);
+        mostrarNotificacion('❌ Error al guardar el ahorro', 'error');
     }
-    
-    saveToLocalStorage();
 }
 
 async function guardarPago() {
@@ -633,55 +647,29 @@ async function guardarPago() {
         return;
     }
     
-    // Validar que no pague más de lo que debe en la fecha seleccionada
-    const fechaSelector = document.getElementById('deuda-fecha-selector').value;
-    const fechaCustom = document.getElementById('deuda-fecha-custom').value;
-    
-    let fechaFiltro = null;
-    if (fechaSelector === 'today') {
-        fechaFiltro = obtenerFechaLocal();
-    } else if (fechaSelector === 'yesterday') {
-        const ayer = new Date();
-        ayer.setDate(ayer.getDate() - 1);
-        const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
-        fechaFiltro = fechaAyer.toISOString().split('T')[0];
-    } else if (fechaSelector === 'custom' && fechaCustom) {
-        fechaFiltro = fechaCustom;
-    }
-    
-    const deudaActual = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, fechaFiltro);
-    
-    if (monto > deudaActual) {
-        mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
-        return;
-    }
-    
+    // Validaciones...
     const nombrePersona = personaPagoSeleccionada === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
     
-    const nuevoPago = {
-        id: 'temp_' + Date.now(),
-        fecha: fecha,
-        monto: monto,
-        descripcion: descripcion || `Pago de ${nombrePersona}`,
-        persona: personaPagoSeleccionada,
-        timestamp: new Date()
-    };
-    
-    pagosAhorro.unshift(nuevoPago);
-    actualizarUIAhorro();
-    
-    cerrarFormularioPago();
-    document.getElementById('modal-confirmar-pago-ahorro').classList.remove('active');
-    
-    mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
+    mostrarNotificacion('⏳ Guardando pago...', 'info');
     
     try {
-        await savePagoAhorroToFirebase(nuevoPago);
+        // 🔥 SOLO guardar en Firebase, NO agregar a la lista local
+        await savePagoAhorroToFirebase({
+            fecha: fecha,
+            monto: monto,
+            descripcion: descripcion || `Pago de ${nombrePersona}`,
+            persona: personaPagoSeleccionada
+        });
+        
+        cerrarFormularioPago();
+        document.getElementById('modal-confirmar-pago-ahorro').classList.remove('active');
+        
+        // ✅ El snapshot agregará el pago automáticamente
+        
     } catch (error) {
         console.error("Error guardando pago:", error);
+        mostrarNotificacion('❌ Error al guardar el pago', 'error');
     }
-    
-    saveToLocalStorage();
 }
 
 async function eliminarAhorro(id) {
