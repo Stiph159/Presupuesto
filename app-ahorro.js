@@ -1,3 +1,4 @@
+// File: app-ahorro.js
 // VARIABLES GLOBALES
 // ====================
 
@@ -273,9 +274,8 @@ async function saveAhorroToFirebase(ahorro) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // 🔥 Quitamos ignoreNextSnapshot de aquí
         const docRef = await db.collection('ahorros').add(ahorroData);
-        return docRef.id; // 🔥 Retornamos el ID real
+        return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando:", error);
         throw error;
@@ -294,9 +294,8 @@ async function savePagoAhorroToFirebase(pago) {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        // 🔥 Quitamos ignoreNextSnapshot de aquí
         const docRef = await db.collection('pagos_ahorro').add(pagoData);
-        return docRef.id; // 🔥 Retornamos el ID real
+        return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando pago:", error);
         throw error;
@@ -386,9 +385,8 @@ function inicializarApp() {
     configurarFiltros();
     configurarSelectorFecha();
     configurarBarraInferior();
-    configurarVerMasAhorro(); // ✅ AGREGAR ESTA LÍNEA
+    configurarVerMasAhorro();
     
-    // CORREGIDO: Usar obtenerFechaLocal()
     const fechaLocal = obtenerFechaLocal();
     document.getElementById('fecha-ahorro').value = fechaLocal;
     document.getElementById('pago-individual-fecha').value = fechaLocal;
@@ -575,17 +573,26 @@ function configurarSelectorFecha() {
         if (this.value === 'custom') {
             fechaCustom.style.display = 'block';
             if (!fechaCustom.value) {
-                // CORREGIDO: Usar obtenerFechaLocal()
                 fechaCustom.value = obtenerFechaLocal();
             }
+            fechaCustom.focus();
         } else {
             fechaCustom.style.display = 'none';
         }
         actualizarDeudasPorFecha();
+        
+        const opcionTexto = this.options[this.selectedIndex].text;
+        if (this.value === 'all') {
+            mostrarNotificacion('📋 Mostrando TODO el historial - PAGOS EN CASCADA (FIFO)', 'info');
+        } else {
+            mostrarNotificacion(`📅 Mostrando: ${opcionTexto} - Barras independientes`, 'info');
+        }
     });
     
     fechaCustom.addEventListener('change', function() {
         actualizarDeudasPorFecha();
+        const fecha = new Date(this.value + 'T00:00:00');
+        mostrarNotificacion(`📅 Mostrando: ${fecha.toLocaleDateString()}`, 'info');
     });
 }
 
@@ -623,12 +630,12 @@ async function agregarAhorro() {
     mostrarNotificacion('⏳ Guardando ahorro...', 'info');
     
     try {
-        // 🔥 SOLO guardar en Firebase, NO agregar a la lista local
+        // 🔥 GUARDAR SOLO UN AHORRO - el monto es para AMBOS
         await saveAhorroToFirebase({
             fecha: fecha,
-            monto: monto,
+            monto: monto, // Este monto es lo que CADA UNO debe
             descripcion: descripcion || nombreOpcion,
-            persona: personaSeleccionada,
+            persona: 'ambos', // 🔥 Cambiar a 'ambos' para indicar que es para los dos
             opcion: opcionSeleccionada
         });
         
@@ -639,7 +646,7 @@ async function agregarAhorro() {
         opcionSeleccionada = null;
         habilitarBotonAgregar();
         
-        // ✅ El snapshot agregará el registro automáticamente
+        mostrarNotificacion(`✅ Ahorro de S/${monto} para cada uno guardado`, 'success');
         
     } catch (error) {
         console.error("Error guardando:", error);
@@ -651,53 +658,49 @@ async function guardarPago() {
     const monto = parseFloat(document.getElementById('pago-individual-monto').value);
     const descripcion = document.getElementById('pago-individual-descripcion').value.trim();
     const fecha = document.getElementById('pago-individual-fecha').value;
+    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
     
     if (!monto || monto <= 0) {
         mostrarNotificacion('Ingresa un monto válido', 'error');
         return;
     }
     
-    const fechaFiltro = obtenerFechaFiltro();
-    const deudaActual = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, fechaFiltro);
+    const persona = personaPagoSeleccionada;
+    const nombrePersona = persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
     
-    // 🔥 CORRECCIÓN: Validación más estricta
+    // Validar que no pague más de lo que debe
+    let deudaActual;
+    if (selectorFecha === 'all') {
+        const calculos = calcularDeudasFIFO();
+        deudaActual = persona === 'persona1' ? calculos.deudaYo : calculos.deudaElla;
+    } else {
+        deudaActual = calcularDeudaPersonaPorFecha(persona, fecha);
+    }
+    
     if (monto > deudaActual + 0.01) {
         mostrarNotificacion(
-            `❌ No puedes pagar más de lo que debes en esta fecha (S/${deudaActual.toFixed(2)})`, 
+            `❌ No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 
             'error'
         );
         return;
     }
     
-    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
-    const nombrePersona = personaPagoSeleccionada === 'persona1' 
-        ? configAhorro.nombres.persona1 
-        : configAhorro.nombres.persona2;
-    
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const ahora = new Date();
-    
-    // 🔥 CORRECCIÓN: Solo preguntar si es pago global y va a liquidar todo
-    if (selectorFecha === 'all') {
-        const deudaTotal = calcularDeudaPersonaPorFecha(personaPagoSeleccionada, null);
-        if (Math.abs(monto - deudaTotal) < 0.01) {
-            const confirmar = confirm(
-                `💰 Vas a liquidar TODA tu deuda de S/${deudaTotal.toFixed(2)}.\n` +
-                `¿Estás seguro?`
-            );
-            if (!confirmar) return;
-        }
-    }
     
     const nuevoPago = {
         id: tempId,
         fecha: selectorFecha === 'all' ? null : fecha,
         monto: monto,
         descripcion: descripcion || `Pago de ${nombrePersona}`,
-        persona: personaPagoSeleccionada,
+        persona: persona,
         timestamp: ahora,
         esPagoGlobal: selectorFecha === 'all'
     };
+    
+    if (selectorFecha === 'all') {
+        mostrarNotificacion(`💰 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
+    }
     
     pagosAhorro.unshift(nuevoPago);
     actualizarUIAhorro();
@@ -774,7 +777,7 @@ async function eliminarPagoAhorro(id) {
 }
 
 // ====================
-// FUNCIONES DE CÁLCULO
+// FUNCIONES DE CÁLCULO (VERSIÓN ÚNICA Y CORREGIDA)
 // ====================
 
 function obtenerFechaFiltro() {
@@ -788,93 +791,155 @@ function obtenerFechaFiltro() {
         const fechaAyer = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000));
         return fechaAyer.toISOString().split('T')[0];
     }
-    if (selector === 'all') return null; // null significa "todo el historial"
+    if (selector === 'all') return null;
     if (selector === 'custom' && fechaCustom) return fechaCustom;
     return null;
 }
 
-function calcularDeudas() {
+function calcularDeudasFIFO() {
     const fechaFiltro = obtenerFechaFiltro();
     
-    // Filtrar ahorros por fecha
-    let ahorrosFiltrados = [...ahorros];
-    if (fechaFiltro) {
-        ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fechaFiltro);
-    }
+    // PASO 1: Obtener todas las fechas únicas con ahorros
+    const fechas = [...new Set(ahorros.map(a => a.fecha))].sort();
     
-    // 🔥 CORRECCIÓN: En "Todo el historial" (fechaFiltro === null), usar TODOS los pagos
-    let pagosYo = 0;
-    let pagosElla = 0;
+    // PASO 2: Estructura para guardar deudas por fecha y persona
+    const deudasPorFecha = {};
+    const ahorrosPorFecha = {};
     
+    fechas.forEach(fecha => {
+        const ahorrosFecha = ahorros.filter(a => a.fecha === fecha);
+        ahorrosPorFecha[fecha] = ahorrosFecha;
+        
+        // Calcular el monto TOTAL de ahorros en esta fecha
+        // Como usamos 'ambos', cada ahorro ya representa lo que CADA UNO debe
+        const montoTotalFecha = ahorrosFecha.reduce((sum, a) => sum + a.monto, 0);
+        
+        // AMBOS deben el mismo monto
+        deudasPorFecha[fecha] = {
+            persona1: montoTotalFecha,
+            persona2: montoTotalFecha
+        };
+    });
+    
+    // PASO 3: Aplicar pagos FIFO (solo pagos globales)
+    const deudasRestantes = JSON.parse(JSON.stringify(deudasPorFecha));
+    
+    ['persona1', 'persona2'].forEach(persona => {
+        // Pagos globales (sin fecha específica) - se distribuyen FIFO
+        const pagosGlobales = pagosAhorro
+            .filter(p => p.persona === persona && p.fecha === null)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        pagosGlobales.forEach(pago => {
+            let montoRestante = pago.monto;
+            
+            for (const fecha of fechas) {
+                if (montoRestante <= 0.01) break;
+                
+                const deudaActual = deudasRestantes[fecha][persona];
+                if (deudaActual > 0.01) {
+                    const pagoAplicado = Math.min(deudaActual, montoRestante);
+                    deudasRestantes[fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+                    montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
+                }
+            }
+        });
+        
+        // Pagos específicos (con fecha) - van directo a su fecha
+        const pagosEspecificos = pagosAhorro
+            .filter(p => p.persona === persona && p.fecha !== null);
+            
+        pagosEspecificos.forEach(pago => {
+            if (deudasRestantes[pago.fecha]) {
+                deudasRestantes[pago.fecha][persona] = Math.max(0, 
+                    deudasRestantes[pago.fecha][persona] - pago.monto
+                );
+            }
+        });
+    });
+    
+    // PASO 4: Calcular según la vista actual
+    let totalVista = 0;
+    let pagadoVistaYo = 0;
+    let pagadoVistaElla = 0;
+    let deudaVistaYo = 0;
+    let deudaVistaElla = 0;
+
     if (fechaFiltro === null) {
-        // TODO EL HISTORIAL: TODOS los pagos de cada persona (globales + específicos)
-        pagosYo = pagosAhorro
-            .filter(p => p.persona === 'persona1')
-            .reduce((sum, p) => sum + p.monto, 0);
+        // VISTA "TODO EL HISTORIAL"
+        fechas.forEach(fecha => {
+            const debeEstaFecha = deudasPorFecha[fecha].persona1;
+            totalVista += debeEstaFecha;
             
-        pagosElla = pagosAhorro
-            .filter(p => p.persona === 'persona2')
-            .reduce((sum, p) => sum + p.monto, 0);
+            pagadoVistaYo += deudasPorFecha[fecha].persona1 - deudasRestantes[fecha].persona1;
+            pagadoVistaElla += deudasPorFecha[fecha].persona2 - deudasRestantes[fecha].persona2;
+            
+            deudaVistaYo += deudasRestantes[fecha].persona1;
+            deudaVistaElla += deudasRestantes[fecha].persona2;
+        });
     } else {
-        // FECHA ESPECÍFICA: Pagos de esa fecha + pagos globales
-        pagosYo = pagosAhorro
-            .filter(p => p.persona === 'persona1' && (!p.fecha || p.fecha === fechaFiltro))
-            .reduce((sum, p) => sum + p.monto, 0);
+        // VISTA DE FECHA ESPECÍFICA
+        if (deudasPorFecha[fechaFiltro]) {
+            totalVista = deudasPorFecha[fechaFiltro].persona1;
             
-        pagosElla = pagosAhorro
-            .filter(p => p.persona === 'persona2' && (!p.fecha || p.fecha === fechaFiltro))
-            .reduce((sum, p) => sum + p.monto, 0);
+            const originalYo = deudasPorFecha[fechaFiltro]?.persona1 || 0;
+            const originalElla = deudasPorFecha[fechaFiltro]?.persona2 || 0;
+            const restanteYo = deudasRestantes[fechaFiltro]?.persona1 || 0;
+            const restanteElla = deudasRestantes[fechaFiltro]?.persona2 || 0;
+            
+            pagadoVistaYo = originalYo - restanteYo;
+            pagadoVistaElla = originalElla - restanteElla;
+            deudaVistaYo = restanteYo;
+            deudaVistaElla = restanteElla;
+        }
     }
-    
-    // Total ahorros en el período
-    const totalAhorrosPeriodo = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
-    
-    // Deudas actuales
-    const deudaYo = Math.max(0, totalAhorrosPeriodo - pagosYo);
-    const deudaElla = Math.max(0, totalAhorrosPeriodo - pagosElla);
-    
-    // 🔥 CORRECCIÓN: Totales generales (para los números de abajo)
-    const totalAhorrosGeneral = ahorros.reduce((sum, a) => sum + a.monto, 0);
-    const totalPagosGeneral = pagosAhorro.reduce((sum, p) => sum + p.monto, 0);
+
+    const totalGenerado = ahorros.reduce((sum, a) => sum + a.monto, 0) * 2; // ✅ Multiplicar por 2 porque cada ahorro es para 2 personas
+    const totalPagado = pagosAhorro.reduce((sum, p) => sum + p.monto, 0);
+    const totalPendiente = totalGenerado - totalPagado;
     
     return {
-        totalGenerado: ahorrosFiltrados.reduce((sum, a) => sum + (a.monto * 2), 0),
-        debeCadaUno: totalAhorrosPeriodo,
-        pagadoYo: pagosYo,
-        pagadoElla: pagosElla,
-        deudaYo,
-        deudaElla,
-        totalPagado: totalPagosGeneral, // ✅ SIEMPRE el total de todos los pagos
-        totalPendiente: (totalAhorrosGeneral * 2) - totalPagosGeneral // ✅ SIEMPRE el total pendiente
+        // Vista actual
+        debeCadaUno: totalVista,
+        pagadoYo: pagadoVistaYo,
+        pagadoElla: pagadoVistaElla,
+        deudaYo: deudaVistaYo,
+        deudaElla: deudaVistaElla,
+        
+        // Generales
+        totalGenerado: totalGenerado,
+        totalPagado: totalPagado,
+        totalPendiente: totalGenerado - totalPagado,
+        
+        deudasRestantes,
+        deudasOriginales: deudasPorFecha,
+        fechas
     };
 }
 
 function calcularDeudaPersonaPorFecha(persona, fecha) {
-    // Total de ahorros hasta la fecha
-    let ahorrosFiltrados = [...ahorros];
-    if (fecha) {
-        ahorrosFiltrados = ahorrosFiltrados.filter(a => a.fecha === fecha);
+    if (!fecha) {
+        const calculos = calcularDeudasFIFO();
+        return persona === 'persona1' ? calculos.deudaYo : calculos.deudaElla;
     }
-    const totalAhorros = ahorrosFiltrados.reduce((sum, a) => sum + a.monto, 0);
     
-    // 🔥 CORRECCIÓN: Para cualquier fecha, usar TODOS los pagos de la persona
-    // Porque los pagos afectan el total, independientemente de la fecha
-    const todosLosPagos = pagosAhorro
-        .filter(p => p.persona === persona)
-        .reduce((sum, p) => sum + p.monto, 0);
-    
-    return Math.max(0, totalAhorros - todosLosPagos);
+    const calculos = calcularDeudasFIFO();
+    if (calculos.deudasRestantes && calculos.deudasRestantes[fecha]) {
+        return calculos.deudasRestantes[fecha][persona] || 0;
+    }
+    return 0;
 }
 
 function actualizarDeudasPorFecha() {
-    const calculos = calcularDeudas();
-    const fechaFiltro = obtenerFechaFiltro();
+    const calculos = calcularDeudasFIFO();
     const selectorFecha = document.getElementById('deuda-fecha-selector');
-    const opcionTexto = selectorFecha ? selectorFecha.options[selectorFecha.selectedIndex].text : '';
     
-    // Actualizar UI de las barras individuales
-    document.getElementById('deuda-total-yo').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
-    document.getElementById('deuda-total-ella').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
+    // Esto es lo que CADA PERSONA debe en la vista actual
+    const debeCadaUno = calculos.debeCadaUno;
+    
+    // Actualizar UI
+    document.getElementById('deuda-total-yo').textContent = `S/${debeCadaUno.toFixed(2)}`;
+    document.getElementById('deuda-total-ella').textContent = `S/${debeCadaUno.toFixed(2)}`;
     
     document.getElementById('pagado-yo').textContent = `S/${calculos.pagadoYo.toFixed(2)}`;
     document.getElementById('pagado-ella').textContent = `S/${calculos.pagadoElla.toFixed(2)}`;
@@ -883,28 +948,33 @@ function actualizarDeudasPorFecha() {
     document.getElementById('pendiente-ella').textContent = `S/${calculos.deudaElla.toFixed(2)}`;
     
     // Barras de progreso
-    const porcentajeYo = calculos.debeCadaUno > 0 
-        ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 
-        : 0;
-    const porcentajeElla = calculos.debeCadaUno > 0 
-        ? (calculos.pagadoElla / calculos.debeCadaUno) * 100 
-        : 0;
+    const porcentajeYo = debeCadaUno > 0 ? (calculos.pagadoYo / debeCadaUno) * 100 : 0;
+    const porcentajeElla = debeCadaUno > 0 ? (calculos.pagadoElla / debeCadaUno) * 100 : 0;
     
     document.getElementById('deuda-bar-yo').style.width = `${porcentajeYo}%`;
     document.getElementById('deuda-bar-ella').style.width = `${porcentajeElla}%`;
-    
     document.getElementById('deuda-porcentaje-yo').textContent = `${porcentajeYo.toFixed(1)}%`;
     document.getElementById('deuda-porcentaje-ella').textContent = `${porcentajeElla.toFixed(1)}%`;
     
-    // ✅ Totales generales (SIEMPRE muestran el total de TODO el historial)
+    // Totales generales
     document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)}`;
     document.getElementById('total-pagado-general').textContent = `S/${calculos.totalPagado.toFixed(2)}`;
     document.getElementById('total-pendiente-general').textContent = `S/${calculos.totalPendiente.toFixed(2)}`;
+    
+    // Guardar cálculos
+    window.ultimosCalculosFIFO = calculos;
+    
+    // Actualizar título
+    const tituloDeudas = document.querySelector('.deudas-individuales-section h3');
+    if (tituloDeudas) {
+        if (selectorFecha.value === 'all') {
+            tituloDeudas.innerHTML = '<i class="fas fa-globe"></i> Deudas Globales (FIFO - Pago en Cascada)';
+        } else {
+            const fechaTexto = selectorFecha.options[selectorFecha.selectedIndex].text;
+            tituloDeudas.innerHTML = `<i class="fas fa-calendar-day"></i> Deudas del ${fechaTexto}`;
+        }
+    }
 }
-
-// ====================
-// FUNCIONES DE UI
-// ====================
 
 function actualizarUIAhorro() {
     actualizarNombresEnUI();
@@ -920,7 +990,6 @@ function actualizarNombresEnUI() {
     document.getElementById('deuda-nombre-yo').textContent = configAhorro.nombres.persona1;
     document.getElementById('deuda-nombre-ella').textContent = configAhorro.nombres.persona2;
     
-    // Actualizar filtros
     const filtroPersona1 = document.getElementById('filtro-persona1-ahorro');
     const filtroPersona2 = document.getElementById('filtro-persona2-ahorro');
     if (filtroPersona1) filtroPersona1.textContent = configAhorro.nombres.persona1;
@@ -936,21 +1005,38 @@ function abrirFormularioPago(persona) {
     personaPagoSeleccionada = persona;
     const nombre = persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
     
-    // Calcular deuda pendiente según la fecha seleccionada
+    const selectorFecha = document.getElementById('deuda-fecha-selector');
+    const fechaCustom = document.getElementById('deuda-fecha-custom');
     const fechaFiltro = obtenerFechaFiltro();
+    
     const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
+    
+    let fechaFormulario = obtenerFechaLocal();
+    if (selectorFecha.value === 'custom' && fechaCustom.value) {
+        fechaFormulario = fechaCustom.value;
+    } else if (selectorFecha.value === 'yesterday') {
+        const ayer = new Date();
+        ayer.setDate(ayer.getDate() - 1);
+        fechaFormulario = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000))
+            .toISOString().split('T')[0];
+    }
     
     document.getElementById('pago-persona-nombre').textContent = nombre;
     document.getElementById('pago-pendiente-actual').textContent = `S/${deudaActual.toFixed(2)}`;
-    document.getElementById('pago-individual-monto').value = '';
+    document.getElementById('pago-individual-fecha').value = fechaFormulario;
+    document.getElementById('pago-individual-monto').value = deudaActual.toFixed(2);
     document.getElementById('pago-individual-descripcion').value = '';
-    document.getElementById('pago-individual-fecha').value = obtenerFechaLocal();
     
-    // 🔥 Si es "Todo el historial", mostrar mensaje
-    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
-    if (selectorFecha === 'all') {
-        mostrarNotificacion('💡 Este pago liquidará TODA tu deuda acumulada', 'info');
+    if (selectorFecha.value === 'all') {
+        mostrarNotificacion('💰 Pago GLOBAL - Se distribuirá desde la fecha más antigua', 'info');
+    } else {
+        mostrarNotificacion(`📅 Pagando deuda específica de ${fechaFormulario}`, 'info');
     }
+    
+    setTimeout(() => {
+        document.getElementById('pago-individual-monto').focus();
+        document.getElementById('pago-individual-monto').select();
+    }, 300);
     
     document.getElementById('pago-individual-section').style.display = 'block';
 }
@@ -990,7 +1076,6 @@ function mostrarPagos() {
     
     emptyState.style.display = 'none';
     
-    // 🔥 ORDENAR POR TIMESTAMP (más reciente arriba)
     const pagosOrdenados = [...pagosAhorro].sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -1003,14 +1088,12 @@ function mostrarPagos() {
         const nombrePersona = pago.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
         const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        // 🔥 Fecha del pago (la que el usuario eligió)
         let fechaGastoFormateada = '📅 Global';
         if (pago.fecha) {
             const fechaGasto = new Date(pago.fecha + 'T00:00:00');
             fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
         }
         
-        // 🔥 Fecha de la acción (timestamp de creación)
         let fechaAccionFormateada = '', horaAccionFormateada = '';
         if (pago.timestamp) {
             const fechaAccion = new Date(pago.timestamp);
@@ -1104,7 +1187,6 @@ function configurarFiltros() {
     
     btnLimpiarTodo.addEventListener('click', mostrarModalLimpiarTodo);
     
-    // Eventos del modal limpiar todo
     document.getElementById('cancelar-limpiar-todo-ahorro').addEventListener('click', () => {
         document.getElementById('modal-limpiar-todo-ahorro').classList.remove('active');
     });
@@ -1198,7 +1280,6 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
     emptyState.style.display = 'none';
     totales.style.display = 'block';
     
-    // 🔥 ORDENAR POR TIMESTAMP (más reciente arriba)
     const ahorrosOrdenados = [...ahorrosFiltrados].sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.fecha + 'T00:00:00').getTime();
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.fecha + 'T00:00:00').getTime();
@@ -1208,11 +1289,9 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
     let html = '';
     
     ahorrosOrdenados.forEach(ahorro => {
-        // 🔥 Fecha del ahorro (la que el usuario eligió)
         const fechaGasto = new Date(ahorro.fecha + 'T00:00:00');
         const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
         
-        // 🔥 Fecha de la acción (timestamp de creación)
         let fechaAccionFormateada = '', horaAccionFormateada = '';
         if (ahorro.timestamp) {
             const fechaAccion = new Date(ahorro.timestamp);
@@ -1282,7 +1361,8 @@ function mostrarModalLimpiarTodo() {
     
     if (totalRegistros) totalRegistros.textContent = ahorros.length;
     
-    const sumaTotal = ahorros.reduce((sum, a) => sum + (a.monto * 2), 0);
+    // ✅ SIN MULTIPLICAR
+    const sumaTotal = ahorros.reduce((sum, a) => sum + a.monto, 0);
     if (totalMonto) totalMonto.textContent = `S/${sumaTotal.toFixed(2)}`;
     
     document.getElementById('modal-limpiar-todo-ahorro').classList.add('active');
@@ -1291,7 +1371,6 @@ function mostrarModalLimpiarTodo() {
 async function limpiarTodoHistorial() {
     mostrarNotificacion('Eliminando todo el historial...', 'info');
     
-    // Eliminar ahorros
     const idsAhorros = ahorros.filter(a => !a.id.toString().startsWith('temp_')).map(a => a.id);
     for (const id of idsAhorros) {
         try {
@@ -1301,7 +1380,6 @@ async function limpiarTodoHistorial() {
         }
     }
     
-    // Eliminar pagos
     const idsPagos = pagosAhorro.filter(p => !p.id.toString().startsWith('temp_')).map(p => p.id);
     for (const id of idsPagos) {
         try {
@@ -1491,7 +1569,6 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     setTimeout(() => notificacion.classList.remove('show'), 2500);
 }
 
-// Hacer funciones globales para los onclick
 window.eliminarAhorro = eliminarAhorro;
 window.eliminarPagoAhorro = eliminarPagoAhorro;
 
