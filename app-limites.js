@@ -3,8 +3,8 @@
 // VARIABLES GLOBALES
 // ====================
 
-let registrosLimites = [];      // Registros de límites (existentes)
-let pagosLimites = [];          // NUEVO: Pagos de ahorro forzado
+let registrosLimites = [];      // Registros de límites (con persona='ambos')
+let pagosLimites = [];          // Pagos de ahorro forzado
 let configLimites = {
     nombres: {
         persona1: 'Yo',
@@ -15,9 +15,10 @@ let configLimites = {
 let limiteSeleccionado = null;
 let chartLimitesInstance = null;
 let unsubscribeLimites = null;
-let unsubscribePagosLimites = null;  // NUEVO
+let unsubscribePagosLimites = null;
 let unsubscribeConfigLimites = null;
 let ignoreNextSnapshot = false;
+let personaPagoSeleccionada = null;
 
 // ====================
 // FUNCIONES FIREBASE
@@ -75,7 +76,7 @@ function setupRealtimeListenersLimites() {
     
     const db = firebase.firestore();
     
-    // Listener para registros de límites (existente)
+    // Listener para registros de límites
     unsubscribeLimites = db.collection('limites')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
@@ -106,7 +107,7 @@ function setupRealtimeListenersLimites() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            console.log("🔄 Reemplazando nuestro registro temporal");
+                            console.log("🔁 Reemplazando nuestro registro temporal");
                             registrosLimites[temporalIndex] = {
                                 ...limiteData,
                                 sincronizando: false,
@@ -141,7 +142,7 @@ function setupRealtimeListenersLimites() {
             console.error("❌ Error en listener:", error);
         });
     
-    // NUEVO: Listener para pagos de límites
+    // Listener para pagos de límites
     unsubscribePagosLimites = db.collection('pagos_limites')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
@@ -216,6 +217,7 @@ async function saveLimiteToFirebase(limite) {
             ahorroPorPersona: limite.ahorroPorPersona,
             dentroDeLimite: limite.dentroDeLimite,
             descripcion: limite.descripcion,
+            persona: 'ambos',
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -345,16 +347,12 @@ function inicializarAppLimites() {
     configurarFiltrosLimites();
     configurarSelectorFecha();
     configurarBarraInferior();
+    configurarVerMasLimites(); // ✅ Agregar esta línea
     actualizarNombresEnUILimites();
     
-    // Fecha actual con ajuste de zona horaria
     const fechaLocal = obtenerFechaLocal();
     document.getElementById('fecha-limite').value = fechaLocal;
     document.getElementById('pago-individual-fecha').value = fechaLocal;
-    
-    // Eliminar gráficos (sección eliminada)
-    const chartsSection = document.getElementById('charts-section');
-    if (chartsSection) chartsSection.remove();
 }
 
 function obtenerFechaLocal() {
@@ -374,7 +372,7 @@ function actualizarNombresEnUILimites() {
 }
 
 // ====================
-// NUEVO: SELECTOR DE FECHA
+// SELECTOR DE FECHA
 // ====================
 
 function configurarSelectorFecha() {
@@ -389,19 +387,29 @@ function configurarSelectorFecha() {
             if (!fechaCustom.value) {
                 fechaCustom.value = obtenerFechaLocal();
             }
+            fechaCustom.focus();
         } else {
             fechaCustom.style.display = 'none';
         }
         actualizarDeudasPorFecha();
+        
+        const opcionTexto = this.options[this.selectedIndex].text;
+        if (this.value === 'all') {
+            mostrarNotificacion('📋 Mostrando TODO el historial - PAGOS EN CASCADA (FIFO)', 'info');
+        } else {
+            mostrarNotificacion(`📅 Mostrando: ${opcionTexto} - Barras independientes`, 'info');
+        }
     });
     
     fechaCustom.addEventListener('change', function() {
         actualizarDeudasPorFecha();
+        const fecha = new Date(this.value + 'T00:00:00');
+        mostrarNotificacion(`📅 Mostrando: ${fecha.toLocaleDateString()}`, 'info');
     });
 }
 
 // ====================
-// NUEVAS FUNCIONES DE CÁLCULO DE DEUDAS
+// FUNCIONES DE CÁLCULO FIFO
 // ====================
 
 function obtenerFechaFiltro() {
@@ -416,58 +424,152 @@ function obtenerFechaFiltro() {
             .toISOString().split('T')[0];
     }
     if (selector === 'custom' && fechaCustom) return fechaCustom;
-    return null; // null significa "todo el historial"
+    return null;
 }
 
-function calcularDeudas() {
+// ====================
+// FUNCIÓN COMPLETA DE CÁLCULO FIFO CORREGIDA
+// ====================
+
+function calcularDeudasFIFO() {
     const fechaFiltro = obtenerFechaFiltro();
     
-    // Filtrar registros de límites por fecha
-    let registrosFiltrados = [...registrosLimites];
-    if (fechaFiltro) {
-        registrosFiltrados = registrosFiltrados.filter(r => r.fecha === fechaFiltro);
+    // PASO 1: Obtener todas las fechas únicas con registros
+    const fechas = [...new Set(registrosLimites.map(r => r.fecha))].sort();
+    
+    // PASO 2: Estructura para guardar deudas por fecha y persona
+    const deudasPorFecha = {};
+    const registrosPorFecha = {};
+    
+    fechas.forEach(fecha => {
+        const registrosFecha = registrosLimites.filter(r => r.fecha === fecha);
+        registrosPorFecha[fecha] = registrosFecha;
+        
+        // Calcular el monto TOTAL de ahorro en esta fecha
+        const ahorroTotalFecha = registrosFecha.reduce((sum, r) => sum + r.ahorroTotal, 0);
+        
+        // AMBOS deben el mismo monto (la mitad del ahorroTotal)
+        const debeCadaUno = ahorroTotalFecha / 2;
+        
+        deudasPorFecha[fecha] = {
+            persona1: debeCadaUno,
+            persona2: debeCadaUno,
+            ahorroTotal: ahorroTotalFecha
+        };
+    });
+    
+    // PASO 3: Aplicar pagos FIFO
+    const deudasRestantes = JSON.parse(JSON.stringify(deudasPorFecha));
+    
+    // Obtener todas las fechas ordenadas (más antigua primero) para FIFO
+    const fechasOrdenadas = [...fechas].sort(); // Ya están ordenadas por .sort()
+    
+    ['persona1', 'persona2'].forEach(persona => {
+        // Separar pagos específicos (con fecha) y globales (sin fecha)
+        const pagosEspecificos = pagosLimites
+            .filter(p => p.persona === persona && p.fecha !== null);
+        
+        const pagosGlobales = pagosLimites
+            .filter(p => p.persona === persona && p.fecha === null)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Orden FIFO por timestamp
+        
+        // PRIMERO: Aplicar pagos específicos (van directo a su fecha)
+        pagosEspecificos.forEach(pago => {
+            if (deudasRestantes[pago.fecha]) {
+                const deudaActual = deudasRestantes[pago.fecha][persona];
+                const pagoAplicado = Math.min(deudaActual, pago.monto);
+                deudasRestantes[pago.fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+            }
+        });
+        
+        // SEGUNDO: Aplicar pagos globales en orden FIFO estricto
+        pagosGlobales.forEach(pago => {
+            let montoRestante = pago.monto;
+            
+            // Recorrer fechas de la MÁS ANTIGUA a la MÁS NUEVA
+            for (const fecha of fechasOrdenadas) {
+                if (montoRestante <= 0.01) break;
+                
+                const deudaActual = deudasRestantes[fecha][persona];
+                if (deudaActual > 0.01) {
+                    const pagoAplicado = Math.min(deudaActual, montoRestante);
+                    deudasRestantes[fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+                    montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
+                }
+            }
+        });
+    });
+    
+    // PASO 4: Calcular según la vista actual
+    let totalVista = 0;
+    let pagadoVistaYo = 0;
+    let pagadoVistaElla = 0;
+    let deudaVistaYo = 0;
+    let deudaVistaElla = 0;
+
+    if (fechaFiltro === null) {
+        // VISTA "TODO EL HISTORIAL"
+        fechas.forEach(fecha => {
+            const debeEstaFecha = deudasPorFecha[fecha].persona1;
+            totalVista += debeEstaFecha;
+            
+            pagadoVistaYo += deudasPorFecha[fecha].persona1 - deudasRestantes[fecha].persona1;
+            pagadoVistaElla += deudasPorFecha[fecha].persona2 - deudasRestantes[fecha].persona2;
+            
+            deudaVistaYo += deudasRestantes[fecha].persona1;
+            deudaVistaElla += deudasRestantes[fecha].persona2;
+        });
+    } else {
+        // VISTA DE FECHA ESPECÍFICA
+        if (deudasPorFecha[fechaFiltro]) {
+            totalVista = deudasPorFecha[fechaFiltro].persona1;
+            
+            const originalYo = deudasPorFecha[fechaFiltro]?.persona1 || 0;
+            const originalElla = deudasPorFecha[fechaFiltro]?.persona2 || 0;
+            const restanteYo = deudasRestantes[fechaFiltro]?.persona1 || 0;
+            const restanteElla = deudasRestantes[fechaFiltro]?.persona2 || 0;
+            
+            pagadoVistaYo = originalYo - restanteYo;
+            pagadoVistaElla = originalElla - restanteElla;
+            deudaVistaYo = restanteYo;
+            deudaVistaElla = restanteElla;
+        }
     }
-    
-    // Filtrar pagos por fecha
-    let pagosFiltrados = [...pagosLimites];
-    if (fechaFiltro) {
-        pagosFiltrados = pagosFiltrados.filter(p => p.fecha === fechaFiltro);
-    }
-    
-    // Total de ahorro generado (suma de ahorroTotal)
-    const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
-    
-    // Cada uno debe la mitad del total generado
-    const debeCadaUno = totalGenerado / 2;
-    
-    // Pagos por persona
-    const pagadoYo = pagosFiltrados.filter(p => p.persona === 'persona1')
-        .reduce((sum, p) => sum + p.monto, 0);
-    const pagadoElla = pagosFiltrados.filter(p => p.persona === 'persona2')
-        .reduce((sum, p) => sum + p.monto, 0);
-    
-    // Deudas actuales
-    const deudaYo = Math.max(0, debeCadaUno - pagadoYo);
-    const deudaElla = Math.max(0, debeCadaUno - pagadoElla);
+
+    // Totales generales
+    const totalGenerado = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
+    const totalPagado = pagosLimites.reduce((sum, p) => sum + p.monto, 0);
+    const totalPendiente = Math.max(0, totalGenerado - totalPagado); // ✅ Nunca negativo
     
     return {
-        totalGenerado,
-        debeCadaUno,
-        pagadoYo,
-        pagadoElla,
-        deudaYo,
-        deudaElla,
-        totalPagado: pagadoYo + pagadoElla,
-        totalPendiente: deudaYo + deudaElla
+        // Vista actual
+        debeCadaUno: totalVista,
+        pagadoYo: pagadoVistaYo,
+        pagadoElla: pagadoVistaElla,
+        deudaYo: deudaVistaYo,
+        deudaElla: deudaVistaElla,
+        
+        // Generales
+        totalGenerado: totalGenerado,
+        totalPagado: totalPagado,
+        totalPendiente: totalPendiente,
+        
+        deudasRestantes,
+        deudasOriginales: deudasPorFecha,
+        fechas
     };
 }
 
 function actualizarDeudasPorFecha() {
-    const calculos = calcularDeudas();
+    const calculos = calcularDeudasFIFO();
+    const selectorFecha = document.getElementById('deuda-fecha-selector');
+    
+    // Esto es lo que CADA PERSONA debe en la vista actual
+    const debeCadaUno = calculos.debeCadaUno;
     
     // Actualizar UI
-    document.getElementById('deuda-total-yo').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
-    document.getElementById('deuda-total-ella').textContent = `S/${calculos.debeCadaUno.toFixed(2)}`;
+    document.getElementById('deuda-total-yo').textContent = `S/${debeCadaUno.toFixed(2)}`;
+    document.getElementById('deuda-total-ella').textContent = `S/${debeCadaUno.toFixed(2)}`;
     
     document.getElementById('pagado-yo').textContent = `S/${calculos.pagadoYo.toFixed(2)}`;
     document.getElementById('pagado-ella').textContent = `S/${calculos.pagadoElla.toFixed(2)}`;
@@ -476,8 +578,8 @@ function actualizarDeudasPorFecha() {
     document.getElementById('pendiente-ella').textContent = `S/${calculos.deudaElla.toFixed(2)}`;
     
     // Barras de progreso
-    const porcentajeYo = calculos.debeCadaUno > 0 ? (calculos.pagadoYo / calculos.debeCadaUno) * 100 : 0;
-    const porcentajeElla = calculos.debeCadaUno > 0 ? (calculos.pagadoElla / calculos.debeCadaUno) * 100 : 0;
+    const porcentajeYo = debeCadaUno > 0 ? (calculos.pagadoYo / debeCadaUno) * 100 : 0;
+    const porcentajeElla = debeCadaUno > 0 ? (calculos.pagadoElla / debeCadaUno) * 100 : 0;
     
     document.getElementById('deuda-bar-yo').style.width = `${porcentajeYo}%`;
     document.getElementById('deuda-bar-ella').style.width = `${porcentajeElla}%`;
@@ -489,41 +591,75 @@ function actualizarDeudasPorFecha() {
     document.getElementById('total-generado').textContent = `S/${calculos.totalGenerado.toFixed(2)}`;
     document.getElementById('total-pagado-general').textContent = `S/${calculos.totalPagado.toFixed(2)}`;
     document.getElementById('total-pendiente-general').textContent = `S/${calculos.totalPendiente.toFixed(2)}`;
+    
+    // Guardar cálculos
+    window.ultimosCalculosFIFO = calculos;
+    
+    // Actualizar título
+    const tituloDeudas = document.querySelector('.deudas-individuales-section h3');
+    if (tituloDeudas) {
+        if (selectorFecha.value === 'all') {
+            tituloDeudas.innerHTML = '<i class="fas fa-globe"></i> Deudas Globales (FIFO - Pago en Cascada)';
+        } else {
+            const fechaTexto = selectorFecha.options[selectorFecha.selectedIndex].text;
+            tituloDeudas.innerHTML = `<i class="fas fa-calendar-day"></i> Deudas del ${fechaTexto}`;
+        }
+    }
+}
+
+function calcularDeudaPersonaPorFecha(persona, fecha) {
+    if (!fecha) {
+        const calculos = calcularDeudasFIFO();
+        return persona === 'persona1' ? calculos.deudaYo : calculos.deudaElla;
+    }
+    
+    const calculos = calcularDeudasFIFO();
+    if (calculos.deudasRestantes && calculos.deudasRestantes[fecha]) {
+        return calculos.deudasRestantes[fecha][persona] || 0;
+    }
+    return 0;
 }
 
 // ====================
-// NUEVO: FUNCIONES DE PAGO
+// FUNCIONES DE PAGO
 // ====================
-
-let personaPagoSeleccionada = null;
 
 function abrirFormularioPago(persona) {
     personaPagoSeleccionada = persona;
     const nombre = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
     
+    const selectorFecha = document.getElementById('deuda-fecha-selector');
+    const fechaCustom = document.getElementById('deuda-fecha-custom');
     const fechaFiltro = obtenerFechaFiltro();
-    let deudaActual = 0;
     
-    if (fechaFiltro) {
-        const registrosFiltrados = registrosLimites.filter(r => r.fecha === fechaFiltro);
-        const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
-        const debe = totalGenerado / 2;
-        const pagado = pagosLimites.filter(p => p.fecha === fechaFiltro && p.persona === persona)
-            .reduce((sum, p) => sum + p.monto, 0);
-        deudaActual = debe - pagado;
-    } else {
-        const totalGenerado = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
-        const debe = totalGenerado / 2;
-        const pagado = pagosLimites.filter(p => p.persona === persona)
-            .reduce((sum, p) => sum + p.monto, 0);
-        deudaActual = debe - pagado;
+    const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
+    
+    let fechaFormulario = obtenerFechaLocal();
+    if (selectorFecha.value === 'custom' && fechaCustom.value) {
+        fechaFormulario = fechaCustom.value;
+    } else if (selectorFecha.value === 'yesterday') {
+        const ayer = new Date();
+        ayer.setDate(ayer.getDate() - 1);
+        fechaFormulario = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000))
+            .toISOString().split('T')[0];
     }
     
     document.getElementById('pago-persona-nombre').textContent = nombre;
-    document.getElementById('pago-pendiente-actual').textContent = `S/${Math.max(0, deudaActual).toFixed(2)}`;
-    document.getElementById('pago-individual-monto').value = '';
+    document.getElementById('pago-pendiente-actual').textContent = `S/${deudaActual.toFixed(2)}`;
+    document.getElementById('pago-individual-fecha').value = fechaFormulario;
+    document.getElementById('pago-individual-monto').value = deudaActual.toFixed(2);
     document.getElementById('pago-individual-descripcion').value = '';
-    document.getElementById('pago-individual-fecha').value = obtenerFechaLocal();
+    
+    if (selectorFecha.value === 'all') {
+        mostrarNotificacion('💰 Pago GLOBAL - Se distribuirá desde la fecha más antigua', 'info');
+    } else {
+        mostrarNotificacion(`📅 Pagando deuda específica de ${fechaFormulario}`, 'info');
+    }
+    
+    setTimeout(() => {
+        document.getElementById('pago-individual-monto').focus();
+        document.getElementById('pago-individual-monto').select();
+    }, 300);
     
     document.getElementById('pago-individual-section').style.display = 'block';
 }
@@ -543,24 +679,9 @@ function mostrarModalConfirmacionPago() {
         return;
     }
     
-    // Validar que no pague más de lo que debe
+    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
     const fechaFiltro = obtenerFechaFiltro();
-    let deudaActual = 0;
-    
-    if (fechaFiltro) {
-        const registrosFiltrados = registrosLimites.filter(r => r.fecha === fechaFiltro);
-        const totalGenerado = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
-        const debe = totalGenerado / 2;
-        const pagado = pagosLimites.filter(p => p.fecha === fechaFiltro && p.persona === persona)
-            .reduce((sum, p) => sum + p.monto, 0);
-        deudaActual = debe - pagado;
-    } else {
-        const totalGenerado = registrosLimites.reduce((sum, r) => sum + r.ahorroTotal, 0);
-        const debe = totalGenerado / 2;
-        const pagado = pagosLimites.filter(p => p.persona === persona)
-            .reduce((sum, p) => sum + p.monto, 0);
-        deudaActual = debe - pagado;
-    }
+    const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
     
     if (parseFloat(monto) > deudaActual + 0.01) {
         mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
@@ -577,15 +698,27 @@ async function guardarPago() {
     const monto = parseFloat(document.getElementById('pago-individual-monto').value);
     const descripcion = document.getElementById('pago-individual-descripcion').value.trim();
     const fecha = document.getElementById('pago-individual-fecha').value;
+    const selectorFecha = document.getElementById('deuda-fecha-selector').value;
+    
+    const persona = personaPagoSeleccionada;
+    const nombrePersona = persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+    
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const ahora = new Date();
     
     const nuevoPago = {
-        id: 'temp_' + Date.now(),
-        fecha: fecha,
+        id: tempId,
+        fecha: selectorFecha === 'all' ? null : fecha,
         monto: monto,
-        descripcion: descripcion || 'Pago de ahorro forzado',
-        persona: personaPagoSeleccionada,
-        timestamp: new Date()
+        descripcion: descripcion || `Pago de ${nombrePersona}`,
+        persona: persona,
+        timestamp: ahora,
+        esPagoGlobal: selectorFecha === 'all'
     };
+    
+    if (selectorFecha === 'all') {
+        mostrarNotificacion(`💰 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
+    }
     
     pagosLimites.unshift(nuevoPago);
     actualizarUILimites();
@@ -593,13 +726,13 @@ async function guardarPago() {
     cerrarFormularioPago();
     document.getElementById('modal-confirmar-pago-limites').classList.remove('active');
     
-    const nombrePersona = personaPagoSeleccionada === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
     mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
     
     try {
         await savePagoLimiteToFirebase(nuevoPago);
     } catch (error) {
         console.error("Error guardando pago:", error);
+        mostrarNotificacion('⚠️ Pago guardado localmente', 'warning');
     }
     
     saveLimitesToLocalStorage();
@@ -647,15 +780,40 @@ function mostrarPagos() {
     
     emptyState.style.display = 'none';
     
+    // 🔥 ORDENAR POR TIMESTAMP (más reciente arriba)
+    const pagosOrdenados = [...pagosLimites].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA;
+    });
+    
     let html = '';
-    pagosLimites.slice(0, 20).forEach(pago => {
+    
+    pagosOrdenados.slice(0, 20).forEach(pago => {
         const nombrePersona = pago.persona === 'persona1' ? configLimites.nombres.persona1 : configLimites.nombres.persona2;
+        const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        const fecha = new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        });
+        // Fecha del gasto (la que el usuario eligió)
+        let fechaGastoFormateada = '📅 Global';
+        if (pago.fecha) {
+            const fechaGasto = new Date(pago.fecha + 'T00:00:00');
+            fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
+        
+        // Fecha de la acción (timestamp de creación)
+        let fechaAccionFormateada = '', horaAccionFormateada = '';
+        if (pago.timestamp) {
+            const fechaAccion = new Date(pago.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            horaAccionFormateada = fechaAccion.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            if (fechaAccion.toDateString() === hoy.toDateString()) fechaAccionFormateada = 'hoy';
+            else if (fechaAccion.toDateString() === ayer.toDateString()) fechaAccionFormateada = 'ayer';
+            else fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+        }
         
         html += `
             <div class="pago-item">
@@ -667,11 +825,18 @@ function mostrarPagos() {
                         <div class="pago-descripcion">${pago.descripcion}</div>
                         <div class="pago-detalle">
                             <span class="pago-persona">${nombrePersona}</span>
-                            <span class="pago-fecha">${fecha}</span>
+                            <span class="pago-fecha">
+                                <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                                <span class="badge-accion">
+                                    <i class="fas fa-clock"></i> 
+                                    registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                                    ${pago.esPagoGlobal ? '<span class="badge-global">🌍 Pago global</span>' : ''}
+                                </span>
+                            </span>
                         </div>
                     </div>
                     <div class="pago-monto">S/${pago.monto.toFixed(2)}</div>
-                    <button class="delete-btn" onclick="eliminarPagoLimite('${pago.id}')" title="Eliminar pago">
+                    <button class="delete-btn" onclick="eliminarPagoLimite('${idSeguro}')" title="Eliminar pago">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -683,7 +848,7 @@ function mostrarPagos() {
 }
 
 // ====================
-// FUNCIÓN MEJORADA DE CÁLCULO (con redondeo a múltiplo de 5)
+// FUNCIÓN DE CÁLCULO DE LÍMITE
 // ====================
 
 function calcularLimite() {
@@ -751,7 +916,7 @@ function calcularLimite() {
 }
 
 // ====================
-// FUNCIONES EXISTENTES (modificadas)
+// FUNCIONES DE REGISTROS
 // ====================
 
 async function guardarRegistroLimite() {
@@ -773,6 +938,7 @@ async function guardarRegistroLimite() {
         ahorroPorPersona: calculo.ahorroPorPersona,
         dentroDeLimite: calculo.dentroDeLimite,
         descripcion: calculo.descripcion,
+        persona: 'ambos',
         timestamp: new Date(),
         sincronizando: true
     };
@@ -847,7 +1013,7 @@ async function eliminarRegistroLimite(id) {
 }
 
 // ====================
-// FUNCIONES DE FILTROS (existentes)
+// FUNCIONES DE FILTROS
 // ====================
 
 function configurarFiltrosLimites() {
@@ -911,6 +1077,10 @@ function configurarFiltrosLimites() {
     }
 }
 
+// ====================
+// FUNCIÓN APLICAR FILTROS (ACTUALIZADA)
+// ====================
+
 function aplicarFiltrosLimites() {
     const busqueda = document.getElementById('busqueda-limites')?.value.toLowerCase() || '';
     const tipo = document.getElementById('filtro-tipo-limite')?.value || '';
@@ -920,18 +1090,21 @@ function aplicarFiltrosLimites() {
     
     let registrosFiltrados = [...registrosLimites];
     
+    // Filtrar por búsqueda
     if (busqueda) {
         registrosFiltrados = registrosFiltrados.filter(r => 
             r.descripcion.toLowerCase().includes(busqueda)
         );
     }
     
+    // Filtrar por tipo (cumplido/exceso)
     if (tipo === 'cumplido') {
         registrosFiltrados = registrosFiltrados.filter(r => r.dentroDeLimite === true);
     } else if (tipo === 'exceso') {
         registrosFiltrados = registrosFiltrados.filter(r => r.exceso > 0);
     }
     
+    // Filtrar por fecha del GASTO (no por timestamp)
     if (filtroFecha !== 'all') {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
@@ -963,8 +1136,7 @@ function aplicarFiltrosLimites() {
         }
     }
     
-    registrosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    
+    // Actualizar contadores
     const mostrandoEl = document.getElementById('filtro-mostrando-limites');
     const totalEl = document.getElementById('filtro-total-limites');
     const totalMontoEl = document.getElementById('filtro-total-monto-limites');
@@ -975,8 +1147,10 @@ function aplicarFiltrosLimites() {
     const totalAhorro = registrosFiltrados.reduce((sum, r) => sum + r.ahorroTotal, 0);
     if (totalMontoEl) totalMontoEl.textContent = `S/${totalAhorro.toFixed(2)}`;
     
+    // 🔥 Cargar registros con orden por timestamp
     cargarRegistrosLimitesFiltrados(registrosFiltrados);
     
+    // Actualizar totales generales
     const totalAhorroForzado = document.getElementById('total-ahorro-forzado');
     const totalDiasExceso = document.getElementById('total-dias-exceso');
     
@@ -987,6 +1161,10 @@ function aplicarFiltrosLimites() {
         totalDiasExceso.textContent = registrosLimites.filter(r => r.exceso > 0).length;
     }
 }
+
+// ====================
+// FUNCIÓN PARA CARGAR REGISTROS FILTRADOS (CON ORDEN POR TIMESTAMP)
+// ====================
 
 function cargarRegistrosLimitesFiltrados(registrosFiltrados) {
     const container = document.getElementById('registros-container');
@@ -1011,37 +1189,55 @@ function cargarRegistrosLimitesFiltrados(registrosFiltrados) {
     if (emptyState) emptyState.style.display = 'none';
     if (totales) totales.style.display = 'block';
     
+    // 🔥 ORDENAR POR TIMESTAMP (más reciente primero)
+    const registrosOrdenados = [...registrosFiltrados].sort((a, b) => {
+        // Si tienen timestamp, usarlo
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        
+        // Si ambos tienen timestamp, ordenar por eso
+        if (timeA && timeB) return timeB - timeA;
+        
+        // Si no, usar fecha como fallback
+        const fechaA = new Date(a.fecha + 'T00:00:00').getTime();
+        const fechaB = new Date(b.fecha + 'T00:00:00').getTime();
+        return fechaB - fechaA;
+    });
+    
     let html = '';
     
-    registrosFiltrados.forEach(registro => {
-        let fechaFormateada;
-        const fechaRegistro = new Date(registro.fecha + 'T00:00:00');
-        const ahora = new Date();
-        const esHoy = fechaRegistro.toDateString() === ahora.toDateString();
-
-        if (esHoy && registro.timestamp) {
-            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
+    registrosOrdenados.forEach(registro => {
+        // Formatear fecha de visualización
+        const fechaGasto = new Date(registro.fecha + 'T00:00:00');
+        const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { 
+            day: '2-digit', 
+            month: '2-digit' 
+        });
+        
+        // 🔥 Obtener información del timestamp (cuándo se registró)
+        let fechaRegistroFormateada = '', horaRegistro = '';
+        if (registro.timestamp) {
+            const fechaRegistro = new Date(registro.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            horaRegistro = fechaRegistro.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
             });
-            fechaFormateada = `Hoy ${hora}`;
-        } else if (registro.timestamp) {
-            const fecha = fechaRegistro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-            const hora = new Date(registro.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `${fecha} ${hora}`;
-        } else {
-            fechaFormateada = fechaRegistro.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
+            
+            if (fechaRegistro.toDateString() === hoy.toDateString()) {
+                fechaRegistroFormateada = 'hoy';
+            } else if (fechaRegistro.toDateString() === ayer.toDateString()) {
+                fechaRegistroFormateada = 'ayer';
+            } else {
+                fechaRegistroFormateada = fechaRegistro.toLocaleDateString('es-ES', { 
+                    day: '2-digit', 
+                    month: '2-digit' 
+                });
+            }
         }
         
         const clase = registro.dentroDeLimite ? 'cumplido' : 'exceso';
@@ -1067,7 +1263,13 @@ function cargarRegistrosLimitesFiltrados(registrosFiltrados) {
                         <span>${limiteText}</span>
                         ${!registro.dentroDeLimite ? `<span>Ahorro: S/${registro.ahorroTotal.toFixed(2)}</span>` : ''}
                     </div>
-                    <div class="gasto-fecha">${fechaFormateada}</div>
+                    <div class="gasto-fecha">
+                        <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                        <span class="badge-accion">
+                            <i class="fas fa-clock"></i> registrado 
+                            ${fechaRegistroFormateada} ${horaRegistro}
+                        </span>
+                    </div>
                 </div>
             </div>
         `;
@@ -1191,7 +1393,7 @@ function configurarEventosLimites() {
         cancelNamesBtn.addEventListener('click', () => ocultarModal('names-modal'));
     }
     
-    // NUEVO: Botones de pago
+    // Botones de pago
     document.querySelectorAll('.btn-pagar-individual').forEach(btn => {
         btn.addEventListener('click', function() {
             const persona = this.dataset.persona;
@@ -1400,4 +1602,39 @@ async function saveConfigLimitesToFirebase() {
 window.eliminarRegistroLimite = eliminarRegistroLimite;
 window.eliminarPagoLimite = eliminarPagoLimite;
 
-console.log("✅ app-limites.js cargado correctamente");
+console.log("✅ app-limites.js cargado correctamente con FIFO");
+
+// ====================
+// FUNCIÓN PARA VER MÁS REGISTROS
+// ====================
+
+function configurarVerMasLimites() {
+    const verMasBtn = document.getElementById('ver-mas-limites');
+    const registrosContainer = document.getElementById('registros-container');
+    
+    if (!verMasBtn || !registrosContainer) {
+        console.log("No se encontró el botón ver más o el container");
+        return;
+    }
+    
+    let expandido = false;
+    const alturaNormal = '300px';
+    
+    // Establecer altura inicial
+    registrosContainer.style.maxHeight = alturaNormal;
+    registrosContainer.style.overflowY = 'auto';
+    
+    verMasBtn.addEventListener('click', function() {
+        expandido = !expandido;
+        
+        if (expandido) {
+            registrosContainer.style.maxHeight = 'none';
+            registrosContainer.style.overflowY = 'visible';
+            this.innerHTML = '<i class="fas fa-chevron-up"></i> Ver menos registros';
+        } else {
+            registrosContainer.style.maxHeight = alturaNormal;
+            registrosContainer.style.overflowY = 'auto';
+            this.innerHTML = '<i class="fas fa-chevron-down"></i> Ver más registros';
+        }
+    });
+}

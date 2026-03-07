@@ -690,3 +690,7 @@
         width: 100%;
     }
 }
+
+.ahorro-item.ambos {
+    border-left-color: #9b59b6; /* Color morado para indicar que es de ambos */
+}

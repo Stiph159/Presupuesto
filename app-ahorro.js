@@ -268,7 +268,8 @@ async function saveAhorroToFirebase(ahorro) {
             fecha: ahorro.fecha,
             monto: ahorro.monto,
             descripcion: ahorro.descripcion,
-            persona: ahorro.persona,
+            persona: ahorro.persona, // 'ambos'
+            activadoPor: ahorro.activadoPor, // ✅ NUEVO: 'persona1' o 'persona2'
             opcion: ahorro.opcion,
             sharedId: 'nuestra_pareja',
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -608,6 +609,7 @@ async function agregarAhorro() {
     
     const descripcion = document.getElementById('descripcion-ahorro').value.trim();
     const fecha = document.getElementById('fecha-ahorro').value;
+    const personaActivo = personaSeleccionada; // ✅ Guardamos quién activó
     
     let monto = 0;
     let nombreOpcion = '';
@@ -630,12 +632,13 @@ async function agregarAhorro() {
     mostrarNotificacion('⏳ Guardando ahorro...', 'info');
     
     try {
-        // 🔥 GUARDAR SOLO UN AHORRO - el monto es para AMBOS
+        // ✅ Guardamos CON la persona que activó
         await saveAhorroToFirebase({
             fecha: fecha,
-            monto: monto, // Este monto es lo que CADA UNO debe
+            monto: monto,
             descripcion: descripcion || nombreOpcion,
-            persona: 'ambos', // 🔥 Cambiar a 'ambos' para indicar que es para los dos
+            persona: 'ambos', // Esto indica que la deuda es para ambos
+            activadoPor: personaActivo, // ✅ NUEVO: Guardamos quién lo activó
             opcion: opcionSeleccionada
         });
         
@@ -796,6 +799,10 @@ function obtenerFechaFiltro() {
     return null;
 }
 
+// ====================
+// FUNCIÓN COMPLETA DE CÁLCULO FIFO CORREGIDA PARA AHORROS
+// ====================
+
 function calcularDeudasFIFO() {
     const fechaFiltro = obtenerFechaFiltro();
     
@@ -821,19 +828,36 @@ function calcularDeudasFIFO() {
         };
     });
     
-    // PASO 3: Aplicar pagos FIFO (solo pagos globales)
+    // PASO 3: Aplicar pagos FIFO
     const deudasRestantes = JSON.parse(JSON.stringify(deudasPorFecha));
     
+    // Obtener todas las fechas ordenadas (más antigua primero) para FIFO
+    const fechasOrdenadas = [...fechas].sort(); // Ya están ordenadas por .sort()
+    
     ['persona1', 'persona2'].forEach(persona => {
-        // Pagos globales (sin fecha específica) - se distribuyen FIFO
+        // Separar pagos específicos (con fecha) y globales (sin fecha)
+        const pagosEspecificos = pagosAhorro
+            .filter(p => p.persona === persona && p.fecha !== null);
+        
         const pagosGlobales = pagosAhorro
             .filter(p => p.persona === persona && p.fecha === null)
-            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Orden FIFO por timestamp
         
+        // PRIMERO: Aplicar pagos específicos (van directo a su fecha)
+        pagosEspecificos.forEach(pago => {
+            if (deudasRestantes[pago.fecha]) {
+                const deudaActual = deudasRestantes[pago.fecha][persona];
+                const pagoAplicado = Math.min(deudaActual, pago.monto);
+                deudasRestantes[pago.fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+            }
+        });
+        
+        // SEGUNDO: Aplicar pagos globales en orden FIFO estricto
         pagosGlobales.forEach(pago => {
             let montoRestante = pago.monto;
             
-            for (const fecha of fechas) {
+            // Recorrer fechas de la MÁS ANTIGUA a la MÁS NUEVA
+            for (const fecha of fechasOrdenadas) {
                 if (montoRestante <= 0.01) break;
                 
                 const deudaActual = deudasRestantes[fecha][persona];
@@ -842,18 +866,6 @@ function calcularDeudasFIFO() {
                     deudasRestantes[fecha][persona] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
                     montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
                 }
-            }
-        });
-        
-        // Pagos específicos (con fecha) - van directo a su fecha
-        const pagosEspecificos = pagosAhorro
-            .filter(p => p.persona === persona && p.fecha !== null);
-            
-        pagosEspecificos.forEach(pago => {
-            if (deudasRestantes[pago.fecha]) {
-                deudasRestantes[pago.fecha][persona] = Math.max(0, 
-                    deudasRestantes[pago.fecha][persona] - pago.monto
-                );
             }
         });
     });
@@ -894,9 +906,10 @@ function calcularDeudasFIFO() {
         }
     }
 
-    const totalGenerado = ahorros.reduce((sum, a) => sum + a.monto, 0) * 2; // ✅ Multiplicar por 2 porque cada ahorro es para 2 personas
+    // Totales generales (multiplicar por 2 porque cada ahorro es para 2 personas)
+    const totalGenerado = ahorros.reduce((sum, a) => sum + a.monto, 0) * 2;
     const totalPagado = pagosAhorro.reduce((sum, p) => sum + p.monto, 0);
-    const totalPendiente = totalGenerado - totalPagado;
+    const totalPendiente = Math.max(0, totalGenerado - totalPagado); // ✅ Nunca negativo
     
     return {
         // Vista actual
@@ -909,7 +922,7 @@ function calcularDeudasFIFO() {
         // Generales
         totalGenerado: totalGenerado,
         totalPagado: totalPagado,
-        totalPendiente: totalGenerado - totalPagado,
+        totalPendiente: totalPendiente,
         
         deudasRestantes,
         deudasOriginales: deudasPorFecha,
@@ -1263,6 +1276,14 @@ function aplicarFiltros() {
     mostrarAhorrosFiltrados(ahorrosFiltrados);
 }
 
+// ====================
+// FUNCIÓN COMPLETA PARA MOSTRAR AHORROS FILTRADOS (CORREGIDA)
+// ====================
+
+// ====================
+// FUNCIÓN COMPLETA PARA MOSTRAR AHORROS FILTRADOS (CORREGIDA)
+// ====================
+
 function mostrarAhorrosFiltrados(ahorrosFiltrados) {
     const container = document.getElementById('ahorros-container');
     const emptyState = document.getElementById('empty-state-ahorro');
@@ -1306,7 +1327,18 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
             else fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
         }
         
-        const nombrePersona = ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+        // ✅ CORREGIDO: Mostrar la persona que activó (no "ambos")
+        let nombrePersona = '';
+        if (ahorro.activadoPor) {
+            // Si tenemos el campo activadoPor, mostramos esa persona
+            nombrePersona = ahorro.activadoPor === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2;
+        } else {
+            // Fallback para registros antiguos
+            nombrePersona = ahorro.persona === 'ambos' 
+                ? `${configAhorro.nombres.persona1} y ${configAhorro.nombres.persona2}`
+                : (ahorro.persona === 'persona1' ? configAhorro.nombres.persona1 : configAhorro.nombres.persona2);
+        }
+        
         let nombreOpcion = '';
         let claseBadge = '';
         
@@ -1328,7 +1360,7 @@ function mostrarAhorrosFiltrados(ahorrosFiltrados) {
         const idSeguro = ahorro.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
         html += `
-            <div class="ahorro-item ${ahorro.persona}">
+            <div class="ahorro-item ${ahorro.persona === 'ambos' ? 'ambos' : ahorro.persona}">
                 <div class="gasto-header">
                     <div class="ahorro-monto">S/${ahorro.monto.toFixed(2)} (cada uno)</div>
                     <button class="delete-btn" onclick="eliminarAhorro('${idSeguro}')" title="Eliminar">
