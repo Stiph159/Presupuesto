@@ -1228,3 +1228,92 @@ body.has-bottom-nav .container {
     background: rgba(45, 55, 72, 0.95);
     border-top-color: #4a5568;
 }
+
+/* ==================== */
+/* ESTILOS PARA FECHAS EN PAGOS (AGREGAR AL FINAL) */
+/* ==================== */
+
+/* Badge para fecha del gasto (la referencial) */
+.badge-fecha-gasto {
+    background: var(--primary-color);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-block;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+/* Badge para fecha de acción (cuando se registró) */
+.badge-accion {
+    background: var(--bg-color);
+    color: var(--text-secondary);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+/* Contenedor de fechas en pago-item */
+.pago-fecha {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 5px;
+}
+
+/* Mejorar visualización en móviles */
+@media (max-width: 480px) {
+    .badge-fecha-gasto,
+    .badge-accion {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+    }
+    
+    .pago-fecha {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+}
+
+/* Estilo para el ícono de reloj */
+.badge-accion i {
+    font-size: 0.65rem;
+    opacity: 0.8;
+}
+
+/* Modo oscuro - ajustes */
+[data-theme="dark"] .badge-fecha-gasto {
+    background: #7c3aed;
+}
+
+[data-theme="dark"] .badge-accion {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: #cbd5e0;
+}
+
+/* Efecto hover en pago-item para mostrar mejor los badges */
+.pago-item:hover .badge-fecha-gasto {
+    transform: scale(1.02);
+}
+
+.pago-item:hover .badge-accion {
+    background: var(--card-bg);
+}
+
+/* Asegurar que los badges no se rompan en líneas */
+.badge-fecha-gasto,
+.badge-accion {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}

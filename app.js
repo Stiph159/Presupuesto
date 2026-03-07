@@ -177,10 +177,10 @@ function setupRealtimeListeners() {
             console.error("❌ Error en listener de gastos:", error);
         });
     
-    // Listener para pagos
+    // Listener para pagos - VERSIÓN CORREGIDA (con orden por timestamp)
     unsubscribePagos = db.collection('pagos')
         .where('sharedId', '==', 'nuestra_pareja')
-        .orderBy('timestamp', 'desc')
+        .orderBy('timestamp', 'desc') // 🔥 IMPORTANTE: Ordenar por timestamp en Firebase
         .onSnapshot((snapshot) => {
             console.log("💸 Cambios en pagos:", snapshot.docChanges().length);
             
@@ -190,21 +190,49 @@ function setupRealtimeListeners() {
                     ...cambio.doc.data()
                 };
                 
+                // Convertir timestamp de Firebase a Date
                 if (pagoData.timestamp && pagoData.timestamp.toDate) {
                     pagoData.timestamp = pagoData.timestamp.toDate();
                 }
                 
+                // 🔥 Si no hay timestamp (datos viejos), usar fecha + hora actual
+                if (!pagoData.timestamp) {
+                    const fechaParts = pagoData.fecha.split('-');
+                    pagoData.timestamp = new Date(
+                        parseInt(fechaParts[0]), 
+                        parseInt(fechaParts[1]) - 1, 
+                        parseInt(fechaParts[2]),
+                        12, 0, 0 // Mediodía por defecto
+                    );
+                }
+                
                 switch (cambio.type) {
                     case 'added':
+                        // Buscar temporal
+                        const temporalIndex = pagos.findIndex(p => 
+                            p.id.toString().startsWith('temp_') && 
+                            Math.abs(p.monto - pagoData.monto) < 0.01 &&
+                            p.fecha === pagoData.fecha &&
+                            p.deudor === pagoData.deudor &&
+                            p.acreedor === pagoData.acreedor
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            console.log("🗑️ Pago temporal eliminado");
+                            pagos.splice(temporalIndex, 1);
+                        }
+                        
                         if (!pagos.some(p => p.id === pagoData.id)) {
                             pagos.push(pagoData);
                             mostrarNotificacion(`💸 Nuevo pago registrado`, 'info');
                         }
                         break;
+                        
                     case 'modified':
                         const indexMod = pagos.findIndex(p => p.id === pagoData.id);
                         if (indexMod !== -1) pagos[indexMod] = pagoData;
                         break;
+                        
                     case 'removed':
                         pagos = pagos.filter(p => p.id !== pagoData.id);
                         mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
@@ -212,9 +240,15 @@ function setupRealtimeListeners() {
                 }
             });
             
-            pagos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            // 🔥 ORDENAR POR TIMESTAMP SIEMPRE (más reciente primero)
+            pagos.sort((a, b) => {
+                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.fecha + 'T12:00:00').getTime();
+                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.fecha + 'T12:00:00').getTime();
+                return timeB - timeA; // Descendente (más reciente arriba)
+            });
+            
             actualizarBalance();
-            mostrarPagos();
+            mostrarPagos(); // ✅ Esto ahora respetará el orden correcto
             saveToLocalStorage();
             
         }, (error) => {
@@ -290,7 +324,8 @@ async function savePagoToFirebase(pago) {
             acreedor: pago.acreedor,
             completado: pago.completado || false,
             sharedId: 'nuestra_pareja',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(), // 🔥 Firebase pondrá la hora del servidor
+            clienteTimestamp: pago.timestamp // Backup: la hora del cliente
         };
         
         const docRef = await db.collection('pagos').add(pagoData);
@@ -775,32 +810,44 @@ async function guardarPagoEnFirebase() {
     const descripcion = document.getElementById('pago-descripcion').value;
     const fecha = document.getElementById('pago-fecha').value;
     
+    const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const ahora = new Date(); // 🔥 Fecha y hora EXACTA de la acción
+    
+    // Crear TEMPORAL con timestamp
     const nuevoPago = {
-        id: 'temp_' + Date.now(),
+        id: tempId,
         fecha: fecha,
-        fechaPago: obtenerFechaLocal(),
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
         deudor: quienPaga,
         acreedor: quienRecibe,
         completado: true,
-        timestamp: new Date()
+        timestamp: ahora, // 🔥 Guardar la hora EXACTA
+        fechaAccion: ahora.toISOString() // Backup
     };
     
+    // Agregar temporal a la lista
     pagos.unshift(nuevoPago);
     actualizarBalance();
-    mostrarPagos();
+    mostrarPagos(); // ✅ Se mostrará con la hora exacta
     
     limpiarFormularioPago();
     document.getElementById('pago-form').style.display = 'none';
     document.getElementById('modal-confirmar-pago').classList.remove('active');
     
-    mostrarNotificacion('✅ Pago registrado', 'success');
+    mostrarNotificacion('⏳ Guardando pago...', 'info');
     
     try {
         await savePagoToFirebase(nuevoPago);
+        mostrarNotificacion('✅ Pago registrado', 'success');
     } catch (error) {
         console.error("Error guardando pago:", error);
+        const index = pagos.findIndex(p => p.id === tempId);
+        if (index !== -1) {
+            pagos[index].error = true;
+            mostrarPagos();
+        }
+        mostrarNotificacion('⚠️ Pago guardado localmente (sin conexión)', 'warning');
     }
     
     saveToLocalStorage();
@@ -827,20 +874,60 @@ function mostrarPagos() {
     
     emptyPagos.style.display = 'none';
     
+    // 🔥 ORDENAR POR TIMESTAMP DE CREACIÓN (el más reciente PRIMERO)
+    const pagosOrdenados = [...pagos].sort((a, b) => {
+        // Usar timestamp si existe, si no, usar fecha actual como fallback
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA; // DESCENDENTE (más reciente arriba)
+    });
+    
     let html = '';
-    pagos.slice(0, 20).forEach(pago => {
+    
+    pagosOrdenados.slice(0, 20).forEach(pago => {
         const nombrePaga = pago.deudor === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
         const nombreRecibe = pago.acreedor === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
         const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        const fecha = new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
+        // 🔥 FECHA DEL GASTO (la que el usuario eligió)
+        const fechaGasto = new Date(pago.fecha + 'T00:00:00');
+        const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit'
         });
         
+        // 🔥 FECHA DE LA ACCIÓN (timestamp de creación)
+        let fechaAccionFormateada = '';
+        let horaAccionFormateada = '';
+        
+        if (pago.timestamp) {
+            const fechaAccion = new Date(pago.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            // Formatear hora siempre
+            horaAccionFormateada = fechaAccion.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            // Mostrar si fue hoy, ayer o fecha
+            if (fechaAccion.toDateString() === hoy.toDateString()) {
+                fechaAccionFormateada = 'hoy';
+            } else if (fechaAccion.toDateString() === ayer.toDateString()) {
+                fechaAccionFormateada = 'ayer';
+            } else {
+                fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit'
+                });
+            }
+        }
+        
         html += `
-            <div class="pago-item">
+            <div class="pago-item" data-timestamp="${pago.timestamp ? pago.timestamp.getTime() : ''}">
                 <div class="pago-header">
                     <div class="pago-icon">
                         <i class="fas fa-hand-holding-usd"></i>
@@ -849,7 +936,15 @@ function mostrarPagos() {
                         <div class="pago-descripcion">${pago.descripcion}</div>
                         <div class="pago-detalle">
                             <span class="pago-personas">${nombrePaga} → ${nombreRecibe}</span>
-                            <span class="pago-fecha">${fecha}</span>
+                            <span class="pago-fecha">
+                                <!-- 🔥 FECHA DEL GASTO (referencial) -->
+                                <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                                <!-- 🔥 FECHA DE LA ACCIÓN (la importante para orden) -->
+                                <span class="badge-accion">
+                                    <i class="fas fa-clock" style="font-size: 0.7rem;"></i>
+                                    registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                                </span>
+                            </span>
                         </div>
                     </div>
                     <div class="pago-monto">S/${pago.monto.toFixed(2)}</div>
