@@ -1359,37 +1359,51 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         otros: '📚'
     };
     
+    // 🔥 ORDENAR POR TIMESTAMP (igual que en pagos)
+    const gastosOrdenados = [...gastosFiltrados].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.fecha + 'T00:00:00').getTime();
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.fecha + 'T00:00:00').getTime();
+        return timeB - timeA;
+    });
+    
     let html = '';
     
-    gastosFiltrados.forEach(gasto => {
-        let fechaFormateada;
+    gastosOrdenados.forEach(gasto => {
+        // 🔥 FECHA DEL GASTO (la que el usuario eligió)
         const fechaGasto = new Date(gasto.fecha + 'T00:00:00');
-        const ahora = new Date();
-        const esHoy = fechaGasto.toDateString() === ahora.toDateString();
+        const fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit'
+        });
         
-        if (esHoy && gasto.timestamp) {
-            const hora = new Date(gasto.timestamp).toLocaleTimeString('es-ES', {
+        // 🔥 FECHA DE LA ACCIÓN (timestamp de creación)
+        let fechaAccionFormateada = '';
+        let horaAccionFormateada = '';
+        
+        if (gasto.timestamp) {
+            const fechaAccion = new Date(gasto.timestamp);
+            const hoy = new Date();
+            const ayer = new Date(hoy);
+            ayer.setDate(ayer.getDate() - 1);
+            
+            // Formatear hora siempre
+            horaAccionFormateada = fechaAccion.toLocaleTimeString('es-ES', {
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                hour12: false
             });
-            fechaFormateada = `Hoy ${hora}`;
-        } else if (gasto.timestamp) {
-            const fecha = fechaGasto.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
-            const hora = new Date(gasto.timestamp).toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            fechaFormateada = `${fecha} ${hora}`;
-        } else {
-            fechaFormateada = fechaGasto.toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-            });
+            
+            // Mostrar si fue hoy, ayer o fecha
+            if (fechaAccion.toDateString() === hoy.toDateString()) {
+                fechaAccionFormateada = 'hoy';
+            } else if (fechaAccion.toDateString() === ayer.toDateString()) {
+                fechaAccionFormateada = 'ayer';
+            } else {
+                fechaAccionFormateada = fechaAccion.toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit'
+                });
+            }
         }
         
         const nombrePersona = gasto.persona === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
@@ -1400,7 +1414,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         const errorIcon = gasto.error ? '<i class="fas fa-exclamation-triangle" style="color: var(--accent-color);"></i>' : '';
         
         html += `
-            <div class="gasto-item ${gasto.persona}" data-id="${gasto.id}">
+            <div class="gasto-item ${gasto.persona}" data-id="${gasto.id}" data-timestamp="${gasto.timestamp ? gasto.timestamp.getTime() : ''}">
                 <div class="gasto-header">
                     <div class="gasto-monto">S/${gasto.monto.toFixed(2)} ${sincronizandoIcon} ${errorIcon}</div>
                     <button class="delete-btn" onclick="eliminarGasto('${idSeguro}')" title="Eliminar">
@@ -1413,7 +1427,15 @@ function mostrarGastosFiltrados(gastosFiltrados) {
                         <span class="gasto-persona">${nombrePersona}</span>
                         <span class="gasto-categoria">${iconoCategoria} ${gasto.categoria}</span>
                     </div>
-                    <div class="gasto-fecha">${fechaFormateada}</div>
+                    <div class="gasto-fecha">
+                        <!-- 🔥 FECHA DEL GASTO (referencial) -->
+                        <span class="badge-fecha-gasto">${fechaGastoFormateada}</span>
+                        <!-- 🔥 FECHA DE LA ACCIÓN (la importante para orden) -->
+                        <span class="badge-accion">
+                            <i class="fas fa-clock" style="font-size: 0.7rem;"></i>
+                            registrado ${fechaAccionFormateada} ${horaAccionFormateada}
+                        </span>
+                    </div>
                 </div>
             </div>
         `;
