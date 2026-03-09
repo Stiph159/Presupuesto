@@ -1,5 +1,8 @@
-// File: app.js
-// Variables globales
+// File: app.js - VERSIÓN COMPLETA CON FIFO EN CASCADA
+// ====================
+// VARIABLES GLOBALES
+// ====================
+
 let gastos = [];
 let pagos = [];
 let config = {
@@ -28,7 +31,7 @@ function obtenerFechaLocal() {
 }
 
 // ====================
-// FUNCIONES FIREBASE
+// FUNCIONES FIREBASE (sin cambios)
 // ====================
 
 async function initFirebase() {
@@ -83,18 +86,14 @@ function setupRealtimeListeners() {
     
     const db = firebase.firestore();
     
-    // Listener para gastos
     unsubscribeGastos = db.collection('gastos')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
             if (ignoreNextSnapshot) {
-                console.log("⏭️ Ignorando snapshot por operación propia");
                 ignoreNextSnapshot = false;
                 return;
             }
-            
-            console.log("📊 Cambios en gastos:", snapshot.docChanges().length);
             
             snapshot.docChanges().forEach(cambio => {
                 const docData = {
@@ -117,14 +116,12 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            console.log("🔄 Reemplazando gasto temporal");
                             gastos[temporalIndex] = {
                                 ...docData,
                                 sincronizando: false
                             };
                         } 
                         else if (!gastos.some(g => g.id === docData.id)) {
-                            console.log("➕ Nuevo gasto");
                             gastos.push({
                                 ...docData,
                                 sincronizando: false
@@ -150,13 +147,10 @@ function setupRealtimeListeners() {
             console.error("❌ Error en listener de gastos:", error);
         });
     
-    // Listener para pagos
     unsubscribePagos = db.collection('pagos')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
-            console.log("💸 Cambios en pagos:", snapshot.docChanges().length);
-            
             snapshot.docChanges().forEach(cambio => {
                 const pagoData = {
                     id: cambio.doc.id,
@@ -178,7 +172,6 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            console.log("🗑️ Pago temporal eliminado");
                             pagos.splice(temporalIndex, 1);
                         }
                         
@@ -234,7 +227,6 @@ async function saveGastoToFirebase(gasto) {
         
         ignoreNextSnapshot = true;
         const docRef = await db.collection('gastos').add(gastoData);
-        console.log("✅ Gasto guardado con ID:", docRef.id);
         
         setTimeout(() => {
             ignoreNextSnapshot = false;
@@ -252,7 +244,6 @@ async function deleteGastoFromFirebase(id) {
     try {
         ignoreNextSnapshot = true;
         await firebase.firestore().collection('gastos').doc(id).delete();
-        console.log("✅ Gasto eliminado:", id);
         
         setTimeout(() => {
             ignoreNextSnapshot = false;
@@ -350,7 +341,7 @@ function inicializarApp() {
 }
 
 // ====================
-// FUNCIONES DE BARRA INFERIOR Y VER MÁS
+// FUNCIONES AUXILIARES (sin cambios)
 // ====================
 
 function configurarBarraInferior() {
@@ -408,88 +399,6 @@ function configurarVerMas() {
     });
 }
 
-// ====================
-// FUNCIONES DE BALANCE 50/50
-// ====================
-
-function configurarBalanceEventos() {
-    const selectorFecha = document.getElementById('balance-fecha-selector');
-    const btnPagar = document.getElementById('btn-pagar-deuda');
-    const btnNuevoPago = document.getElementById('btn-nuevo-pago');
-    const pagoForm = document.getElementById('pago-form');
-    const cancelarPago = document.getElementById('cancelar-pago');
-    const guardarPago = document.getElementById('guardar-pago');
-    const pagoQuienPaga = document.getElementById('pago-quien-paga');
-    const pagoQuienRecibe = document.getElementById('pago-quien-recibe');
-    const fechaCustom = document.getElementById('balance-fecha-custom');
-    
-    if (!selectorFecha) return;
-    
-    selectorFecha.addEventListener('change', function() {
-        if (this.value === 'custom') {
-            fechaCustom.style.display = 'block';
-            if (!fechaCustom.value) fechaCustom.value = obtenerFechaLocal();
-            actualizarBalance();
-        } else {
-            fechaCustom.style.display = 'none';
-            actualizarBalance();
-        }
-    });
-    
-    fechaCustom.addEventListener('change', actualizarBalance);
-    
-    btnPagar.addEventListener('click', function() {
-        const selectorFecha = document.getElementById('balance-fecha-selector').value;
-        const fechaCustom = document.getElementById('balance-fecha-custom').value;
-        const balance = calcularBalance(obtenerFechaBalance());
-        
-        let fechaPago = obtenerFechaLocal();
-        if (selectorFecha === 'yesterday') {
-            const ayer = new Date();
-            ayer.setDate(ayer.getDate() - 1);
-            fechaPago = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        } else if (selectorFecha === 'custom' && fechaCustom) {
-            fechaPago = fechaCustom;
-        }
-        
-        document.getElementById('pago-fecha').value = fechaPago;
-        
-        if (balance.deudaEllaATu > 0.01) {
-            pagoQuienPaga.value = 'persona2';
-            pagoQuienRecibe.value = 'persona1';
-            document.getElementById('pago-monto').value = balance.deudaEllaATu.toFixed(2);
-        } else if (balance.deudaTuAElla > 0.01) {
-            pagoQuienPaga.value = 'persona1';
-            pagoQuienRecibe.value = 'persona2';
-            document.getElementById('pago-monto').value = balance.deudaTuAElla.toFixed(2);
-        }
-        
-        pagoForm.style.display = 'block';
-    });
-    
-    btnNuevoPago.addEventListener('click', function() {
-        document.getElementById('pago-fecha').value = obtenerFechaLocal();
-        pagoForm.style.display = 'block';
-    });
-    
-    cancelarPago.addEventListener('click', function() {
-        pagoForm.style.display = 'none';
-        limpiarFormularioPago();
-    });
-    
-    guardarPago.addEventListener('click', mostrarModalConfirmacionPago);
-    
-    document.getElementById('confirmar-pago-final').addEventListener('click', guardarPagoEnFirebase);
-    document.getElementById('cancelar-confirmacion').addEventListener('click', () => {
-        document.getElementById('modal-confirmar-pago').classList.remove('active');
-    });
-    
-    pagoQuienPaga.addEventListener('change', function() {
-        const quienRecibe = document.getElementById('pago-quien-recibe');
-        quienRecibe.value = this.value === 'persona1' ? 'persona2' : 'persona1';
-    });
-}
-
 function obtenerFechaBalance() {
     const selector = document.getElementById('balance-fecha-selector').value;
     const fechaCustom = document.getElementById('balance-fecha-custom').value;
@@ -512,10 +421,10 @@ function obtenerFechaBalance() {
                 descripcion: 'Ayer'
             };
             
-        case 'all':  // ✅ NUEVA OPCIÓN
+        case 'all':
             return { 
                 tipo: 'all', 
-                fecha: null,  // null significa "todo el historial"
+                fecha: null,
                 descripcion: 'Todo el historial'
             };
             
@@ -548,81 +457,381 @@ function obtenerFechaBalance() {
     }
 }
 
-function calcularBalance(rango) {
-    // Filtrar gastos por fecha
-    const gastosFiltrados = rango.fecha ? gastos.filter(g => g.fecha === rango.fecha) : gastos;
+// ====================
+// ⭐ FUNCIÓN NUEVA: calcularDeudasPorFecha()
+// ====================
+
+function calcularDeudasPorFecha() {
+    // Obtener todas las fechas únicas con gastos
+    const fechas = [...new Set(gastos.map(g => g.fecha))].sort();
     
-    // Filtrar pagos: incluir los que no tienen fecha (pagos globales) SIEMPRE
-    const pagosFiltrados = pagos.filter(p => {
-        // Si el pago no tiene fecha (pago global), incluirlo siempre
-        if (!p.fecha) return true;
-        // Si tiene fecha, filtrar normalmente
-        return rango.fecha ? p.fecha === rango.fecha : true;
-    });
+    // Estructura para guardar deudas por fecha
+    const deudasPorFecha = {};
     
-    // Total gastado por cada uno
-    const totalTu = gastosFiltrados.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
-    const totalElla = gastosFiltrados.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
-    
-    // Inicializar pagos
-    let pagadoTuAElla = 0;  // Cuánto ha pagado YO a ELLA
-    let pagadoEllaATu = 0;  // Cuánto ha pagado ELLA a MÍ
-    
-    // Calcular pagos
-    pagosFiltrados.forEach(p => {
-        if (p.deudor === 'persona1' && p.acreedor === 'persona2') {
-            pagadoTuAElla += p.monto;  // Yo pagué a Ella
-        } else if (p.deudor === 'persona2' && p.acreedor === 'persona1') {
-            pagadoEllaATu += p.monto;  // Ella pagó a Mí
+    fechas.forEach(fecha => {
+        const gastosFecha = gastos.filter(g => g.fecha === fecha);
+        
+        // Total gastado por cada persona en esta fecha
+        const totalTu = gastosFecha.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
+        const totalElla = gastosFecha.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
+        
+        // Calcular diferencia
+        const diferencia = totalTu - totalElla;
+        
+        // Determinar deuda para esta fecha
+        if (diferencia > 0) {
+            // Tú gastaste más, Ella te debe la mitad
+            deudasPorFecha[fecha] = {
+                persona1: 0,           // Tú no debes
+                persona2: diferencia / 2 // Ella te debe
+            };
+        } else if (diferencia < 0) {
+            // Ella gastó más, Tú le debes la mitad
+            deudasPorFecha[fecha] = {
+                persona1: Math.abs(diferencia) / 2, // Tú le debes
+                persona2: 0                          // Ella no debe
+            };
+        } else {
+            // Están iguales
+            deudasPorFecha[fecha] = {
+                persona1: 0,
+                persona2: 0
+            };
         }
     });
     
-    // Calcular la diferencia de gastos
-    const diferenciaGastos = totalTu - totalElla;
-    
-    // Determinar quién debe a quién (SIN PAGOS AÚN)
-    let deudaBrutaTuAElla = 0;
-    let deudaBrutaEllaATu = 0;
-    
-    if (diferenciaGastos > 0) {
-        // Tú gastaste más, Ella te debe la mitad de la diferencia
-        deudaBrutaEllaATu = diferenciaGastos / 2;
-    } else if (diferenciaGastos < 0) {
-        // Ella gastó más, Tú le debes la mitad de la diferencia
-        deudaBrutaTuAElla = Math.abs(diferenciaGastos) / 2;
-    }
-    
-    // APLICAR PAGOS: Restar lo que ya se pagó
-    // Importante: Los pagos reducen la deuda de quien paga
-    let deudaTuAElla = Math.max(0, deudaBrutaTuAElla - pagadoTuAElla);
-    let deudaEllaATu = Math.max(0, deudaBrutaEllaATu - pagadoEllaATu);
-    
-    // Calcular gasto efectivo (lo que realmente ha salido de cada bolsillo)
-    // FÓRMULA CORREGIDA: 
-    // Gasto efectivo = Lo que gasté - lo que pagué a otros + lo que otros me pagaron
-    const gastoEfectivoTu = totalTu - pagadoTuAElla + pagadoEllaATu;
-    const gastoEfectivoElla = totalElla - pagadoEllaATu + pagadoTuAElla;
-    
-    const totalGastos = totalTu + totalElla;
-    const meta = totalGastos / 2;
-    
-    return {
-        totalTu,
-        totalElla,
-        meta,
-        deudaTuAElla,
-        deudaEllaATu,
-        pagadoTuAElla,
-        pagadoEllaATu,
-        gastoEfectivoTu,      // NUEVO: para mostrar en UI
-        gastoEfectivoElla,    // NUEVO: para mostrar en UI
-        diferencia: Math.abs(totalTu - totalElla)
-    };
+    return deudasPorFecha;
 }
+
+// ====================
+// ⭐ FUNCIÓN CORREGIDA: calcularBalanceConFIFO() - VERSIÓN FINAL
+// ====================
+
+function calcularBalanceConFIFO(rango) {
+    // ============================================
+    // PASO 1: Obtener todas las fechas con gastos
+    // ============================================
+    const fechas = [...new Set(gastos.map(g => g.fecha))].sort();
+    
+    // ============================================
+    // PASO 2: Crear mapa de gastos por fecha
+    // ============================================
+    const gastosPorFecha = {};
+    fechas.forEach(fecha => {
+        const gastosFecha = gastos.filter(g => g.fecha === fecha);
+        const totalTu = gastosFecha.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
+        const totalElla = gastosFecha.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
+        
+        gastosPorFecha[fecha] = {
+            totalTu,
+            totalElla,
+            deudaOriginalTu: 0,
+            deudaOriginalElla: 0
+        };
+        
+        const diferencia = totalTu - totalElla;
+        if (diferencia > 0) {
+            gastosPorFecha[fecha].deudaOriginalElla = diferencia / 2;
+        } else if (diferencia < 0) {
+            gastosPorFecha[fecha].deudaOriginalTu = Math.abs(diferencia) / 2;
+        }
+    });
+    
+    // ============================================
+    // PASO 3: Ordenar todos los eventos cronológicamente
+    // ============================================
+    const eventos = [];
+    
+    // Agregar gastos como eventos
+    gastos.forEach(g => {
+        eventos.push({
+            timestamp: g.timestamp ? new Date(g.timestamp).getTime() : new Date(g.fecha + 'T00:00:00').getTime(),
+            tipo: 'gasto',
+            fecha: g.fecha,
+            persona: g.persona,
+            monto: g.monto,
+            id: g.id
+        });
+    });
+    
+    // Agregar pagos específicos como eventos
+    pagos.filter(p => p.fecha !== null).forEach(p => {
+        eventos.push({
+            timestamp: p.timestamp ? new Date(p.timestamp).getTime() : new Date(p.fecha + 'T00:00:00').getTime(),
+            tipo: 'pago_especifico',
+            fecha: p.fecha,
+            deudor: p.deudor,
+            monto: p.monto,
+            id: p.id
+        });
+    });
+    
+    // Agregar pagos globales como eventos
+    pagos.filter(p => p.fecha === null).forEach(p => {
+        eventos.push({
+            timestamp: p.timestamp ? new Date(p.timestamp).getTime() : Date.now(),
+            tipo: 'pago_global',
+            deudor: p.deudor,
+            monto: p.monto,
+            id: p.id
+        });
+    });
+    
+    // Ordenar eventos por timestamp (más antiguo primero)
+    eventos.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // ============================================
+    // PASO 4: Reconstruir la historia de deudas
+    // ============================================
+    
+    // Estado actual de deudas por fecha
+    const deudasActuales = {};
+    fechas.forEach(f => {
+        deudasActuales[f] = {
+            persona1: gastosPorFecha[f]?.deudaOriginalTu || 0,
+            persona2: gastosPorFecha[f]?.deudaOriginalElla || 0
+        };
+    });
+    
+    // Procesar eventos en orden cronológico
+    eventos.forEach(evento => {
+        if (evento.tipo === 'gasto') {
+            // Los gastos ya están considerados en deudasActuales inicial
+            // No hacemos nada aquí porque ya los inicializamos arriba
+            return;
+        }
+        
+        if (evento.tipo === 'pago_especifico') {
+            // Pago específico: afecta solo UNA fecha
+            const fecha = evento.fecha;
+            if (!deudasActuales[fecha]) return;
+            
+            if (evento.deudor === 'persona1') {
+                deudasActuales[fecha].persona1 = Math.max(0, deudasActuales[fecha].persona1 - evento.monto);
+            } else {
+                deudasActuales[fecha].persona2 = Math.max(0, deudasActuales[fecha].persona2 - evento.monto);
+            }
+        }
+        
+        if (evento.tipo === 'pago_global') {
+            // Pago global: afecta TODAS las fechas existentes HASTA ESTE MOMENTO
+            let montoRestante = evento.monto;
+            const deudor = evento.deudor;
+            
+            // Obtener fechas que ya existían en este momento
+            const fechasHastaAhora = fechas.filter(f => {
+                // Una fecha existe si hay gastos con timestamp menor al del pago global
+                const gastosDeFecha = gastos.filter(g => g.fecha === f);
+                return gastosDeFecha.some(g => {
+                    const gTime = g.timestamp ? new Date(g.timestamp).getTime() : new Date(g.fecha + 'T00:00:00').getTime();
+                    return gTime <= evento.timestamp;
+                });
+            }).sort();
+            
+            // Aplicar FIFO a las fechas existentes
+            for (const fecha of fechasHastaAhora) {
+                if (montoRestante <= 0.001) break;
+                
+                const deudaActual = deudasActuales[fecha]?.[deudor] || 0;
+                if (deudaActual > 0.001) {
+                    const pagoAplicado = Math.min(deudaActual, montoRestante);
+                    deudasActuales[fecha][deudor] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+                    montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
+                }
+            }
+        }
+    });
+    
+    // ============================================
+    // PASO 5: Calcular según la vista solicitada
+    // ============================================
+    
+    if (rango.fecha !== null) {
+        // ========== VISTA POR DÍA ESPECÍFICO ==========
+        const fecha = rango.fecha;
+        
+        if (!gastosPorFecha[fecha]) {
+            return {
+                deudaTu: 0,
+                deudaElla: 0,
+                gastoEfectivoTu: 0,
+                gastoEfectivoElla: 0,
+                totalGastoTu: 0,
+                totalGastoElla: 0
+            };
+        }
+        
+        const data = gastosPorFecha[fecha];
+        const deudaActual = deudasActuales[fecha] || { persona1: 0, persona2: 0 };
+        
+        // Gastos brutos de este día
+        const totalGastoTu = data.totalTu;
+        const totalGastoElla = data.totalElla;
+        
+        // Calcular pagos específicos de este día
+        const pagosFecha = pagos.filter(p => p.fecha === fecha);
+        let ajusteTu = 0;
+        let ajusteElla = 0;
+        
+        pagosFecha.forEach(p => {
+            if (p.deudor === 'persona1') {
+                ajusteTu += p.monto;
+                ajusteElla -= p.monto;
+            } else {
+                ajusteElla += p.monto;
+                ajusteTu -= p.monto;
+            }
+        });
+        
+        const gastoEfectivoTu = totalGastoTu + ajusteTu;
+        const gastoEfectivoElla = totalGastoElla + ajusteElla;
+        
+        return {
+            deudaTu: deudaActual.persona1 || 0,
+            deudaElla: deudaActual.persona2 || 0,
+            gastoEfectivoTu,
+            gastoEfectivoElla,
+            totalGastoTu,
+            totalGastoElla
+        };
+        
+    } else {
+        // ========== VISTA "TODO EL HISTORIAL" ==========
+        
+        let totalGastoTu = 0;
+        let totalGastoElla = 0;
+        let totalDeudaTu = 0;
+        let totalDeudaElla = 0;
+        let gastoEfectivoTu = 0;
+        let gastoEfectivoElla = 0;
+        
+        fechas.forEach(fecha => {
+            const data = gastosPorFecha[fecha];
+            if (!data) return;
+            
+            totalGastoTu += data.totalTu;
+            totalGastoElla += data.totalElla;
+            
+            const deudaActual = deudasActuales[fecha] || { persona1: 0, persona2: 0 };
+            totalDeudaTu += deudaActual.persona1;
+            totalDeudaElla += deudaActual.persona2;
+            
+            // Calcular gasto efectivo por fecha
+            const pagosFecha = pagos.filter(p => p.fecha === fecha);
+            let efectivoTu = data.totalTu;
+            let efectivoElla = data.totalElla;
+            
+            pagosFecha.forEach(p => {
+                if (p.deudor === 'persona1') {
+                    efectivoTu += p.monto;
+                    efectivoElla -= p.monto;
+                } else {
+                    efectivoElla += p.monto;
+                    efectivoTu -= p.monto;
+                }
+            });
+            
+            gastoEfectivoTu += efectivoTu;
+            gastoEfectivoElla += efectivoElla;
+        });
+        
+        return {
+            deudaTu: totalDeudaTu,
+            deudaElla: totalDeudaElla,
+            gastoEfectivoTu,
+            gastoEfectivoElla,
+            totalGastoTu,
+            totalGastoElla
+        };
+    }
+}
+
+function configurarBalanceEventos() {
+    const selectorFecha = document.getElementById('balance-fecha-selector');
+    const btnPagar = document.getElementById('btn-pagar-deuda');
+    const btnNuevoPago = document.getElementById('btn-nuevo-pago');
+    const pagoForm = document.getElementById('pago-form');
+    const cancelarPago = document.getElementById('cancelar-pago');
+    const guardarPago = document.getElementById('guardar-pago');
+    const pagoQuienPaga = document.getElementById('pago-quien-paga');
+    const pagoQuienRecibe = document.getElementById('pago-quien-recibe');
+    const fechaCustom = document.getElementById('balance-fecha-custom');
+    
+    if (!selectorFecha) return;
+    
+    selectorFecha.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            fechaCustom.style.display = 'block';
+            if (!fechaCustom.value) fechaCustom.value = obtenerFechaLocal();
+            actualizarBalance();
+        } else {
+            fechaCustom.style.display = 'none';
+            actualizarBalance();
+        }
+    });
+    
+    fechaCustom.addEventListener('change', actualizarBalance);
+    
+    btnPagar.addEventListener('click', function() {
+        const selectorFecha = document.getElementById('balance-fecha-selector').value;
+        const fechaCustom = document.getElementById('balance-fecha-custom').value;
+        const rango = obtenerFechaBalance();
+        const balance = calcularBalanceConFIFO(rango);
+        
+        let fechaPago = obtenerFechaLocal();
+        if (selectorFecha === 'yesterday') {
+            const ayer = new Date();
+            ayer.setDate(ayer.getDate() - 1);
+            fechaPago = new Date(ayer.getTime() - (ayer.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        } else if (selectorFecha === 'custom' && fechaCustom) {
+            fechaPago = fechaCustom;
+        }
+        
+        document.getElementById('pago-fecha').value = fechaPago;
+        
+        if (balance.deudaElla > 0.001) {
+            pagoQuienPaga.value = 'persona2';
+            pagoQuienRecibe.value = 'persona1';
+            document.getElementById('pago-monto').value = balance.deudaElla.toFixed(2);
+        } else if (balance.deudaTu > 0.001) {
+            pagoQuienPaga.value = 'persona1';
+            pagoQuienRecibe.value = 'persona2';
+            document.getElementById('pago-monto').value = balance.deudaTu.toFixed(2);
+        }
+        
+        pagoForm.style.display = 'block';
+    });
+    
+    btnNuevoPago.addEventListener('click', function() {
+        document.getElementById('pago-fecha').value = obtenerFechaLocal();
+        pagoForm.style.display = 'block';
+    });
+    
+    cancelarPago.addEventListener('click', function() {
+        pagoForm.style.display = 'none';
+        limpiarFormularioPago();
+    });
+    
+    guardarPago.addEventListener('click', mostrarModalConfirmacionPago);
+    
+    document.getElementById('confirmar-pago-final').addEventListener('click', guardarPagoEnFirebase);
+    document.getElementById('cancelar-confirmacion').addEventListener('click', () => {
+        document.getElementById('modal-confirmar-pago').classList.remove('active');
+    });
+    
+    pagoQuienPaga.addEventListener('change', function() {
+        const quienRecibe = document.getElementById('pago-quien-recibe');
+        quienRecibe.value = this.value === 'persona1' ? 'persona2' : 'persona1';
+    });
+}
+
+// ====================
+// ⭐ FUNCIÓN actualizarBalance() - YA ESTÁ CORRECTA
+// ====================
 
 function actualizarBalance() {
     const rango = obtenerFechaBalance();
-    const balance = calcularBalance(rango);
+    const balance = calcularBalanceConFIFO(rango);
     const nombreTu = config.nombres.persona1;
     const nombreElla = config.nombres.persona2;
     
@@ -648,33 +857,57 @@ function actualizarBalance() {
     elements.balanceNombreTu.textContent = nombreTu;
     elements.balanceNombreElla.textContent = nombreElla;
     
-    // Mostrar totales de gastos (sin pagos)
-    elements.statTuPeriodo.textContent = `S/${balance.totalTu.toFixed(2)}`;
-    elements.statEllaPeriodo.textContent = `S/${balance.totalElla.toFixed(2)}`;
-    elements.statDiferenciaPeriodo.textContent = `S/${Math.abs(balance.totalTu - balance.totalElla).toFixed(2)}`;
+    // ============================================
+    // ESTADÍSTICAS SUPERIORES (gastos brutos)
+    // ============================================
     
-    // USAR LA FÓRMULA CORREGIDA para gasto efectivo
-    elements.balanceMontoTu.textContent = `S/${balance.gastoEfectivoTu.toFixed(2)}`;
-    elements.balanceMontoElla.textContent = `S/${balance.gastoEfectivoElla.toFixed(2)}`;
-    elements.balanceMetaMonto.textContent = `S/${balance.meta.toFixed(2)}`;
+    elements.statTuPeriodo.textContent = `S/${balance.totalGastoTu.toFixed(2)}`;
+    elements.statEllaPeriodo.textContent = `S/${balance.totalGastoElla.toFixed(2)}`;
+    elements.statDiferenciaPeriodo.textContent = `S/${Math.abs(balance.totalGastoTu - balance.totalGastoElla).toFixed(2)}`;
     
-    // Calcular porcentajes para la barra (basado en gasto efectivo)
-    const totalEfectivo = balance.gastoEfectivoTu + balance.gastoEfectivoElla;
-    const porcentajeTu = totalEfectivo > 0 ? (balance.gastoEfectivoTu / totalEfectivo) * 100 : 50;
-    const porcentajeElla = totalEfectivo > 0 ? (balance.gastoEfectivoElla / totalEfectivo) * 100 : 50;
+    // ============================================
+    // BARRA VISUAL (gasto efectivo después de pagos)
+    // ============================================
+    
+    // Asegurar que los montos efectivos no sean negativos para la visualización
+    const gastoEfectivoTu = Math.max(0, balance.gastoEfectivoTu);
+    const gastoEfectivoElla = Math.max(0, balance.gastoEfectivoElla);
+    
+    // Actualizar los montos en la barra
+    elements.balanceMontoTu.textContent = `S/${gastoEfectivoTu.toFixed(2)}`;
+    elements.balanceMontoElla.textContent = `S/${gastoEfectivoElla.toFixed(2)}`;
+    
+    // Meta (mitad del total de gastos BRUTOS)
+    const totalGastosBrutos = balance.totalGastoTu + balance.totalGastoElla;
+    const meta = totalGastosBrutos / 2;
+    elements.balanceMetaMonto.textContent = `S/${meta.toFixed(2)}`;
+    
+    // Calcular porcentajes para la barra
+    const totalEfectivo = gastoEfectivoTu + gastoEfectivoElla;
+    
+    let porcentajeTu = 50;
+    let porcentajeElla = 50;
+    
+    if (totalEfectivo > 0) {
+        porcentajeTu = (gastoEfectivoTu / totalEfectivo) * 100;
+        porcentajeElla = (gastoEfectivoElla / totalEfectivo) * 100;
+    }
     
     elements.balanceBarTu.style.width = `${porcentajeTu}%`;
     elements.balanceBarElla.style.width = `${porcentajeElla}%`;
     
-    // Mostrar quién debe a quién
-    if (balance.deudaEllaATu > 0.001) { // Tolerancia de 0.001
+    // ============================================
+    // TARJETA DE DEUDA
+    // ============================================
+    
+    if (balance.deudaElla > 0.001) {
         elements.deudaTexto.textContent = `${nombreElla} debe a ${nombreTu}:`;
-        elements.deudaMonto.textContent = `S/${balance.deudaEllaATu.toFixed(2)}`;
+        elements.deudaMonto.textContent = `S/${balance.deudaElla.toFixed(2)}`;
         elements.btnPagar.style.display = 'block';
         if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--accent-color)';
-    } else if (balance.deudaTuAElla > 0.001) {
+    } else if (balance.deudaTu > 0.001) {
         elements.deudaTexto.textContent = `${nombreTu} debe a ${nombreElla}:`;
-        elements.deudaMonto.textContent = `S/${balance.deudaTuAElla.toFixed(2)}`;
+        elements.deudaMonto.textContent = `S/${balance.deudaTu.toFixed(2)}`;
         elements.btnPagar.style.display = 'block';
         if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--warning-color)';
     } else {
@@ -690,24 +923,9 @@ function actualizarBalance() {
     }
 }
 
-function mostrarModalConfirmacionPago() {
-    const monto = parseFloat(document.getElementById('pago-monto').value);
-    const quienPaga = document.getElementById('pago-quien-paga').value;
-    const quienRecibe = document.getElementById('pago-quien-recibe').value;
-    
-    if (!monto || monto <= 0) {
-        mostrarNotificacion('Ingresa un monto válido', 'error');
-        return;
-    }
-    
-    const nombrePaga = quienPaga === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-    const nombreRecibe = quienRecibe === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-    const descripcion = document.getElementById('pago-descripcion').value;
-    
-    document.getElementById('modal-pago-detalle').textContent = `${nombrePaga} → ${nombreRecibe} ${descripcion ? '· ' + descripcion : ''}`;
-    document.getElementById('modal-pago-monto').textContent = `S/${monto.toFixed(2)}`;
-    document.getElementById('modal-confirmar-pago').classList.add('active');
-}
+// ====================
+// ⭐ FUNCIÓN guardarPagoEnFirebase() - MODIFICADA
+// ====================
 
 async function guardarPagoEnFirebase() {
     const monto = parseFloat(document.getElementById('pago-monto').value);
@@ -716,39 +934,45 @@ async function guardarPagoEnFirebase() {
     const descripcion = document.getElementById('pago-descripcion').value;
     const fecha = document.getElementById('pago-fecha').value;
     
-    // Validaciones
     if (!monto || monto <= 0) {
         mostrarNotificacion('Ingresa un monto válido', 'error');
         return;
     }
     
-    // Validar que no pague más de lo que debe
-    const rango = obtenerFechaBalance();
-    const balance = calcularBalance(rango);
-    
-    let deudaMaxima = 0;
-    if (quienPaga === 'persona1' && quienRecibe === 'persona2') {
-        deudaMaxima = balance.deudaTuAElla;
-    } else if (quienPaga === 'persona2' && quienRecibe === 'persona1') {
-        deudaMaxima = balance.deudaEllaATu;
-    } else {
-        mostrarNotificacion('Selección de pagador/receptor inválida', 'error');
-        return;
-    }
-    
-    // TOLERANCIA CORREGIDA: usar 0.001 en lugar de 0.01
-    if (monto > deudaMaxima + 0.001) {
-        const nombrePaga = quienPaga === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
-        mostrarNotificacion(`${nombrePaga} solo debe S/${deudaMaxima.toFixed(2)}`, 'error');
+    // Validar que el pagador y receptor sean opuestos
+    if (quienPaga === quienRecibe) {
+        mostrarNotificacion('El pagador y receptor no pueden ser la misma persona', 'error');
         return;
     }
     
     const selectorFecha = document.getElementById('balance-fecha-selector').value;
+    const rango = obtenerFechaBalance();
+    const balance = calcularBalanceConFIFO(rango);
+    
+    // Validar deuda máxima según la vista
+    let deudaMaxima = 0;
+    if (quienPaga === 'persona1') {
+        deudaMaxima = balance.deudaTu;
+    } else {
+        deudaMaxima = balance.deudaElla;
+    }
+    
+    if (monto > deudaMaxima + 0.001) {
+        const nombrePaga = quienPaga === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
+        mostrarNotificacion(`${nombrePaga} solo debe S/${deudaMaxima.toFixed(2)} en esta vista`, 'error');
+        return;
+    }
     
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    // ⭐ IMPORTANTE: 
+    // - Si es "Hoy" o "Ayer" o fecha específica → guardar con esa fecha
+    // - Si es "Todo el historial" → guardar con fecha null (pago global)
+    const fechaPago = selectorFecha === 'all' ? null : fecha;
+    
     const nuevoPago = {
         id: tempId,
-        fecha: selectorFecha === 'all' ? null : fecha,
+        fecha: fechaPago,
         monto: monto,
         descripcion: descripcion || 'Pago 50/50',
         deudor: quienPaga,
@@ -781,6 +1005,10 @@ async function guardarPagoEnFirebase() {
     saveToLocalStorage();
 }
 
+// ====================
+// RESTO DE FUNCIONES (sin cambios importantes)
+// ====================
+
 function limpiarFormularioPago() {
     document.getElementById('pago-monto').value = '';
     document.getElementById('pago-descripcion').value = '';
@@ -802,7 +1030,6 @@ function mostrarPagos() {
     
     emptyPagos.style.display = 'none';
     
-    // ORDENAR POR TIMESTAMP (más reciente arriba)
     const pagosOrdenados = [...pagos].sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -816,14 +1043,12 @@ function mostrarPagos() {
         const nombreRecibe = pago.acreedor === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
         const idSeguro = pago.id.toString().replace(/[^a-zA-Z0-9_]/g, '_');
         
-        // Fecha del gasto (la que el usuario eligió)
-        let fechaGastoFormateada = '📅 Global';
+        let fechaGastoFormateada = '🌍 Global';
         if (pago.fecha) {
             const fechaGasto = new Date(pago.fecha + 'T00:00:00');
             fechaGastoFormateada = fechaGasto.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
         }
         
-        // Fecha de la acción (timestamp de creación)
         let fechaAccionFormateada = '', horaAccionFormateada = '';
         if (pago.timestamp) {
             const fechaAccion = new Date(pago.timestamp);
@@ -992,9 +1217,24 @@ async function guardarNombres() {
     saveToLocalStorage();
 }
 
-// ====================
-// FUNCIONES DE FILTROS
-// ====================
+function mostrarModalConfirmacionPago() {
+    const monto = parseFloat(document.getElementById('pago-monto').value);
+    const quienPaga = document.getElementById('pago-quien-paga').value;
+    const quienRecibe = document.getElementById('pago-quien-recibe').value;
+    
+    if (!monto || monto <= 0) {
+        mostrarNotificacion('Ingresa un monto válido', 'error');
+        return;
+    }
+    
+    const nombrePaga = quienPaga === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
+    const nombreRecibe = quienRecibe === 'persona1' ? config.nombres.persona1 : config.nombres.persona2;
+    const descripcion = document.getElementById('pago-descripcion').value;
+    
+    document.getElementById('modal-pago-detalle').textContent = `${nombrePaga} → ${nombreRecibe} ${descripcion ? '· ' + descripcion : ''}`;
+    document.getElementById('modal-pago-monto').textContent = `S/${monto.toFixed(2)}`;
+    document.getElementById('modal-confirmar-pago').classList.add('active');
+}
 
 function configurarFiltrosNuevos() {
     const busquedaInput = document.getElementById('busqueda-tiempo-real');
@@ -1145,14 +1385,12 @@ function actualizarNombresEnUI() {
 }
 
 function actualizarResumen() {
-    // Verificar si los elementos existen antes de usarlos
     const summaryHoy = document.getElementById('summary-hoy');
     const summarySemana = document.getElementById('summary-semana');
     const summaryDiferencia = document.getElementById('summary-diferencia');
     
-    // Si no existen los elementos del resumen, salir sin hacer nada
     if (!summaryHoy || !summarySemana || !summaryDiferencia) {
-        return; // ✅ Salir silenciosamente, no afecta el resto
+        return;
     }
     
     const hoy = obtenerFechaLocal();
@@ -1194,7 +1432,6 @@ function mostrarGastosFiltrados(gastosFiltrados) {
         otros: '<i class="fas fa-ellipsis-h"></i>'
     };
     
-    // ORDENAR POR TIMESTAMP (más reciente arriba)
     const gastosOrdenados = [...gastosFiltrados].sort((a, b) => {
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.fecha + 'T00:00:00').getTime();
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.fecha + 'T00:00:00').getTime();
@@ -1252,8 +1489,7 @@ function mostrarGastosFiltrados(gastosFiltrados) {
 function inicializarGrafico() {
     const ctx = document.getElementById('gastos-chart');
     if (!ctx) {
-        console.log("📊 Gráfico no disponible (elemento no encontrado)");
-        return; // ✅ Salir silenciosamente si no existe el canvas
+        return;
     }
     
     chartInstance = new Chart(ctx.getContext('2d'), {
@@ -1375,4 +1611,4 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
 
 window.eliminarGasto = eliminarGasto;
 
-console.log("✅ app.js cargado correctamente");
+console.log("✅ app.js cargado correctamente con FIFO en cascada");
