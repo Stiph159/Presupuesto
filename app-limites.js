@@ -142,7 +142,9 @@ function setupRealtimeListenersLimites() {
             console.error("❌ Error en listener:", error);
         });
     
-    unsubscribePagosLimites = db.collection('pagos_limites')
+    // File: app-limites.js - LISTENER DE PAGOS CORREGIDO (SIN NOTIFICACIONES EN REEMPLAZO)
+
+unsubscribePagosLimites = db.collection('pagos_limites')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
         .onSnapshot((snapshot) => {
@@ -176,7 +178,7 @@ function setupRealtimeListenersLimites() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
+                        // Buscar si existe un TEMPORAL con los mismos datos
                         const temporalIndex = pagosLimites.findIndex(p => 
                             p.id.toString().startsWith('temp_') && 
                             Math.abs(p.monto - pagoData.monto) < 0.01 &&
@@ -185,15 +187,14 @@ function setupRealtimeListenersLimites() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // PASO 2: REEMPLAZAR el temporal con el dato real
+                            // REEMPLAZAR el temporal con el dato real (SIN notificación)
                             console.log("🔄 Reemplazando pago temporal con ID real de Firebase:", pagoData.id);
                             pagosLimites[temporalIndex] = {
                                 ...pagoData,
                                 sincronizando: false
                             };
-                            mostrarNotificacion(`✅ Pago sincronizado`, 'success');
+                            // ⚠️ NO mostrar notificación aquí
                         } 
-                        // PASO 3: Solo agregar si NO existe ya (por ID)
                         else if (!pagosLimites.some(p => p.id === pagoData.id)) {
                             pagosLimites.push({
                                 ...pagoData,
@@ -214,7 +215,7 @@ function setupRealtimeListenersLimites() {
                         break;
                         
                     case 'removed':
-                        // ✅ SIMPLE: Solo filtrar por ID (como en index y ahorro)
+                        // SIMPLE: Solo filtrar por ID
                         pagosLimites = pagosLimites.filter(p => p.id !== pagoData.id);
                         mostrarNotificacion(`📌 Pago eliminado de otro dispositivo`, 'warning');
                         break;
