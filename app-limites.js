@@ -144,50 +144,89 @@ function setupRealtimeListenersLimites() {
     
     // Listener para pagos de límites
     unsubscribePagosLimites = db.collection('pagos_limites')
-        .where('sharedId', '==', 'nuestra_pareja')
-        .orderBy('timestamp', 'desc')
-        .onSnapshot((snapshot) => {
-            if (ignoreNextSnapshot) {
-                ignoreNextSnapshot = false;
-                return;
+    .where('sharedId', '==', 'nuestra_pareja')
+    .orderBy('timestamp', 'desc')
+    .onSnapshot((snapshot) => {
+        if (ignoreNextSnapshot) {
+            ignoreNextSnapshot = false;
+            return;
+        }
+        
+        console.log("📨 Cambios en pagos de límites:", snapshot.docChanges().length);
+        
+        snapshot.docChanges().forEach(cambio => {
+            const pagoData = {
+                id: cambio.doc.id,
+                ...cambio.doc.data()
+            };
+            
+            if (pagoData.timestamp && pagoData.timestamp.toDate) {
+                pagoData.timestamp = pagoData.timestamp.toDate();
             }
             
-            console.log("💸 Cambios en pagos de límites:", snapshot.docChanges().length);
+            // Si no hay timestamp, crear uno basado en la fecha
+            if (!pagoData.timestamp && pagoData.fecha) {
+                const fechaParts = pagoData.fecha.split('-');
+                pagoData.timestamp = new Date(
+                    parseInt(fechaParts[0]), 
+                    parseInt(fechaParts[1]) - 1, 
+                    parseInt(fechaParts[2]),
+                    12, 0, 0
+                );
+            }
             
-            snapshot.docChanges().forEach(cambio => {
-                const pagoData = {
-                    id: cambio.doc.id,
-                    ...cambio.doc.data()
-                };
-                
-                if (pagoData.timestamp && pagoData.timestamp.toDate) {
-                    pagoData.timestamp = pagoData.timestamp.toDate();
-                }
-                
-                switch (cambio.type) {
-                    case 'added':
-                        if (!pagosLimites.some(p => p.id === pagoData.id)) {
-                            pagosLimites.push(pagoData);
-                            mostrarNotificacion(`💸 Nuevo pago registrado`, 'info');
-                        }
-                        break;
-                    case 'modified':
-                        const indexMod = pagosLimites.findIndex(p => p.id === pagoData.id);
-                        if (indexMod !== -1) pagosLimites[indexMod] = pagoData;
-                        break;
-                    case 'removed':
-                        pagosLimites = pagosLimites.filter(p => p.id !== pagoData.id);
-                        mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
-                        break;
-                }
-            });
-            
-            pagosLimites.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-            actualizarUILimites();
-            saveLimitesToLocalStorage();
-        }, (error) => {
-            console.error("❌ Error en listener de pagos:", error);
+            switch (cambio.type) {
+                case 'added':
+                    // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
+                    const temporalIndex = pagosLimites.findIndex(p => 
+                        p.id.toString().startsWith('temp_') && 
+                        Math.abs(p.monto - pagoData.monto) < 0.01 &&
+                        p.fecha === pagoData.fecha &&
+                        p.persona === pagoData.persona
+                    );
+                    
+                    if (temporalIndex !== -1) {
+                        // PASO 2: Si existe temporal, REEMPLAZARLO con el dato real
+                        console.log("🗑️ Reemplazando pago temporal con ID real de Firebase");
+                        pagosLimites[temporalIndex] = {
+                            ...pagoData,
+                            sincronizando: false
+                        };
+                        mostrarNotificacion(`✅ Pago sincronizado con la nube`, 'success');
+                    } 
+                    // PASO 3: Solo agregar si NO existe ya (por ID)
+                    else if (!pagosLimites.some(p => p.id === pagoData.id)) {
+                        pagosLimites.push({
+                            ...pagoData,
+                            sincronizando: false
+                        });
+                        mostrarNotificacion(`💰 Nuevo pago registrado en otro dispositivo`, 'info');
+                    }
+                    break;
+                    
+                case 'modified':
+                    const indexMod = pagosLimites.findIndex(p => p.id === pagoData.id);
+                    if (indexMod !== -1) {
+                        pagosLimites[indexMod] = {
+                            ...pagoData,
+                            sincronizando: false
+                        };
+                    }
+                    break;
+                    
+                case 'removed':
+                    // Filtrar el pago eliminado
+                    pagosLimites = pagosLimites.filter(p => p.id !== pagoData.id);
+                    mostrarNotificacion(`📌 Un pago fue eliminado de otro dispositivo`, 'warning');
+                    break;
+            }
         });
+        
+        actualizarUILimites();
+        saveLimitesToLocalStorage();
+    }, (error) => {
+        console.error("❌ Error en listener de pagos:", error);
+    });
     
     unsubscribeConfigLimites = db.collection('config')
         .doc('nuestra_pareja')
@@ -713,12 +752,12 @@ async function guardarPago() {
     const fechaFiltro = obtenerFechaFiltro();
     const deudaActual = calcularDeudaPersonaPorFecha(persona, fechaFiltro);
     
-    // TOLERANCIA CORREGIDA
     if (monto > deudaActual + 0.001) {
         mostrarNotificacion(`No puedes pagar más de lo que debes (S/${deudaActual.toFixed(2)})`, 'error');
         return;
     }
     
+    // Crear ID temporal ÚNICO
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const ahora = new Date();
     
@@ -729,26 +768,37 @@ async function guardarPago() {
         descripcion: descripcion || `Pago de ${nombrePersona}`,
         persona: persona,
         timestamp: ahora,
-        esPagoGlobal: selectorFecha === 'all'
+        esPagoGlobal: selectorFecha === 'all',
+        sincronizando: true // Marcar como pendiente de sincronización
     };
     
     if (selectorFecha === 'all') {
         mostrarNotificacion(`🌍 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
     }
     
+    // Agregar temporal a la lista LOCAL
     pagosLimites.unshift(nuevoPago);
     actualizarUILimites();
     
     cerrarFormularioPago();
     document.getElementById('modal-confirmar-pago-limites').classList.remove('active');
     
-    mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
+    mostrarNotificacion(`⏳ Guardando pago de ${nombrePersona}...`, 'info');
     
     try {
+        // Guardar en Firebase (esto disparará el listener y reemplazará el temporal)
         await savePagoLimiteToFirebase(nuevoPago);
+        // La notificación de éxito la mostrará el listener cuando llegue la confirmación
     } catch (error) {
         console.error("Error guardando pago:", error);
-        mostrarNotificacion('⚠️ Pago guardado localmente', 'warning');
+        // Marcar el pago como error pero mantenerlo visible
+        const index = pagosLimites.findIndex(p => p.id === tempId);
+        if (index !== -1) {
+            pagosLimites[index].error = true;
+            pagosLimites[index].sincronizando = false;
+        }
+        mostrarNotificacion('⚠️ Pago guardado solo localmente', 'warning');
+        actualizarUILimites();
     }
     
     saveLimitesToLocalStorage();

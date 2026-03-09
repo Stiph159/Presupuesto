@@ -175,7 +175,7 @@ function setupRealtimeListeners() {
                 return;
             }
             
-            console.log("💸 Cambios en pagos de ahorro:", snapshot.docChanges().length);
+            console.log("📨 Cambios en pagos de ahorro:", snapshot.docChanges().length);
             
             snapshot.docChanges().forEach(cambio => {
                 const pagoData = {
@@ -187,7 +187,7 @@ function setupRealtimeListeners() {
                     pagoData.timestamp = pagoData.timestamp.toDate();
                 }
                 
-                // 🔥 Si no hay timestamp, crear uno basado en la fecha
+                // Si no hay timestamp, crear uno basado en la fecha
                 if (!pagoData.timestamp) {
                     const fechaParts = pagoData.fecha.split('-');
                     pagoData.timestamp = new Date(
@@ -200,7 +200,7 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
-                        // 🔥 BUSCAR si existe un TEMPORAL con los mismos datos
+                        // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
                         const temporalIndex = pagosAhorro.findIndex(p => 
                             p.id.toString().startsWith('temp_') && 
                             Math.abs(p.monto - pagoData.monto) < 0.01 &&
@@ -209,24 +209,35 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // 🔥 Si existe temporal, ELIMINARLO
-                            pagosAhorro.splice(temporalIndex, 1);
-                            console.log("🗑️ Pago temporal eliminado");
-                        }
-                        
-                        // Solo agregar si no existe ya
-                        if (!pagosAhorro.some(p => p.id === pagoData.id)) {
-                            pagosAhorro.push(pagoData);
-                            mostrarNotificacion(`💸 Nuevo pago registrado`, 'info');
+                            // PASO 2: Si existe temporal, REEMPLAZARLO con el dato real
+                            console.log("🗑️ Reemplazando pago temporal con ID real de Firebase");
+                            pagosAhorro[temporalIndex] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                        } 
+                        // PASO 3: Solo agregar si NO existe ya (por ID)
+                        else if (!pagosAhorro.some(p => p.id === pagoData.id)) {
+                            pagosAhorro.push({
+                                ...pagoData,
+                                sincronizando: false
+                            });
+                            mostrarNotificacion(`💰 Nuevo pago registrado`, 'info');
                         }
                         break;
                         
                     case 'modified':
                         const indexMod = pagosAhorro.findIndex(p => p.id === pagoData.id);
-                        if (indexMod !== -1) pagosAhorro[indexMod] = pagoData;
+                        if (indexMod !== -1) {
+                            pagosAhorro[indexMod] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                        }
                         break;
                         
                     case 'removed':
+                        // Filtrar el pago eliminado
                         pagosAhorro = pagosAhorro.filter(p => p.id !== pagoData.id);
                         mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
                         break;
@@ -688,6 +699,7 @@ async function guardarPago() {
         return;
     }
     
+    // Crear ID temporal ÚNICO
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const ahora = new Date();
     
@@ -698,26 +710,37 @@ async function guardarPago() {
         descripcion: descripcion || `Pago de ${nombrePersona}`,
         persona: persona,
         timestamp: ahora,
-        esPagoGlobal: selectorFecha === 'all'
+        esPagoGlobal: selectorFecha === 'all',
+        sincronizando: true // Marcar como pendiente de sincronización
     };
     
     if (selectorFecha === 'all') {
-        mostrarNotificacion(`💰 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
+        mostrarNotificacion(`🌍 Pago GLOBAL de S/${monto.toFixed(2)} - Se distribuirá FIFO desde la fecha más antigua`, 'info');
     }
     
+    // Agregar temporal a la lista LOCAL
     pagosAhorro.unshift(nuevoPago);
     actualizarUIAhorro();
     
     cerrarFormularioPago();
     document.getElementById('modal-confirmar-pago-ahorro').classList.remove('active');
     
-    mostrarNotificacion(`✅ ${nombrePersona} pagó S/${monto.toFixed(2)}`, 'success');
+    mostrarNotificacion(`⏳ Guardando pago de ${nombrePersona}...`, 'info');
     
     try {
+        // Guardar en Firebase (esto disparará el listener y reemplazará el temporal)
         await savePagoAhorroToFirebase(nuevoPago);
+        // La notificación de éxito la mostrará el listener cuando llegue la confirmación
     } catch (error) {
         console.error("Error guardando pago:", error);
-        mostrarNotificacion('⚠️ Pago guardado localmente', 'warning');
+        // Marcar el pago como error pero mantenerlo visible
+        const index = pagosAhorro.findIndex(p => p.id === tempId);
+        if (index !== -1) {
+            pagosAhorro[index].error = true;
+            pagosAhorro[index].sincronizando = false;
+        }
+        mostrarNotificacion('⚠️ Pago guardado solo localmente', 'warning');
+        actualizarUIAhorro();
     }
     
     saveToLocalStorage();

@@ -163,6 +163,7 @@ function setupRealtimeListeners() {
                 
                 switch (cambio.type) {
                     case 'added':
+                        // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
                         const temporalIndex = pagos.findIndex(p => 
                             p.id.toString().startsWith('temp_') && 
                             Math.abs(p.monto - pagoData.monto) < 0.01 &&
@@ -172,17 +173,30 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            pagos.splice(temporalIndex, 1);
-                        }
-                        
-                        if (!pagos.some(p => p.id === pagoData.id)) {
-                            pagos.push(pagoData);
+                            // PASO 2: Si existe temporal, REEMPLAZARLO con el dato real
+                            console.log("🗑️ Reemplazando pago temporal con ID real de Firebase");
+                            pagos[temporalIndex] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                        } 
+                        // PASO 3: Solo agregar si NO existe ya (por ID)
+                        else if (!pagos.some(p => p.id === pagoData.id)) {
+                            pagos.push({
+                                ...pagoData,
+                                sincronizando: false
+                            });
                         }
                         break;
                         
                     case 'modified':
                         const indexMod = pagos.findIndex(p => p.id === pagoData.id);
-                        if (indexMod !== -1) pagos[indexMod] = pagoData;
+                        if (indexMod !== -1) {
+                            pagos[indexMod] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                        }
                         break;
                         
                     case 'removed':
@@ -1048,9 +1062,10 @@ async function guardarPagoEnFirebase() {
         return;
     }
     
+    // Crear ID temporal ÚNICO
     const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     
-    // ⭐ IMPORTANTE: 
+    // IMPORTANTE: 
     // - Si es "Hoy" o "Ayer" o fecha específica → guardar con esa fecha
     // - Si es "Todo el historial" → guardar con fecha null (pago global)
     const fechaPago = selectorFecha === 'all' ? null : fecha;
@@ -1064,9 +1079,11 @@ async function guardarPagoEnFirebase() {
         acreedor: quienRecibe,
         completado: true,
         timestamp: new Date(),
-        esPagoGlobal: selectorFecha === 'all'
+        esPagoGlobal: selectorFecha === 'all',
+        sincronizando: true // Marcar como pendiente de sincronización
     };
     
+    // Agregar temporal a la lista LOCAL
     pagos.unshift(nuevoPago);
     actualizarBalance();
     mostrarPagos();
@@ -1079,12 +1096,17 @@ async function guardarPagoEnFirebase() {
     
     try {
         await savePagoToFirebase(nuevoPago);
-        mostrarNotificacion('✅ Pago registrado', 'success');
+        // La notificación de éxito la mostrará el listener cuando llegue la confirmación
     } catch (error) {
         console.error("Error guardando pago:", error);
         const index = pagos.findIndex(p => p.id === tempId);
-        if (index !== -1) pagos[index].error = true;
+        if (index !== -1) {
+            pagos[index].error = true;
+            pagos[index].sincronizando = false;
+        }
         mostrarNotificacion('⚠️ Pago guardado localmente', 'warning');
+        actualizarBalance();
+        mostrarPagos();
     }
     
     saveToLocalStorage();
