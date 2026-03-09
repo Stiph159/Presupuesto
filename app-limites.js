@@ -864,7 +864,7 @@ function mostrarPagos() {
 }
 
 // ====================
-// FUNCIÓN DE CÁLCULO DE LÍMITE
+// FUNCIÓN DE CÁLCULO DE LÍMITE - CORREGIDA
 // ====================
 
 function calcularLimite() {
@@ -888,16 +888,20 @@ function calcularLimite() {
     let montoLimite = limiteSeleccionado === 0 ? 0 : limiteSeleccionado;
     
     if (limiteSeleccionado === 0) {
-        // Comodín Especial: todo el gasto es ahorro
+        // Comodín Especial: todo el gasto es ahorro, redondeado a múltiplo de 5
         exceso = gastoReal;
         
-        // CORREGIDO: Siempre redondear hacia arriba la mitad
-        // Porque cualquier número impar/2 dará decimal .5
-        ahorroPorPersona = Math.ceil(gastoReal / 2);
+        // Redondear el exceso al múltiplo de 5 superior
+        let excesoRedondeado = Math.ceil(exceso / 5) * 5;
+        ahorroTotal = excesoRedondeado;
+        
+        // Cada persona paga la mitad, redondeada hacia arriba
+        ahorroPorPersona = Math.ceil(ahorroTotal / 2);
+        
+        // Ajustamos el ahorro total para que sea la suma de las mitades redondeadas
         ahorroTotal = ahorroPorPersona * 2;
         
-        // Mostrar notificación informativa
-        console.log(`Comodín Especial: S/${gastoReal} → cada uno paga S/${ahorroPorPersona} (total S/${ahorroTotal})`);
+        console.log(`Comodín Especial: S/${gastoReal} → exceso redondeado S/${excesoRedondeado} → cada uno paga S/${ahorroPorPersona} (total S/${ahorroTotal})`);
         
     } else {
         exceso = Math.max(gastoReal - montoLimite, 0);
