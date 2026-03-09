@@ -186,20 +186,9 @@ function setupRealtimeListeners() {
                     pagoData.timestamp = pagoData.timestamp.toDate();
                 }
                 
-                // Si no hay timestamp, crear uno basado en la fecha
-                if (!pagoData.timestamp && pagoData.fecha) {
-                    const fechaParts = pagoData.fecha.split('-');
-                    pagoData.timestamp = new Date(
-                        parseInt(fechaParts[0]), 
-                        parseInt(fechaParts[1]) - 1, 
-                        parseInt(fechaParts[2]),
-                        12, 0, 0
-                    );
-                }
-                
                 switch (cambio.type) {
                     case 'added':
-                        // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
+                        // Buscar si existe un TEMPORAL con los mismos datos
                         const temporalIndex = pagosAhorro.findIndex(p => 
                             p.id.toString().startsWith('temp_') && 
                             Math.abs(p.monto - pagoData.monto) < 0.01 &&
@@ -208,20 +197,19 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // PASO 2: REEMPLAZAR el temporal con el dato real
-                            console.log("🔄 Reemplazando pago temporal con ID real de Firebase");
+                            // REEMPLAZAR el temporal con el dato real
+                            console.log("🔄 Reemplazando pago temporal con ID real de Firebase:", pagoData.id);
                             pagosAhorro[temporalIndex] = {
                                 ...pagoData,
                                 sincronizando: false
                             };
                         } 
-                        // PASO 3: Solo agregar si NO existe ya (por ID)
                         else if (!pagosAhorro.some(p => p.id === pagoData.id)) {
                             pagosAhorro.push({
                                 ...pagoData,
                                 sincronizando: false
                             });
-                            mostrarNotificacion(`💰 Nuevo pago registrado en otro dispositivo`, 'info');
+                            mostrarNotificacion(`💰 Nuevo pago registrado`, 'info');
                         }
                         break;
                         
@@ -236,36 +224,9 @@ function setupRealtimeListeners() {
                         break;
                         
                     case 'removed':
-                        // PASO 1: Intentar eliminar por ID exacto
-                        let encontrado = false;
-                        
-                        // Buscar por ID exacto
-                        const idIndex = pagosAhorro.findIndex(p => p.id === pagoData.id);
-                        if (idIndex !== -1) {
-                            pagosAhorro.splice(idIndex, 1);
-                            encontrado = true;
-                            console.log("✅ Pago eliminado por ID:", pagoData.id);
-                        } else {
-                            // PASO 2: Si no se encuentra por ID, buscar por combinación de datos (especialmente para pagos globales)
-                            const dataIndex = pagosAhorro.findIndex(p => 
-                                Math.abs(p.monto - pagoData.monto) < 0.01 &&
-                                p.fecha === pagoData.fecha &&
-                                p.persona === pagoData.persona &&
-                                p.descripcion === pagoData.descripcion
-                            );
-                            
-                            if (dataIndex !== -1) {
-                                pagosAhorro.splice(dataIndex, 1);
-                                encontrado = true;
-                                console.log("✅ Pago global eliminado por datos:", pagoData.monto, pagoData.persona);
-                            }
-                        }
-                        
-                        if (encontrado) {
-                            mostrarNotificacion(`📌 Un pago fue eliminado de otro dispositivo`, 'warning');
-                        } else {
-                            console.log("⚠️ No se encontró el pago para eliminar:", pagoData);
-                        }
+                        // ✅ SIMPLE: Solo filtrar por ID (como en index)
+                        pagosAhorro = pagosAhorro.filter(p => p.id !== pagoData.id);
+                        mostrarNotificacion(`📌 Pago eliminado de otro dispositivo`, 'warning');
                         break;
                 }
             });
