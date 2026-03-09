@@ -504,7 +504,7 @@ function calcularDeudasPorFecha() {
 }
 
 // ====================
-// ⭐ FUNCIÓN CORREGIDA: calcularBalanceConFIFO() - VERSIÓN FINAL
+// ⭐ FUNCIÓN CORREGIDA: calcularBalanceConFIFO() - VERSIÓN DEFINITIVA
 // ====================
 
 function calcularBalanceConFIFO(rango) {
@@ -514,130 +514,80 @@ function calcularBalanceConFIFO(rango) {
     const fechas = [...new Set(gastos.map(g => g.fecha))].sort();
     
     // ============================================
-    // PASO 2: Crear mapa de gastos por fecha
+    // PASO 2: Calcular deuda ORIGINAL por fecha (sin pagos)
     // ============================================
-    const gastosPorFecha = {};
+    const deudasOriginales = {};
     fechas.forEach(fecha => {
         const gastosFecha = gastos.filter(g => g.fecha === fecha);
         const totalTu = gastosFecha.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
         const totalElla = gastosFecha.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
-        
-        gastosPorFecha[fecha] = {
-            totalTu,
-            totalElla,
-            deudaOriginalTu: 0,
-            deudaOriginalElla: 0
-        };
-        
         const diferencia = totalTu - totalElla;
+        
         if (diferencia > 0) {
-            gastosPorFecha[fecha].deudaOriginalElla = diferencia / 2;
+            // Tú gastaste más → Ella te debe
+            deudasOriginales[fecha] = { 
+                persona1: 0, 
+                persona2: diferencia / 2,
+                totalTu,
+                totalElla 
+            };
         } else if (diferencia < 0) {
-            gastosPorFecha[fecha].deudaOriginalTu = Math.abs(diferencia) / 2;
+            // Ella gastó más → Tú le debes
+            deudasOriginales[fecha] = { 
+                persona1: Math.abs(diferencia) / 2, 
+                persona2: 0,
+                totalTu,
+                totalElla 
+            };
+        } else {
+            deudasOriginales[fecha] = { 
+                persona1: 0, 
+                persona2: 0,
+                totalTu,
+                totalElla 
+            };
         }
     });
     
     // ============================================
-    // PASO 3: Ordenar todos los eventos cronológicamente
+    // PASO 3: Calcular deuda con pagos ESPECÍFICOS por fecha
     // ============================================
-    const eventos = [];
+    const deudasConPagosEspecificos = JSON.parse(JSON.stringify(deudasOriginales));
     
-    // Agregar gastos como eventos
-    gastos.forEach(g => {
-        eventos.push({
-            timestamp: g.timestamp ? new Date(g.timestamp).getTime() : new Date(g.fecha + 'T00:00:00').getTime(),
-            tipo: 'gasto',
-            fecha: g.fecha,
-            persona: g.persona,
-            monto: g.monto,
-            id: g.id
-        });
-    });
-    
-    // Agregar pagos específicos como eventos
-    pagos.filter(p => p.fecha !== null).forEach(p => {
-        eventos.push({
-            timestamp: p.timestamp ? new Date(p.timestamp).getTime() : new Date(p.fecha + 'T00:00:00').getTime(),
-            tipo: 'pago_especifico',
-            fecha: p.fecha,
-            deudor: p.deudor,
-            monto: p.monto,
-            id: p.id
-        });
-    });
-    
-    // Agregar pagos globales como eventos
-    pagos.filter(p => p.fecha === null).forEach(p => {
-        eventos.push({
-            timestamp: p.timestamp ? new Date(p.timestamp).getTime() : Date.now(),
-            tipo: 'pago_global',
-            deudor: p.deudor,
-            monto: p.monto,
-            id: p.id
-        });
-    });
-    
-    // Ordenar eventos por timestamp (más antiguo primero)
-    eventos.sort((a, b) => a.timestamp - b.timestamp);
-    
-    // ============================================
-    // PASO 4: Reconstruir la historia de deudas
-    // ============================================
-    
-    // Estado actual de deudas por fecha
-    const deudasActuales = {};
-    fechas.forEach(f => {
-        deudasActuales[f] = {
-            persona1: gastosPorFecha[f]?.deudaOriginalTu || 0,
-            persona2: gastosPorFecha[f]?.deudaOriginalElla || 0
-        };
-    });
-    
-    // Procesar eventos en orden cronológico
-    eventos.forEach(evento => {
-        if (evento.tipo === 'gasto') {
-            // Los gastos ya están considerados en deudasActuales inicial
-            // No hacemos nada aquí porque ya los inicializamos arriba
-            return;
-        }
+    fechas.forEach(fecha => {
+        // Pagos que tienen esta fecha específica
+        const pagosFecha = pagos.filter(p => p.fecha === fecha);
         
-        if (evento.tipo === 'pago_especifico') {
-            // Pago específico: afecta solo UNA fecha
-            const fecha = evento.fecha;
-            if (!deudasActuales[fecha]) return;
-            
-            if (evento.deudor === 'persona1') {
-                deudasActuales[fecha].persona1 = Math.max(0, deudasActuales[fecha].persona1 - evento.monto);
-            } else {
-                deudasActuales[fecha].persona2 = Math.max(0, deudasActuales[fecha].persona2 - evento.monto);
+        pagosFecha.forEach(pago => {
+            if (pago.deudor === 'persona1' && deudasConPagosEspecificos[fecha].persona1 > 0) {
+                deudasConPagosEspecificos[fecha].persona1 = Math.max(0, deudasConPagosEspecificos[fecha].persona1 - pago.monto);
+            } else if (pago.deudor === 'persona2' && deudasConPagosEspecificos[fecha].persona2 > 0) {
+                deudasConPagosEspecificos[fecha].persona2 = Math.max(0, deudasConPagosEspecificos[fecha].persona2 - pago.monto);
             }
-        }
+        });
+    });
+    
+    // ============================================
+    // PASO 4: Aplicar pagos GLOBALES (fecha null) con FIFO
+    // ============================================
+    const deudasFinales = JSON.parse(JSON.stringify(deudasConPagosEspecificos));
+    const pagosGlobales = pagos.filter(p => p.fecha === null).sort((a, b) => a.timestamp - b.timestamp);
+    
+    pagosGlobales.forEach(pago => {
+        let montoRestante = pago.monto;
+        const deudor = pago.deudor; // 'persona1' o 'persona2'
         
-        if (evento.tipo === 'pago_global') {
-            // Pago global: afecta TODAS las fechas existentes HASTA ESTE MOMENTO
-            let montoRestante = evento.monto;
-            const deudor = evento.deudor;
+        // Ordenar fechas de más antigua a más nueva
+        const fechasOrdenadas = [...fechas].sort();
+        
+        for (const fecha of fechasOrdenadas) {
+            if (montoRestante <= 0.001) break;
             
-            // Obtener fechas que ya existían en este momento
-            const fechasHastaAhora = fechas.filter(f => {
-                // Una fecha existe si hay gastos con timestamp menor al del pago global
-                const gastosDeFecha = gastos.filter(g => g.fecha === f);
-                return gastosDeFecha.some(g => {
-                    const gTime = g.timestamp ? new Date(g.timestamp).getTime() : new Date(g.fecha + 'T00:00:00').getTime();
-                    return gTime <= evento.timestamp;
-                });
-            }).sort();
-            
-            // Aplicar FIFO a las fechas existentes
-            for (const fecha of fechasHastaAhora) {
-                if (montoRestante <= 0.001) break;
-                
-                const deudaActual = deudasActuales[fecha]?.[deudor] || 0;
-                if (deudaActual > 0.001) {
-                    const pagoAplicado = Math.min(deudaActual, montoRestante);
-                    deudasActuales[fecha][deudor] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
-                    montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
-                }
+            const deudaActual = deudasFinales[fecha]?.[deudor] || 0;
+            if (deudaActual > 0.001) {
+                const pagoAplicado = Math.min(deudaActual, montoRestante);
+                deudasFinales[fecha][deudor] = parseFloat((deudaActual - pagoAplicado).toFixed(2));
+                montoRestante = parseFloat((montoRestante - pagoAplicado).toFixed(2));
             }
         }
     });
@@ -650,7 +600,8 @@ function calcularBalanceConFIFO(rango) {
         // ========== VISTA POR DÍA ESPECÍFICO ==========
         const fecha = rango.fecha;
         
-        if (!gastosPorFecha[fecha]) {
+        // Si no hay datos para esta fecha, devolver ceros
+        if (!deudasFinales[fecha]) {
             return {
                 deudaTu: 0,
                 deudaElla: 0,
@@ -661,34 +612,47 @@ function calcularBalanceConFIFO(rango) {
             };
         }
         
-        const data = gastosPorFecha[fecha];
-        const deudaActual = deudasActuales[fecha] || { persona1: 0, persona2: 0 };
+        const data = deudasFinales[fecha];
         
         // Gastos brutos de este día
-        const totalGastoTu = data.totalTu;
-        const totalGastoElla = data.totalElla;
+        const gastosFecha = gastos.filter(g => g.fecha === fecha);
+        const totalGastoTu = gastosFecha.filter(g => g.persona === 'persona1').reduce((sum, g) => sum + g.monto, 0);
+        const totalGastoElla = gastosFecha.filter(g => g.persona === 'persona2').reduce((sum, g) => sum + g.monto, 0);
         
-        // Calcular pagos específicos de este día
-        const pagosFecha = pagos.filter(p => p.fecha === fecha);
-        let ajusteTu = 0;
-        let ajusteElla = 0;
+        // ===== CORRECCIÓN IMPORTANTE =====
+        // Calcular pagos que afectan este día (tanto específicos como globales aplicados vía FIFO)
         
-        pagosFecha.forEach(p => {
-            if (p.deudor === 'persona1') {
-                ajusteTu += p.monto;
-                ajusteElla -= p.monto;
-            } else {
-                ajusteElla += p.monto;
-                ajusteTu -= p.monto;
-            }
-        });
+        // Deuda original de este día
+        const deudaOriginalTu = deudasOriginales[fecha]?.persona1 || 0;
+        const deudaOriginalElla = deudasOriginales[fecha]?.persona2 || 0;
         
-        const gastoEfectivoTu = totalGastoTu + ajusteTu;
-        const gastoEfectivoElla = totalGastoElla + ajusteElla;
+        // Deuda final después de TODOS los pagos (específicos + globales)
+        const deudaFinalTu = data.persona1 || 0;
+        const deudaFinalElla = data.persona2 || 0;
+        
+        // Lo que se ha pagado de la deuda original
+        const pagadoDeudaTu = deudaOriginalTu - deudaFinalTu;
+        const pagadoDeudaElla = deudaOriginalElla - deudaFinalElla;
+        
+        // Calcular gasto efectivo
+        // Si la deuda era de persona1 (Tú debías), esos pagos aumentan tu gasto efectivo
+        // Si la deuda era de persona2 (Ella debía), esos pagos disminuyen tu gasto efectivo
+        let gastoEfectivoTu = totalGastoTu;
+        let gastoEfectivoElla = totalGastoElla;
+        
+        if (deudaOriginalTu > 0) {
+            // Tú debías, los pagos van de ti a ella
+            gastoEfectivoTu += pagadoDeudaTu; // Pagaste, tu gasto efectivo aumenta
+            gastoEfectivoElla -= pagadoDeudaTu; // Ella recibió, su gasto efectivo disminuye
+        } else if (deudaOriginalElla > 0) {
+            // Ella debía, los pagos van de ella a ti
+            gastoEfectivoElla += pagadoDeudaElla; // Ella pagó, su gasto efectivo aumenta
+            gastoEfectivoTu -= pagadoDeudaElla; // Tú recibiste, tu gasto efectivo disminuye
+        }
         
         return {
-            deudaTu: deudaActual.persona1 || 0,
-            deudaElla: deudaActual.persona2 || 0,
+            deudaTu: deudaFinalTu,
+            deudaElla: deudaFinalElla,
             gastoEfectivoTu,
             gastoEfectivoElla,
             totalGastoTu,
@@ -706,33 +670,36 @@ function calcularBalanceConFIFO(rango) {
         let gastoEfectivoElla = 0;
         
         fechas.forEach(fecha => {
-            const data = gastosPorFecha[fecha];
-            if (!data) return;
+            const original = deudasOriginales[fecha];
+            const final = deudasFinales[fecha];
             
-            totalGastoTu += data.totalTu;
-            totalGastoElla += data.totalElla;
+            if (!original) return;
             
-            const deudaActual = deudasActuales[fecha] || { persona1: 0, persona2: 0 };
-            totalDeudaTu += deudaActual.persona1;
-            totalDeudaElla += deudaActual.persona2;
+            totalGastoTu += original.totalTu || 0;
+            totalGastoElla += original.totalElla || 0;
             
-            // Calcular gasto efectivo por fecha
-            const pagosFecha = pagos.filter(p => p.fecha === fecha);
-            let efectivoTu = data.totalTu;
-            let efectivoElla = data.totalElla;
+            totalDeudaTu += final?.persona1 || 0;
+            totalDeudaElla += final?.persona2 || 0;
             
-            pagosFecha.forEach(p => {
-                if (p.deudor === 'persona1') {
-                    efectivoTu += p.monto;
-                    efectivoElla -= p.monto;
-                } else {
-                    efectivoElla += p.monto;
-                    efectivoTu -= p.monto;
-                }
-            });
+            // Calcular gasto efectivo por fecha y sumar
+            const deudaOriginalTu = original.persona1 || 0;
+            const deudaOriginalElla = original.persona2 || 0;
+            const deudaFinalTu = final?.persona1 || 0;
+            const deudaFinalElla = final?.persona2 || 0;
             
-            gastoEfectivoTu += efectivoTu;
-            gastoEfectivoElla += efectivoElla;
+            const pagadoDeudaTu = deudaOriginalTu - deudaFinalTu;
+            const pagadoDeudaElla = deudaOriginalElla - deudaFinalElla;
+            
+            if (deudaOriginalTu > 0) {
+                gastoEfectivoTu += original.totalTu + pagadoDeudaTu;
+                gastoEfectivoElla += original.totalElla - pagadoDeudaTu;
+            } else if (deudaOriginalElla > 0) {
+                gastoEfectivoElla += original.totalElla + pagadoDeudaElla;
+                gastoEfectivoTu += original.totalTu - pagadoDeudaElla;
+            } else {
+                gastoEfectivoTu += original.totalTu;
+                gastoEfectivoElla += original.totalElla;
+            }
         });
         
         return {
@@ -826,7 +793,7 @@ function configurarBalanceEventos() {
 }
 
 // ====================
-// ⭐ FUNCIÓN actualizarBalance() - YA ESTÁ CORRECTA
+// ⭐ FUNCIÓN CORREGIDA: actualizarBalance() - CON DOS TARJETAS Y LIMPIEZA COMPLETA
 // ====================
 
 function actualizarBalance() {
@@ -869,22 +836,17 @@ function actualizarBalance() {
     // BARRA VISUAL (gasto efectivo después de pagos)
     // ============================================
     
-    // Asegurar que los montos efectivos no sean negativos para la visualización
     const gastoEfectivoTu = Math.max(0, balance.gastoEfectivoTu);
     const gastoEfectivoElla = Math.max(0, balance.gastoEfectivoElla);
     
-    // Actualizar los montos en la barra
     elements.balanceMontoTu.textContent = `S/${gastoEfectivoTu.toFixed(2)}`;
     elements.balanceMontoElla.textContent = `S/${gastoEfectivoElla.toFixed(2)}`;
     
-    // Meta (mitad del total de gastos BRUTOS)
     const totalGastosBrutos = balance.totalGastoTu + balance.totalGastoElla;
     const meta = totalGastosBrutos / 2;
     elements.balanceMetaMonto.textContent = `S/${meta.toFixed(2)}`;
     
-    // Calcular porcentajes para la barra
     const totalEfectivo = gastoEfectivoTu + gastoEfectivoElla;
-    
     let porcentajeTu = 50;
     let porcentajeElla = 50;
     
@@ -897,24 +859,131 @@ function actualizarBalance() {
     elements.balanceBarElla.style.width = `${porcentajeElla}%`;
     
     // ============================================
-    // TARJETA DE DEUDA
+    // LIMPIAR TARJETAS ADICIONALES ANTERIORES (SIEMPRE)
     // ============================================
     
-    if (balance.deudaElla > 0.001) {
-        elements.deudaTexto.textContent = `${nombreElla} debe a ${nombreTu}:`;
-        elements.deudaMonto.textContent = `S/${balance.deudaElla.toFixed(2)}`;
-        elements.btnPagar.style.display = 'block';
-        if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--accent-color)';
-    } else if (balance.deudaTu > 0.001) {
-        elements.deudaTexto.textContent = `${nombreTu} debe a ${nombreElla}:`;
-        elements.deudaMonto.textContent = `S/${balance.deudaTu.toFixed(2)}`;
-        elements.btnPagar.style.display = 'block';
-        if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--warning-color)';
+    const deudasContainer = document.getElementById('deudas-globales-container');
+    if (deudasContainer) {
+        deudasContainer.remove();
+    }
+    
+    // ============================================
+    // MOSTRAR LA TARJETA ORIGINAL (SIEMPRE VISIBLE POR DEFECTO)
+    // ============================================
+    
+    elements.resultadoDiv.style.display = 'flex';
+    
+    // ============================================
+    // CONFIGURAR SEGÚN EL TIPO DE VISTA
+    // ============================================
+    
+    if (rango.fecha !== null) {
+        // ===== VISTA POR DÍA (una sola tarjeta) =====
+        if (balance.deudaElla > 0.001) {
+            elements.deudaTexto.textContent = `${nombreElla} debe a ${nombreTu}:`;
+            elements.deudaMonto.textContent = `S/${balance.deudaElla.toFixed(2)}`;
+            elements.btnPagar.style.display = 'block';
+            elements.btnPagar.onclick = () => {
+                document.getElementById('pago-quien-paga').value = 'persona2';
+                document.getElementById('pago-quien-recibe').value = 'persona1';
+                document.getElementById('pago-monto').value = balance.deudaElla.toFixed(2);
+                document.getElementById('pago-fecha').value = rango.fecha;
+                document.getElementById('pago-form').style.display = 'block';
+            };
+            if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--accent-color)';
+        } else if (balance.deudaTu > 0.001) {
+            elements.deudaTexto.textContent = `${nombreTu} debe a ${nombreElla}:`;
+            elements.deudaMonto.textContent = `S/${balance.deudaTu.toFixed(2)}`;
+            elements.btnPagar.style.display = 'block';
+            elements.btnPagar.onclick = () => {
+                document.getElementById('pago-quien-paga').value = 'persona1';
+                document.getElementById('pago-quien-recibe').value = 'persona2';
+                document.getElementById('pago-monto').value = balance.deudaTu.toFixed(2);
+                document.getElementById('pago-fecha').value = rango.fecha;
+                document.getElementById('pago-form').style.display = 'block';
+            };
+            if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--warning-color)';
+        } else {
+            elements.deudaTexto.textContent = '¡Están iguales!';
+            elements.deudaMonto.textContent = 'S/0';
+            elements.btnPagar.style.display = 'none';
+            if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--success-color)';
+        }
     } else {
-        elements.deudaTexto.textContent = '¡Están iguales!';
-        elements.deudaMonto.textContent = 'S/0';
-        elements.btnPagar.style.display = 'none';
-        if (elements.resultadoDiv) elements.resultadoDiv.style.background = 'var(--success-color)';
+        // ===== VISTA "TODO EL HISTORIAL" (dos tarjetas) =====
+        
+        // Ocultar la tarjeta original
+        elements.resultadoDiv.style.display = 'none';
+        
+        // Crear contenedor para las dos tarjetas
+        const nuevoContainer = document.createElement('div');
+        nuevoContainer.id = 'deudas-globales-container';
+        nuevoContainer.style.marginTop = '15px';
+        nuevoContainer.style.display = 'flex';
+        nuevoContainer.style.flexDirection = 'column';
+        nuevoContainer.style.gap = '10px';
+        
+        let hayDeudas = false;
+        
+        // Tarjeta 1: Ella debe a Tú (si existe)
+        if (balance.deudaElla > 0.001) {
+            hayDeudas = true;
+            const cardElla = document.createElement('div');
+            cardElla.className = 'balance-resultado';
+            cardElla.style.background = 'var(--accent-color)';
+            cardElla.style.marginBottom = '0';
+            cardElla.innerHTML = `
+                <div class="resultado-icono">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="resultado-texto">
+                    <span>${nombreElla} debe a ${nombreTu}:</span>
+                    <strong>S/${balance.deudaElla.toFixed(2)}</strong>
+                </div>
+                <div class="resultado-acciones">
+                    <button class="btn-pagar" onclick="pagarDeudaGlobal('persona2', ${balance.deudaElla})">
+                        <i class="fas fa-money-bill-wave"></i> Pagar
+                    </button>
+                </div>
+            `;
+            nuevoContainer.appendChild(cardElla);
+        }
+        
+        // Tarjeta 2: Tú debes a Ella (si existe)
+        if (balance.deudaTu > 0.001) {
+            hayDeudas = true;
+            const cardTu = document.createElement('div');
+            cardTu.className = 'balance-resultado';
+            cardTu.style.background = 'var(--warning-color)';
+            cardTu.style.marginBottom = '0';
+            cardTu.innerHTML = `
+                <div class="resultado-icono">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="resultado-texto">
+                    <span>${nombreTu} debe a ${nombreElla}:</span>
+                    <strong>S/${balance.deudaTu.toFixed(2)}</strong>
+                </div>
+                <div class="resultado-acciones">
+                    <button class="btn-pagar" onclick="pagarDeudaGlobal('persona1', ${balance.deudaTu})">
+                        <i class="fas fa-money-bill-wave"></i> Pagar
+                    </button>
+                </div>
+            `;
+            nuevoContainer.appendChild(cardTu);
+        }
+        
+        // Si hay deudas, mostrar el contenedor
+        if (hayDeudas) {
+            elements.resultadoDiv.parentNode.appendChild(nuevoContainer);
+        } else {
+            // Si no hay deudas, mostrar la tarjeta original con mensaje
+            elements.resultadoDiv.style.display = 'flex';
+            elements.deudaTexto.textContent = '¡Están iguales!';
+            elements.deudaMonto.textContent = 'S/0';
+            elements.btnPagar.style.display = 'none';
+            elements.resultadoDiv.style.background = 'var(--success-color)';
+        }
     }
     
     const tituloBalance = document.querySelector('.balance-header h3');
@@ -922,6 +991,22 @@ function actualizarBalance() {
         tituloBalance.innerHTML = `<i class="fas fa-scale-balanced"></i> Balance: ${rango.descripcion}`;
     }
 }
+
+// ====================
+// ⭐ FUNCIÓN AUXILIAR PARA PAGOS GLOBALES
+// ====================
+
+function pagarDeudaGlobal(deudor, monto) {
+    // deudor: 'persona1' (Tú pagas) o 'persona2' (Ella paga)
+    document.getElementById('pago-quien-paga').value = deudor;
+    document.getElementById('pago-quien-recibe').value = deudor === 'persona1' ? 'persona2' : 'persona1';
+    document.getElementById('pago-monto').value = monto.toFixed(2);
+    document.getElementById('pago-fecha').value = obtenerFechaLocal();
+    document.getElementById('pago-form').style.display = 'block';
+}
+
+// Hacerla global para los onclick
+window.pagarDeudaGlobal = pagarDeudaGlobal;
 
 // ====================
 // ⭐ FUNCIÓN guardarPagoEnFirebase() - MODIFICADA
