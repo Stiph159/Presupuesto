@@ -165,7 +165,6 @@ function setupRealtimeListeners() {
             console.error("❌ Error en listener de ahorros:", error);
         });
     
-    // Listener para pagos de ahorro
     unsubscribePagosAhorro = db.collection('pagos_ahorro')
         .where('sharedId', '==', 'nuestra_pareja')
         .orderBy('timestamp', 'desc')
@@ -188,7 +187,7 @@ function setupRealtimeListeners() {
                 }
                 
                 // Si no hay timestamp, crear uno basado en la fecha
-                if (!pagoData.timestamp) {
+                if (!pagoData.timestamp && pagoData.fecha) {
                     const fechaParts = pagoData.fecha.split('-');
                     pagoData.timestamp = new Date(
                         parseInt(fechaParts[0]), 
@@ -209,8 +208,8 @@ function setupRealtimeListeners() {
                         );
                         
                         if (temporalIndex !== -1) {
-                            // PASO 2: Si existe temporal, REEMPLAZARLO con el dato real
-                            console.log("🗑️ Reemplazando pago temporal con ID real de Firebase");
+                            // PASO 2: REEMPLAZAR el temporal con el dato real
+                            console.log("🔄 Reemplazando pago temporal con ID real de Firebase");
                             pagosAhorro[temporalIndex] = {
                                 ...pagoData,
                                 sincronizando: false
@@ -222,7 +221,7 @@ function setupRealtimeListeners() {
                                 ...pagoData,
                                 sincronizando: false
                             });
-                            mostrarNotificacion(`💰 Nuevo pago registrado`, 'info');
+                            mostrarNotificacion(`💰 Nuevo pago registrado en otro dispositivo`, 'info');
                         }
                         break;
                         
@@ -237,9 +236,36 @@ function setupRealtimeListeners() {
                         break;
                         
                     case 'removed':
-                        // Filtrar el pago eliminado
-                        pagosAhorro = pagosAhorro.filter(p => p.id !== pagoData.id);
-                        mostrarNotificacion(`📌 Un pago fue eliminado`, 'warning');
+                        // PASO 1: Intentar eliminar por ID exacto
+                        let encontrado = false;
+                        
+                        // Buscar por ID exacto
+                        const idIndex = pagosAhorro.findIndex(p => p.id === pagoData.id);
+                        if (idIndex !== -1) {
+                            pagosAhorro.splice(idIndex, 1);
+                            encontrado = true;
+                            console.log("✅ Pago eliminado por ID:", pagoData.id);
+                        } else {
+                            // PASO 2: Si no se encuentra por ID, buscar por combinación de datos (especialmente para pagos globales)
+                            const dataIndex = pagosAhorro.findIndex(p => 
+                                Math.abs(p.monto - pagoData.monto) < 0.01 &&
+                                p.fecha === pagoData.fecha &&
+                                p.persona === pagoData.persona &&
+                                p.descripcion === pagoData.descripcion
+                            );
+                            
+                            if (dataIndex !== -1) {
+                                pagosAhorro.splice(dataIndex, 1);
+                                encontrado = true;
+                                console.log("✅ Pago global eliminado por datos:", pagoData.monto, pagoData.persona);
+                            }
+                        }
+                        
+                        if (encontrado) {
+                            mostrarNotificacion(`📌 Un pago fue eliminado de otro dispositivo`, 'warning');
+                        } else {
+                            console.log("⚠️ No se encontró el pago para eliminar:", pagoData);
+                        }
                         break;
                 }
             });
@@ -801,10 +827,6 @@ async function eliminarPagoAhorro(id) {
     
     saveToLocalStorage();
 }
-
-// ====================
-// FUNCIONES DE CÁLCULO (VERSIÓN ÚNICA Y CORREGIDA)
-// ====================
 
 function obtenerFechaFiltro() {
     const selector = document.getElementById('deuda-fecha-selector').value;

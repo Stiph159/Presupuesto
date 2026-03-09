@@ -142,91 +142,117 @@ function setupRealtimeListenersLimites() {
             console.error("❌ Error en listener:", error);
         });
     
-    // Listener para pagos de límites
     unsubscribePagosLimites = db.collection('pagos_limites')
-    .where('sharedId', '==', 'nuestra_pareja')
-    .orderBy('timestamp', 'desc')
-    .onSnapshot((snapshot) => {
-        if (ignoreNextSnapshot) {
-            ignoreNextSnapshot = false;
-            return;
-        }
-        
-        console.log("📨 Cambios en pagos de límites:", snapshot.docChanges().length);
-        
-        snapshot.docChanges().forEach(cambio => {
-            const pagoData = {
-                id: cambio.doc.id,
-                ...cambio.doc.data()
-            };
-            
-            if (pagoData.timestamp && pagoData.timestamp.toDate) {
-                pagoData.timestamp = pagoData.timestamp.toDate();
+        .where('sharedId', '==', 'nuestra_pareja')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot((snapshot) => {
+            if (ignoreNextSnapshot) {
+                ignoreNextSnapshot = false;
+                return;
             }
             
-            // Si no hay timestamp, crear uno basado en la fecha
-            if (!pagoData.timestamp && pagoData.fecha) {
-                const fechaParts = pagoData.fecha.split('-');
-                pagoData.timestamp = new Date(
-                    parseInt(fechaParts[0]), 
-                    parseInt(fechaParts[1]) - 1, 
-                    parseInt(fechaParts[2]),
-                    12, 0, 0
-                );
-            }
+            console.log("📨 Cambios en pagos de límites:", snapshot.docChanges().length);
             
-            switch (cambio.type) {
-                case 'added':
-                    // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
-                    const temporalIndex = pagosLimites.findIndex(p => 
-                        p.id.toString().startsWith('temp_') && 
-                        Math.abs(p.monto - pagoData.monto) < 0.01 &&
-                        p.fecha === pagoData.fecha &&
-                        p.persona === pagoData.persona
+            snapshot.docChanges().forEach(cambio => {
+                const pagoData = {
+                    id: cambio.doc.id,
+                    ...cambio.doc.data()
+                };
+                
+                if (pagoData.timestamp && pagoData.timestamp.toDate) {
+                    pagoData.timestamp = pagoData.timestamp.toDate();
+                }
+                
+                // Si no hay timestamp, crear uno basado en la fecha
+                if (!pagoData.timestamp && pagoData.fecha) {
+                    const fechaParts = pagoData.fecha.split('-');
+                    pagoData.timestamp = new Date(
+                        parseInt(fechaParts[0]), 
+                        parseInt(fechaParts[1]) - 1, 
+                        parseInt(fechaParts[2]),
+                        12, 0, 0
                     );
-                    
-                    if (temporalIndex !== -1) {
-                        // PASO 2: Si existe temporal, REEMPLAZARLO con el dato real
-                        console.log("🗑️ Reemplazando pago temporal con ID real de Firebase");
-                        pagosLimites[temporalIndex] = {
-                            ...pagoData,
-                            sincronizando: false
-                        };
-                        mostrarNotificacion(`✅ Pago sincronizado con la nube`, 'success');
-                    } 
-                    // PASO 3: Solo agregar si NO existe ya (por ID)
-                    else if (!pagosLimites.some(p => p.id === pagoData.id)) {
-                        pagosLimites.push({
-                            ...pagoData,
-                            sincronizando: false
-                        });
-                        mostrarNotificacion(`💰 Nuevo pago registrado en otro dispositivo`, 'info');
-                    }
-                    break;
-                    
-                case 'modified':
-                    const indexMod = pagosLimites.findIndex(p => p.id === pagoData.id);
-                    if (indexMod !== -1) {
-                        pagosLimites[indexMod] = {
-                            ...pagoData,
-                            sincronizando: false
-                        };
-                    }
-                    break;
-                    
-                case 'removed':
-                    // Filtrar el pago eliminado
-                    pagosLimites = pagosLimites.filter(p => p.id !== pagoData.id);
-                    mostrarNotificacion(`📌 Un pago fue eliminado de otro dispositivo`, 'warning');
-                    break;
-            }
+                }
+                
+                switch (cambio.type) {
+                    case 'added':
+                        // PASO 1: Buscar si existe un TEMPORAL con los mismos datos
+                        const temporalIndex = pagosLimites.findIndex(p => 
+                            p.id.toString().startsWith('temp_') && 
+                            Math.abs(p.monto - pagoData.monto) < 0.01 &&
+                            p.fecha === pagoData.fecha &&
+                            p.persona === pagoData.persona
+                        );
+                        
+                        if (temporalIndex !== -1) {
+                            // PASO 2: REEMPLAZAR el temporal con el dato real
+                            console.log("🔄 Reemplazando pago temporal con ID real de Firebase");
+                            pagosLimites[temporalIndex] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                            mostrarNotificacion(`✅ Pago sincronizado con la nube`, 'success');
+                        } 
+                        // PASO 3: Solo agregar si NO existe ya (por ID)
+                        else if (!pagosLimites.some(p => p.id === pagoData.id)) {
+                            pagosLimites.push({
+                                ...pagoData,
+                                sincronizando: false
+                            });
+                            mostrarNotificacion(`💰 Nuevo pago registrado en otro dispositivo`, 'info');
+                        }
+                        break;
+                        
+                    case 'modified':
+                        const indexMod = pagosLimites.findIndex(p => p.id === pagoData.id);
+                        if (indexMod !== -1) {
+                            pagosLimites[indexMod] = {
+                                ...pagoData,
+                                sincronizando: false
+                            };
+                        }
+                        break;
+                        
+                    case 'removed':
+                        // PASO 1: Intentar eliminar por ID exacto
+                        let encontrado = false;
+                        
+                        // Buscar por ID exacto
+                        const idIndex = pagosLimites.findIndex(p => p.id === pagoData.id);
+                        if (idIndex !== -1) {
+                            pagosLimites.splice(idIndex, 1);
+                            encontrado = true;
+                            console.log("✅ Pago eliminado por ID:", pagoData.id);
+                        } else {
+                            // PASO 2: Si no se encuentra por ID, buscar por combinación de datos (especialmente para pagos globales)
+                            const dataIndex = pagosLimites.findIndex(p => 
+                                Math.abs(p.monto - pagoData.monto) < 0.01 &&
+                                p.fecha === pagoData.fecha &&
+                                p.persona === pagoData.persona &&
+                                p.descripcion === pagoData.descripcion
+                            );
+                            
+                            if (dataIndex !== -1) {
+                                pagosLimites.splice(dataIndex, 1);
+                                encontrado = true;
+                                console.log("✅ Pago global eliminado por datos:", pagoData.monto, pagoData.persona);
+                            }
+                        }
+                        
+                        if (encontrado) {
+                            mostrarNotificacion(`📌 Un pago fue eliminado de otro dispositivo`, 'warning');
+                        } else {
+                            console.log("⚠️ No se encontró el pago para eliminar:", pagoData);
+                        }
+                        break;
+                }
+            });
+            
+            actualizarUILimites();
+            saveLimitesToLocalStorage();
+        }, (error) => {
+            console.error("❌ Error en listener de pagos:", error);
         });
-        
-        actualizarUILimites();
-        saveLimitesToLocalStorage();
-    }, (error) => {
-        console.error("❌ Error en listener de pagos:", error);
-    });
     
     unsubscribeConfigLimites = db.collection('config')
         .doc('nuestra_pareja')
